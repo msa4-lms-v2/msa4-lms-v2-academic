@@ -1,4 +1,4 @@
-package com.msa4lmsv2academic.graduation.credit.model;
+package com.msa4lmsv2academic.domain.graduation.entity;
 
 public enum CreditCategory {
     MAJOR,
