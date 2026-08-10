@@ -1,13 +1,10 @@
 package com.msa4lmsv2academic.domain.graduation.service;
 
-import com.msa4lmsv2academic.domain.graduation.entity.CreditCategory;
-import com.msa4lmsv2academic.domain.graduation.error.GraduationCreditDataNotFoundException;
-import com.msa4lmsv2academic.domain.graduation.error.InvalidCreditDiagnosisRequestException;
-import com.msa4lmsv2academic.domain.graduation.repository.EarnedCreditSummaryData;
-import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisData;
+import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisQueryResult;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
-import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditRequirementData;
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
+import com.msa4lmsv2academic.global.error.GraduationCreditDataNotFoundException;
+import com.msa4lmsv2academic.global.error.InvalidCreditDiagnosisRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
@@ -26,32 +23,36 @@ public class GraduationCreditDiagnosisService {
             throw new InvalidCreditDiagnosisRequestException("studentId는 양수여야 합니다.");
         }
 
-        GraduationCreditDiagnosisData diagnosisData = graduationCreditQueryRepository
+        GraduationCreditDiagnosisQueryResult queryResult = graduationCreditQueryRepository
                 .findCreditDiagnosisByStudentId(studentId)
                 .orElseThrow(GraduationCreditDataNotFoundException::new);
-        GraduationCreditRequirementData requirement = diagnosisData.requirement();
-        EarnedCreditSummaryData earnedCredits = diagnosisData.earnedCredits();
 
         int shortageMajorCredits = shortage(
-                requirement.requiredMajorCredits(),
-                earnedCredits.creditsOf(CreditCategory.MAJOR)
+                queryResult.requiredMajorCredits(),
+                queryResult.earnedMajorCredits()
         );
         int shortageGeneralCredits = shortage(
-                requirement.requiredGeneralCredits(),
-                earnedCredits.creditsOf(CreditCategory.GENERAL)
+                queryResult.requiredGeneralCredits(),
+                queryResult.earnedGeneralCredits()
         );
         int shortageTotalCredits = shortage(
-                requirement.requiredTotalCredits(),
-                earnedCredits.totalCredits()
+                queryResult.requiredTotalCredits(),
+                queryResult.earnedTotalCredits()
         );
 
-        return CreditDiagnosisResponseDTO.from(
+        GraduationCreditDiagnosisResult diagnosisResult = new GraduationCreditDiagnosisResult(
                 studentId,
-                earnedCredits,
+                queryResult.earnedMajorCredits(),
+                queryResult.earnedGeneralCredits(),
+                queryResult.earnedRequiredCredits(),
+                queryResult.earnedElectiveCredits(),
+                queryResult.earnedTotalCredits(),
                 shortageMajorCredits,
                 shortageGeneralCredits,
-                shortageTotalCredits
+                shortageTotalCredits,
+                shortageMajorCredits == 0 && shortageGeneralCredits == 0 && shortageTotalCredits == 0
         );
+        return CreditDiagnosisResponseDTO.from(diagnosisResult);
     }
 
     private int shortage(int requiredCredits, int earnedCredits) {
