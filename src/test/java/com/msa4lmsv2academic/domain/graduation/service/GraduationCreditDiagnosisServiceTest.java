@@ -5,15 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.msa4lmsv2academic.domain.graduation.entity.CreditCategory;
-import com.msa4lmsv2academic.domain.graduation.error.GraduationCreditDataNotFoundException;
-import com.msa4lmsv2academic.domain.graduation.error.InvalidCreditDiagnosisRequestException;
-import com.msa4lmsv2academic.domain.graduation.repository.EarnedCreditSummaryData;
-import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisData;
+import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisQueryResult;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
-import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditRequirementData;
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
-import java.util.Map;
+import com.msa4lmsv2academic.global.error.GraduationCreditDataNotFoundException;
+import com.msa4lmsv2academic.global.error.InvalidCreditDiagnosisRequestException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -22,16 +18,7 @@ class GraduationCreditDiagnosisServiceTest {
     @Test
     void diagnosesShortageByDocumentedCreditRequirements() {
         GraduationCreditDiagnosisService service = serviceWith(
-                new GraduationCreditRequirementData(60, 30, 130),
-                new EarnedCreditSummaryData(
-                        120,
-                        Map.of(
-                                CreditCategory.MAJOR, 54,
-                                CreditCategory.GENERAL, 32,
-                                CreditCategory.REQUIRED, 40,
-                                CreditCategory.ELECTIVE, 80
-                        )
-                )
+                new GraduationCreditDiagnosisQueryResult(60, 30, 130, 54, 32, 40, 80, 120)
         );
 
         CreditDiagnosisResponseDTO response = service.diagnose(1001L);
@@ -45,16 +32,7 @@ class GraduationCreditDiagnosisServiceTest {
     @Test
     void reportsSatisfiedWhenAllDocumentedRequirementsAreMet() {
         GraduationCreditDiagnosisService service = serviceWith(
-                new GraduationCreditRequirementData(60, 30, 130),
-                new EarnedCreditSummaryData(
-                        132,
-                        Map.of(
-                                CreditCategory.MAJOR, 62,
-                                CreditCategory.GENERAL, 34,
-                                CreditCategory.REQUIRED, 45,
-                                CreditCategory.ELECTIVE, 87
-                        )
-                )
+                new GraduationCreditDiagnosisQueryResult(60, 30, 130, 62, 34, 45, 87, 132)
         );
 
         CreditDiagnosisResponseDTO response = service.diagnose(1001L);
@@ -68,8 +46,7 @@ class GraduationCreditDiagnosisServiceTest {
     @Test
     void rejectsInvalidStudentId() {
         GraduationCreditDiagnosisService service = serviceWith(
-                new GraduationCreditRequirementData(60, 30, 130),
-                new EarnedCreditSummaryData(0, Map.of())
+                new GraduationCreditDiagnosisQueryResult(60, 30, 130, 0, 0, 0, 0, 0)
         );
 
         assertThrows(InvalidCreditDiagnosisRequestException.class, () -> service.diagnose(0L));
@@ -83,12 +60,8 @@ class GraduationCreditDiagnosisServiceTest {
         assertThrows(GraduationCreditDataNotFoundException.class, () -> service.diagnose(1001L));
     }
 
-    private GraduationCreditDiagnosisService serviceWith(
-            GraduationCreditRequirementData requirement,
-            EarnedCreditSummaryData earnedCredits
-    ) {
-        GraduationCreditDiagnosisData data = new GraduationCreditDiagnosisData(requirement, earnedCredits);
-        GraduationCreditQueryRepository repository = studentId -> Optional.of(data);
+    private GraduationCreditDiagnosisService serviceWith(GraduationCreditDiagnosisQueryResult queryResult) {
+        GraduationCreditQueryRepository repository = studentId -> Optional.of(queryResult);
         return new GraduationCreditDiagnosisService(repository);
     }
 }

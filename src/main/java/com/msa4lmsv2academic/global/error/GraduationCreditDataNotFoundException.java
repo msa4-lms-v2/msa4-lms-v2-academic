@@ -1,6 +1,5 @@
-package com.msa4lmsv2academic.domain.graduation.error;
+package com.msa4lmsv2academic.global.error;
 
-import com.msa4lmsv2academic.global.error.BusinessException;
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 
 public class GraduationCreditDataNotFoundException extends BusinessException {

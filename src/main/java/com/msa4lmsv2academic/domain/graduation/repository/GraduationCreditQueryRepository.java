@@ -4,5 +4,5 @@ import java.util.Optional;
 
 public interface GraduationCreditQueryRepository {
 
-    Optional<GraduationCreditDiagnosisData> findCreditDiagnosisByStudentId(Long studentId);
+    Optional<GraduationCreditDiagnosisQueryResult> findCreditDiagnosisByStudentId(Long studentId);
 }
