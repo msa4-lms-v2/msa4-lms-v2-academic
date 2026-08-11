@@ -20,7 +20,8 @@ public class SecurityConfig {
     private static final String[] SWAGGER_PATHS = {
             "/swagger-ui.html",
             "/swagger-ui/**",
-            "/v3/api-docs/**"
+            "/api-docs",
+            "/api-docs/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
