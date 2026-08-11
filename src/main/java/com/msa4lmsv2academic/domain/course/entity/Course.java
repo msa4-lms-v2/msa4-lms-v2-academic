@@ -14,10 +14,11 @@ public class Course {
     @Column(nullable = false, length = 20) private String code;
     @Column(nullable = false, length = 100) private String name;
     @Column(nullable = false) private byte credits;
-    @Column(name = "target_grade", nullable = false) private byte targetGrade;
+    @Column(name = "target_grade") private Byte targetGrade;
     @Enumerated(EnumType.STRING) @Column(name = "completion_type", nullable = false, length = 30) private CompletionType completionType;
 
-    private Course(Department department, String code, String name, byte credits, byte targetGrade, CompletionType completionType) {
+    private Course(Department department, String code, String name, byte credits, Byte targetGrade,
+                   CompletionType completionType) {
         this.department = department;
         this.code = code;
         this.name = name;
@@ -26,7 +27,8 @@ public class Course {
         this.completionType = completionType;
     }
 
-    public static Course create(Department department, String code, String name, byte credits, byte targetGrade, CompletionType completionType) {
+    public static Course create(Department department, String code, String name, byte credits, Byte targetGrade,
+                                CompletionType completionType) {
         return new Course(department, code, name, credits, targetGrade, completionType);
     }
 }

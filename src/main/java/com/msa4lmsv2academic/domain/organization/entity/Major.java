@@ -10,7 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class Major {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @EqualsAndHashCode.Include private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "department_id", nullable = false) private Department department;
-    @Column(nullable = false, length = 50) private String code;
+    @Column(nullable = false, length = 20) private String code;
     @Column(nullable = false, length = 100) private String name;
     @Column(nullable = false) private boolean active;
 

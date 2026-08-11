@@ -21,7 +21,7 @@ public class GraduationRequirement {
     @Column(name = "required_major_credits", nullable = false) private int requiredMajorCredits;
     @Column(name = "required_general_credits", nullable = false) private int requiredGeneralCredits;
     @Column(name = "required_total_credits", nullable = false) private int requiredTotalCredits;
-    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "required_courses", nullable = false, columnDefinition = "json") private List<String> requiredCourses;
+    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "required_courses", columnDefinition = "json") private List<String> requiredCourses;
     @CreatedDate @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
     @LastModifiedDate @Column(name = "updated_at", nullable = false) private LocalDateTime updatedAt;
 
@@ -32,7 +32,7 @@ public class GraduationRequirement {
         this.requiredMajorCredits = requiredMajorCredits;
         this.requiredGeneralCredits = requiredGeneralCredits;
         this.requiredTotalCredits = requiredTotalCredits;
-        this.requiredCourses = List.copyOf(requiredCourses);
+        this.requiredCourses = requiredCourses == null ? null : List.copyOf(requiredCourses);
     }
 
     public static GraduationRequirement create(Department department, short admissionYear, int requiredMajorCredits,

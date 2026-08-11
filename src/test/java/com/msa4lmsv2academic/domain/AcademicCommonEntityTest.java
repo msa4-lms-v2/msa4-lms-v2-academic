@@ -21,6 +21,7 @@ import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -34,13 +35,15 @@ class AcademicCommonEntityTest {
         Major major = Major.create(department, "CSE", "컴퓨터공학", true);
         User professorUser = User.synchronize(10L, "교수", "professor@test.com", null, null,
                 UserRole.PROFESSOR, UserStatus.ACTIVE);
-        Professor professor = Professor.create(professorUser, (short) 2020, department);
+        Professor professor = Professor.create(professorUser, null, department);
         User studentUser = User.synchronize(20L, "학생", "student@test.com", null, null,
                 UserRole.STUDENT, UserStatus.ACTIVE);
         Student student = Student.create(studentUser, department, major, (byte) 4, (short) 2022,
-                AcademicStatus.ENROLLED, professor);
-        Semester semester = Semester.create(2026, SemesterTerm.FIRST);
-        Course course = Course.create(department, "CSE101", "프로그래밍", (byte) 3, (byte) 1,
+                professor);
+        Semester semester = Semester.create((short) 2026, SemesterTerm.FIRST,
+                LocalDate.of(2026, 3, 2), LocalDate.of(2026, 6, 19),
+                LocalDateTime.of(2026, 2, 16, 9, 0), LocalDateTime.of(2026, 2, 20, 18, 0), true);
+        Course course = Course.create(department, "CSE101", "프로그래밍", (byte) 3, null,
                 CompletionType.MAJOR_REQUIRED);
         Lecture lecture = Lecture.create(semester, course, professor, "01", 30, "A101",
                 LectureStatus.OPEN, 30, 30, 20, 20, "강의계획");
@@ -50,6 +53,10 @@ class AcademicCommonEntityTest {
 
         assertThat(student.getDepartment()).isSameAs(department);
         assertThat(student.getMajor()).isSameAs(major);
+        assertThat(student.getAcademicStatus()).isEqualTo(AcademicStatus.ENROLLED);
+        assertThat(professor.getHireYear()).isNull();
+        assertThat(course.getTargetGrade()).isNull();
+        assertThat(semester.isCurrent()).isTrue();
         assertThat(lecture.getCourse()).isSameAs(course);
         assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
         assertThat(enrollment.getGradeStatus()).isEqualTo(GradeStatus.DRAFT);
@@ -58,5 +65,22 @@ class AcademicCommonEntityTest {
         enrollment.cancel();
 
         assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+    }
+
+    @Test
+    void nullableErdFieldsAndAccountSynchronizationAreSupported() {
+        User user = User.provision(30L, "관리자", null, null, null, null);
+        College college = College.create("ETC", "기타대학", true);
+        Department department = Department.create("FREE", college, "자유전공학부", true);
+        GraduationRequirement requirement = GraduationRequirement.create(
+                department, (short) 2026, 30, 30, 120, null
+        );
+
+        user.synchronizeAccount(UserRole.ADMIN, UserStatus.LOCKED);
+
+        assertThat(user.getEmail()).isNull();
+        assertThat(user.getRole()).isEqualTo(UserRole.ADMIN);
+        assertThat(user.getStatus()).isEqualTo(UserStatus.LOCKED);
+        assertThat(requirement.getRequiredCourses()).isNull();
     }
 }

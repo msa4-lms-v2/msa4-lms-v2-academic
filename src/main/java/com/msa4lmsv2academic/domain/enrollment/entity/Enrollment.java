@@ -22,7 +22,7 @@ public class Enrollment {
     @Column(name = "assignment_score", precision = 5, scale = 2) private BigDecimal assignmentScore;
     @Column(name = "attendance_score", precision = 5, scale = 2) private BigDecimal attendanceScore;
     @Column(name = "total_score", precision = 5, scale = 2) private BigDecimal totalScore;
-    @Column(name = "letter_grade", length = 2) private String letterGrade;
+    @Column(name = "letter_grade", length = 5) private String letterGrade;
     @Enumerated(EnumType.STRING) @Column(name = "grade_status", nullable = false, length = 20) private GradeStatus gradeStatus;
 
     private Enrollment(Student student, Lecture lecture, EnrollmentStatus status, LocalDateTime enrolledAt,
