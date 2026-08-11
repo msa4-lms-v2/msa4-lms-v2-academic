@@ -2,8 +2,6 @@ package com.msa4lmsv2academic.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,11 +17,6 @@ import org.testcontainers.mysql.MySQLContainer;
         "classpath:dummy/01_msa4-lms-v2-academic-sample.sql"
 })
 class AcademicDummyDataTest {
-
-    private static final String JWT_SECRET = Base64.getUrlEncoder()
-            .withoutPadding()
-            .encodeToString("academic-dummy-test-jwt-secret-key-that-is-longer-than-thirty-two-bytes"
-                    .getBytes(StandardCharsets.UTF_8));
 
     private static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
             .withDatabaseName("lms_academic_dummy_test")
@@ -41,7 +34,6 @@ class AcademicDummyDataTest {
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.sql.init.mode", () -> "always");
         registry.add("spring.sql.init.data-locations", () -> "optional:classpath:test-data.sql");
-        registry.add("jwt.secret", () -> JWT_SECRET);
         registry.add("springdoc.api-docs.enabled", () -> "false");
         registry.add("springdoc.swagger-ui.enabled", () -> "false");
     }

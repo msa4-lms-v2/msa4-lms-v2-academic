@@ -1,6 +1,6 @@
 package com.msa4lmsv2academic.global.security;
 
-import com.msa4lmsv2academic.global.security.filter.JwtAuthenticationFilter;
+import com.msa4lmsv2academic.global.security.filter.GatewayHeaderAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,9 +24,9 @@ public class SecurityConfig {
             "/api-docs/**"
     };
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final GatewayHeaderAuthenticationFilter gatewayHeaderAuthenticationFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,9 +37,9 @@ public class SecurityConfig {
                         .requestMatchers(SWAGGER_PATHS).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler))
+                .addFilterBefore(gatewayHeaderAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
