@@ -6,7 +6,6 @@ import com.msa4lmsv2academic.domain.organization.repository.CollegeRepository;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,7 +16,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 
@@ -204,7 +202,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                 .claim("role", role)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(3600)))
-                .signWith(Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .signWith(jwtSigningKey())
                 .compact();
         return "Bearer " + token;
     }

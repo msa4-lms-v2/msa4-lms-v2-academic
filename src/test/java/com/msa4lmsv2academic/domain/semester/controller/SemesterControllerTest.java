@@ -12,9 +12,7 @@ import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.persistence.EntityManager;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import org.junit.jupiter.api.BeforeEach;
@@ -182,7 +180,7 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                 .claim("role", role)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(3600)))
-                .signWith(Keys.hmacShaKeyFor(JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                .signWith(jwtSigningKey())
                 .compact();
         return "Bearer " + token;
     }
