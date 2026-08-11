@@ -2,9 +2,11 @@ package com.msa4lmsv2academic.global.security;
 
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.security.filter.JwtAuthenticationFilter;
+import com.msa4lmsv2academic.global.security.filter.GatewayHeaderAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
@@ -12,23 +14,21 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
 @Component
 @RequiredArgsConstructor
-public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private final ObjectMapper objectMapper;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authenticationException) throws IOException {
-        boolean invalidToken = Boolean.TRUE.equals(request.getAttribute(JwtAuthenticationFilter.INVALID_TOKEN_ATTRIBUTE));
-        CustomResponseCode code = invalidToken
+        boolean invalidAuthentication = Boolean.TRUE.equals(
+                request.getAttribute(GatewayHeaderAuthenticationFilter.INVALID_AUTHENTICATION_ATTRIBUTE));
+        CustomResponseCode code = invalidAuthentication
                 ? CustomResponseCode.INVALID_TOKEN
                 : CustomResponseCode.UNAUTHENTICATED;
-        String message = invalidToken ? "유효하지 않은 토큰입니다." : "인증이 필요합니다.";
+        String message = invalidAuthentication ? "유효하지 않은 인증 정보입니다." : "인증이 필요합니다.";
 
         response.setStatus(code.getHttpStatus().value());
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());

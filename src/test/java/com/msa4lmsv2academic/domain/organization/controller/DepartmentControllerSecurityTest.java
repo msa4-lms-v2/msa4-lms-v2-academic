@@ -5,7 +5,6 @@ import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.repository.CollegeRepository;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
-import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,11 +12,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.time.Instant;
-import java.util.Date;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -57,7 +54,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     @ValueSource(strings = {"STUDENT", "PROFESSOR", "ADMIN"})
     void getAllowsAllDocumentedRoles(String role) throws Exception {
         mockMvc.perform(get("/api/academic/catalog/departments")
-                        .header("Authorization", bearer(role)))
+                        .headers(gatewayHeaders(1L, role)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("00"))
                 .andExpect(jsonPath("$.data.page").value(1))
@@ -72,14 +69,14 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                 """.formatted(engineering.getId());
 
         mockMvc.perform(post("/api/academic/catalog/departments")
-                        .header("Authorization", bearer(role))
+                        .headers(gatewayHeaders(1L, role))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("E03"));
 
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer(role))
+                        .headers(gatewayHeaders(1L, role))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":true}"))
                 .andExpect(status().isForbidden())
@@ -94,17 +91,17 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void invalidTokenReturns401AndE04() throws Exception {
+    void incompleteGatewayHeadersReturn401AndE04() throws Exception {
         mockMvc.perform(get("/api/academic/catalog/departments")
-                        .header("Authorization", "Bearer invalid.jwt.token"))
+                        .header("X-User-Id", "1"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("E04"));
     }
 
     @Test
-    void tokenWithUnsupportedRoleReturns401AndE04() throws Exception {
+    void gatewayHeadersWithUnsupportedRoleReturn401AndE04() throws Exception {
         mockMvc.perform(get("/api/academic/catalog/departments")
-                        .header("Authorization", bearer("SYSTEM")))
+                        .headers(gatewayHeaders(1L, "SYSTEM")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("E04"));
     }
@@ -112,12 +109,12 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     @Test
     void studentCannotDiscoverInactiveDepartmentButAdminCan() throws Exception {
         mockMvc.perform(get("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("STUDENT")))
+                        .headers(gatewayHeaders(1L, "STUDENT")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("E10"));
 
         mockMvc.perform(get("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("ADMIN")))
+                        .headers(gatewayHeaders(1L, "ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("00"))
                 .andExpect(jsonPath("$.data.active").value(false));
@@ -130,7 +127,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/academic/catalog/departments")
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -143,7 +140,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     @Test
     void adminPatchReturns200AndRejectsEmptyOrCodeField() throws Exception {
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"기계시스템공학과\"}"))
                 .andExpect(status().isOk())
@@ -152,21 +149,21 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$.data.name").value("기계시스템공학과"));
 
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("E21"));
 
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"NEW\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("E21"));
 
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"collegeId\":2}"))
                 .andExpect(status().isBadRequest())
@@ -176,7 +173,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     @Test
     void adminCreateRejectsCodeLongerThanTwentyCharacters() throws Exception {
         mockMvc.perform(post("/api/academic/catalog/departments")
-                        .header("Authorization", bearer("ADMIN"))
+                        .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"123456789012345678901\",\"name\":\"컴퓨터공학과\"}"))
                 .andExpect(status().isBadRequest())
@@ -188,22 +185,17 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
         mockMvc.perform(get("/api/academic/catalog/departments")
                         .queryParam("size", "500")
                         .queryParam("active", "false")
-                        .header("Authorization", bearer("STUDENT")))
+                        .headers(gatewayHeaders(1L, "STUDENT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.size").value(100))
                 .andExpect(jsonPath("$.data.totalCount").value(1))
                 .andExpect(jsonPath("$.data.items[0].code").value("CSE"));
     }
 
-    private String bearer(String role) {
-        Instant now = Instant.now();
-        String token = Jwts.builder()
-                .subject("1")
-                .claim("role", role)
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(3600)))
-                .signWith(jwtSigningKey())
-                .compact();
-        return "Bearer " + token;
+    private HttpHeaders gatewayHeaders(Long userId, String role) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+        return headers;
     }
 }

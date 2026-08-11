@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Graduation Credit Diagnosis", description = "전공·교양·필수·선택 학점 진단 API")
 @Validated
 @RestController
-@RequestMapping("/api/common")
+@RequestMapping("/api/academic")
 @RequiredArgsConstructor
 public class GraduationCreditDiagnosisController {
 

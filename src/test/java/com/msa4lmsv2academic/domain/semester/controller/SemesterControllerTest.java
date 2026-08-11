@@ -11,10 +11,7 @@ import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
-import io.jsonwebtoken.Jwts;
 import jakarta.persistence.EntityManager;
-import java.time.Instant;
-import java.util.Date;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,6 +19,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,7 +66,7 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                         .queryParam("academicYear", "2026")
                         .queryParam("term", "FIRST")
                         .queryParam("isCurrent", "true")
-                        .header("Authorization", bearer(100L, role)))
+                        .headers(gatewayHeaders(100L, role)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("00"))
                 .andExpect(jsonPath("$.data.items").isEmpty())
@@ -81,7 +79,7 @@ class SemesterControllerTest extends MySqlIntegrationTest {
     @ValueSource(strings = {"STUDENT", "PROFESSOR"})
     void nonAdminCannotCreateSemester(String role) throws Exception {
         mockMvc.perform(post("/api/academic/catalog/semesters")
-                        .header("Authorization", bearer(100L, role))
+                        .headers(gatewayHeaders(100L, role))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validBody(2026, "FIRST", true)))
                 .andExpect(status().isForbidden())
@@ -91,7 +89,7 @@ class SemesterControllerTest extends MySqlIntegrationTest {
     @Test
     void adminCreatesSemesterWith201AndAuditLog() throws Exception {
         mockMvc.perform(post("/api/academic/catalog/semesters")
-                        .header("Authorization", bearer(ADMIN_ID, "ADMIN"))
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .header("X-Request-Id", "semester-controller-request")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validBody(2026, "FIRST", true)))
@@ -107,13 +105,13 @@ class SemesterControllerTest extends MySqlIntegrationTest {
     @Test
     void duplicateSemesterReturns409() throws Exception {
         mockMvc.perform(post("/api/academic/catalog/semesters")
-                        .header("Authorization", bearer(ADMIN_ID, "ADMIN"))
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validBody(2026, "FIRST", false)))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/academic/catalog/semesters")
-                        .header("Authorization", bearer(ADMIN_ID, "ADMIN"))
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validBody(2026, "FIRST", true)))
                 .andExpect(status().isConflict())
@@ -135,7 +133,7 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/academic/catalog/semesters")
-                        .header("Authorization", bearer(ADMIN_ID, "ADMIN"))
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -173,15 +171,10 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                 """.formatted(academicYear, term, current);
     }
 
-    private String bearer(Long userId, String role) {
-        Instant now = Instant.now();
-        String token = Jwts.builder()
-                .subject(String.valueOf(userId))
-                .claim("role", role)
-                .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(3600)))
-                .signWith(jwtSigningKey())
-                .compact();
-        return "Bearer " + token;
+    private HttpHeaders gatewayHeaders(Long userId, String role) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+        return headers;
     }
 }

@@ -28,6 +28,12 @@ class SemesterOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/semesters']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/semesters']['post']").exists())
                 .andExpect(jsonPath(
+                        "$['paths']['/api/academic/credit-requirement-diagnosis']['get']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/common/credit-requirement-diagnosis']"
+                ).doesNotExist())
+                .andExpect(jsonPath(
                         "$['paths']['/api/academic/catalog/semesters']['get']['operationId']"
                 ).value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath(
