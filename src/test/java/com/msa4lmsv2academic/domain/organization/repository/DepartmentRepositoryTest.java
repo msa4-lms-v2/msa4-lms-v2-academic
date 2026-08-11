@@ -1,21 +1,20 @@
 package com.msa4lmsv2academic.domain.organization.repository;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceUnitUtil;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -57,33 +56,37 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void departmentNameMustBeUniqueWithinCollege() {
-        departmentRepository.saveAndFlush(Department.create("CSE", engineering, "컴퓨터공학과", true));
-
+    void departmentCodeHasDatabaseLengthOfTwenty() {
         assertThatThrownBy(() -> departmentRepository.saveAndFlush(
-                Department.create("AIC", engineering, "컴퓨터공학과", true)
+                Department.create("123456789012345678901", engineering, "컴퓨터공학과", true)
         )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    void sameDepartmentNameIsAllowedInDifferentColleges() {
+    void duplicateDepartmentNameIsAllowedWithinSameCollege() {
         departmentRepository.save(Department.create("CSE", engineering, "컴퓨터공학과", true));
-        departmentRepository.saveAndFlush(Department.create("HCS", humanities, "컴퓨터공학과", true));
+        departmentRepository.saveAndFlush(Department.create("AIC", engineering, "컴퓨터공학과", true));
 
         assertThat(departmentRepository.count()).isEqualTo(2);
     }
 
     @Test
-    void departmentKeepsCollegeForeignKeyRelationship() {
-        Department saved = departmentRepository.saveAndFlush(
+    void departmentKeepsNullableCollegeRelationship() {
+        Department withCollege = departmentRepository.saveAndFlush(
                 Department.create("CSE", engineering, "컴퓨터공학과", true)
+        );
+        Department withoutCollege = departmentRepository.saveAndFlush(
+                Department.create("FREE", null, "자유전공학부", true)
         );
         entityManager.clear();
 
-        Department found = departmentQueryRepository.findByIdWithCollege(saved.getId()).orElseThrow();
+        Department foundWithCollege = departmentQueryRepository.findByIdWithCollege(withCollege.getId())
+                .orElseThrow();
+        Department foundWithoutCollege = departmentQueryRepository.findByIdWithCollege(withoutCollege.getId())
+                .orElseThrow();
 
-        assertThat(found.getCollege().getId()).isEqualTo(engineering.getId());
-        assertThat(found.getCollege().getCode()).isEqualTo("ENG");
+        assertThat(foundWithCollege.getCollege().getId()).isEqualTo(engineering.getId());
+        assertThat(foundWithoutCollege.getCollege()).isNull();
     }
 
     @Test
@@ -92,18 +95,24 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
                 Department.create("CSE", engineering, "컴퓨터공학과", true),
                 Department.create("MEC", engineering, "기계공학과", false),
                 Department.create("KOR", humanities, "국어국문학과", true),
-                Department.create("OLD", inactiveCollege, "폐지학과", true)
+                Department.create("OLD", inactiveCollege, "폐지학과", true),
+                Department.create("FREE", null, "자유전공학부", true)
         ));
         entityManager.clear();
 
-        DepartmentSearchResult studentResult = departmentQueryRepository.search(
-                new DepartmentSearchCondition(0, 20, engineering.getId(), false, " cse ", false)
+        DepartmentSearchResult studentCodeResult = departmentQueryRepository.search(
+                new DepartmentSearchCondition(0, 20, engineering.getId(), false, " CSE ", false)
+        );
+        DepartmentSearchResult studentAllResult = departmentQueryRepository.search(
+                new DepartmentSearchCondition(0, 20, null, null, null, false)
         );
         DepartmentSearchResult adminInactiveResult = departmentQueryRepository.search(
                 new DepartmentSearchCondition(0, 20, engineering.getId(), false, "공학", true)
         );
 
-        assertThat(studentResult.items()).extracting(Department::getCode).containsExactly("CSE");
+        assertThat(studentCodeResult.items()).extracting(Department::getCode).containsExactly("CSE");
+        assertThat(studentAllResult.items()).extracting(Department::getCode)
+                .containsExactly("CSE", "FREE", "KOR");
         assertThat(adminInactiveResult.items()).extracting(Department::getCode).containsExactly("MEC");
     }
 

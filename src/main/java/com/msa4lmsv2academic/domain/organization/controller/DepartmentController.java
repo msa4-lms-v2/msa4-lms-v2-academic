@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Departments", description = "SCRUM-92 학과 조회·등록·수정 API")
+@Tag(name = "Departments", description = "학과 조회·등록·수정 API")
 @Validated
 @RestController
 @RequestMapping("/api/academic/catalog/departments")
@@ -86,7 +86,7 @@ public class DepartmentController {
 
     @Operation(
             summary = "학과 등록",
-            description = "ADMIN만 학과를 등록할 수 있습니다. 활성 단과대에만 등록할 수 있으며 code는 대문자로 정규화됩니다.",
+            description = "ADMIN만 학과를 등록할 수 있습니다. collegeId는 선택값이며 지정한 경우 활성 단과대여야 합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
@@ -95,7 +95,7 @@ public class DepartmentController {
             @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "404", description = "단과대 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "학과 코드 또는 단과대 내 학과명 중복", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "409", description = "학과 코드 중복", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -108,7 +108,7 @@ public class DepartmentController {
 
     @Operation(
             summary = "학과 부분 수정",
-            description = "ADMIN만 name, collegeId, active를 부분 수정할 수 있으며 code는 변경할 수 없습니다.",
+            description = "ADMIN만 name과 active를 부분 수정할 수 있으며 code와 collegeId는 변경할 수 없습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
@@ -116,8 +116,7 @@ public class DepartmentController {
             @ApiResponse(responseCode = "400", description = "빈 PATCH 또는 잘못된 요청", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "학과 또는 단과대 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "단과대 내 학과명 중복", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "404", description = "학과 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
     @PatchMapping("/{departmentId}")
     @PreAuthorize("hasRole('ADMIN')")

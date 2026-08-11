@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS colleges (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    code VARCHAR(50) NOT NULL,
+    code VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
     active TINYINT(1) NOT NULL DEFAULT 1,
     PRIMARY KEY (id),
@@ -9,13 +9,12 @@ CREATE TABLE IF NOT EXISTS colleges (
 
 CREATE TABLE IF NOT EXISTS departments (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    code VARCHAR(50) NOT NULL,
-    college_id BIGINT NOT NULL,
+    code VARCHAR(20) NOT NULL,
+    college_id BIGINT NULL,
     name VARCHAR(100) NOT NULL,
     active TINYINT(1) NOT NULL DEFAULT 1,
     PRIMARY KEY (id),
     CONSTRAINT uk_departments_code UNIQUE (code),
-    CONSTRAINT uk_departments_college_name UNIQUE (college_id, name),
     CONSTRAINT fk_departments_college
         FOREIGN KEY (college_id) REFERENCES colleges (id)
         ON DELETE RESTRICT,

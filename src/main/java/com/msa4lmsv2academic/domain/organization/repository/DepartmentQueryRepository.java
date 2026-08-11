@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import static com.msa4lmsv2academic.domain.organization.entity.QDepartment.department;
@@ -24,7 +23,7 @@ public class DepartmentQueryRepository {
 
         List<Department> items = jpaQueryFactory
                 .selectFrom(department)
-                .join(department.college).fetchJoin()
+                .leftJoin(department.college).fetchJoin()
                 .where(predicates)
                 .orderBy(department.code.asc(), department.id.asc())
                 .offset(condition.offset())
@@ -34,7 +33,7 @@ public class DepartmentQueryRepository {
         Long totalCount = jpaQueryFactory
                 .select(department.count())
                 .from(department)
-                .join(department.college)
+                .leftJoin(department.college)
                 .where(predicates)
                 .fetchOne();
 
@@ -44,7 +43,7 @@ public class DepartmentQueryRepository {
     public Optional<Department> findByIdWithCollege(Long departmentId) {
         return Optional.ofNullable(jpaQueryFactory
                 .selectFrom(department)
-                .join(department.college).fetchJoin()
+                .leftJoin(department.college).fetchJoin()
                 .where(department.id.eq(departmentId))
                 .fetchOne());
     }
@@ -62,7 +61,7 @@ public class DepartmentQueryRepository {
             }
         } else {
             predicates.and(department.active.isTrue());
-            predicates.and(department.college.active.isTrue());
+            predicates.and(department.college.isNull().or(department.college.active.isTrue()));
         }
 
         keywordPredicate(condition.keyword()).ifPresent(predicates::and);
@@ -75,9 +74,8 @@ public class DepartmentQueryRepository {
         }
 
         String trimmedKeyword = keyword.trim();
-        String normalizedCode = trimmedKeyword.toUpperCase(Locale.ROOT);
         return Optional.of(
-                department.code.eq(normalizedCode)
+                department.code.eq(trimmedKeyword)
                         .or(department.name.containsIgnoreCase(trimmedKeyword))
         );
     }
