@@ -32,6 +32,7 @@ public abstract class MySqlIntegrationTest {
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.sql.init.mode", () -> "always");
+        registry.add("spring.sql.init.data-locations", () -> "optional:classpath:test-data.sql");
         registry.add("jwt.secret", () -> JWT_SECRET);
         registry.add("springdoc.api-docs.enabled", () -> "true");
         registry.add("springdoc.api-docs.path", () -> "/api-docs");

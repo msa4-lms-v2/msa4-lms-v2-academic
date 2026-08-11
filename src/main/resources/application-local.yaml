@@ -1,3 +1,9 @@
+spring:
+  sql:
+    init:
+      mode: always
+      data-locations: classpath*:dummy/*.sql
+
 springdoc:
   api-docs:
     enabled: true
@@ -9,3 +15,7 @@ springdoc:
     tags-sorter: alpha
     persist-authorization: true
     display-request-duration: true
+
+logging:
+  level:
+    com.msa4lmsv2academic: debug
