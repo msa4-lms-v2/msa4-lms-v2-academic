@@ -9,13 +9,20 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity @Getter @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED) @EntityListeners(AuditingEntityListener.class)
-@Table(name = "lectures")
+@Table(
+        name = "lectures",
+        indexes = {
+                @Index(name = "idx_lectures_semester_id", columnList = "semester_id"),
+                @Index(name = "idx_lectures_course_id", columnList = "course_id"),
+                @Index(name = "idx_lectures_professor_id", columnList = "professor_id")
+        }
+)
 public class Lecture {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @EqualsAndHashCode.Include private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "semester_id", nullable = false) private Semester semester;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "course_id", nullable = false) private Course course;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "professor_id", nullable = false) private Professor professor;
-    @Column(name = "section_no", nullable = false, length = 20) private String sectionNo;
+    @Column(name = "section_no", nullable = false, length = 10) private String sectionNo;
     @Column(nullable = false) private int capacity;
     @Column(length = 50) private String classroom;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private LectureStatus status;
@@ -23,7 +30,7 @@ public class Lecture {
     @Column(name = "final_ratio", nullable = false) private int finalRatio;
     @Column(name = "assignment_ratio", nullable = false) private int assignmentRatio;
     @Column(name = "attendance_ratio", nullable = false) private int attendanceRatio;
-    @Lob private String syllabus;
+    @Column(columnDefinition = "text") private String syllabus;
 
     private Lecture(Semester semester, Course course, Professor professor, String sectionNo, int capacity,
                     String classroom, LectureStatus status, int midtermRatio, int finalRatio,
