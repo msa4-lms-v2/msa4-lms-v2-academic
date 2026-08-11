@@ -13,6 +13,27 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT uk_users_email UNIQUE (email)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    actor_id BIGINT NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id BIGINT NOT NULL,
+    before_value JSON NULL,
+    after_value JSON NULL,
+    reason VARCHAR(255) NULL,
+    request_id VARCHAR(50) NULL,
+    ip_address VARCHAR(45) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_audit_logs_actor
+        FOREIGN KEY (actor_id) REFERENCES users (id)
+        ON DELETE RESTRICT,
+    INDEX idx_audit_logs_actor_id (actor_id),
+    INDEX idx_audit_logs_target (target_type, target_id),
+    INDEX idx_audit_logs_created_at (created_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS colleges (
     id BIGINT NOT NULL AUTO_INCREMENT,
     code VARCHAR(20) NOT NULL,
