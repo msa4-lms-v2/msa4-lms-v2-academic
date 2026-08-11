@@ -23,16 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DepartmentService {
 
-    private static final Pattern DEPARTMENT_CODE_PATTERN = Pattern.compile("[A-Z0-9-]+");
-    private static final int MAX_CODE_LENGTH = 50;
+    private static final int MAX_CODE_LENGTH = 20;
     private static final int MAX_NAME_LENGTH = 100;
 
     private final DepartmentRepository departmentRepository;
@@ -68,7 +65,8 @@ public class DepartmentService {
         Department department = departmentQueryRepository.findByIdWithCollege(departmentId)
                 .orElseThrow(DepartmentNotFoundException::new);
 
-        if (!currentUser.isAdmin() && (!department.isActive() || !department.getCollege().isActive())) {
+        if (!currentUser.isAdmin() && (!department.isActive()
+                || department.getCollege() != null && !department.getCollege().isActive())) {
             throw new DepartmentNotFoundException();
         }
 
@@ -77,13 +75,11 @@ public class DepartmentService {
 
     @Transactional
     public DepartmentResponseDTO createDepartment(DepartmentCreateRequestDTO request) {
-        String code = normalizeAndValidateCode(request.code());
+        String code = validateCode(request.code());
         String name = normalizeAndValidateName(request.name());
         College college = getActiveCollege(request.collegeId());
 
         validateUniqueCode(code);
-        validateUniqueName(college.getId(), name, null);
-
         Department department = Department.create(
                 code,
                 college,
@@ -94,14 +90,14 @@ public class DepartmentService {
         try {
             return DepartmentResponseDTO.from(departmentRepository.saveAndFlush(department));
         } catch (DataIntegrityViolationException exception) {
-            throw new DuplicateDepartmentException("이미 등록된 학과 코드 또는 단과대 내 학과명입니다.");
+            throw new DuplicateDepartmentException("이미 등록된 학과 코드입니다.");
         }
     }
 
     @Transactional
     public DepartmentResponseDTO updateDepartment(Long departmentId, DepartmentUpdateRequestDTO request) {
         if (!request.hasAnyField()) {
-            throw new InvalidDepartmentRequestException("name, collegeId, active 중 최소 한 필드가 필요합니다.");
+            throw new InvalidDepartmentRequestException("name, active 중 최소 한 필드가 필요합니다.");
         }
 
         Department department = departmentQueryRepository.findByIdWithCollege(departmentId)
@@ -110,30 +106,25 @@ public class DepartmentService {
         String targetName = request.name() == null
                 ? department.getName()
                 : normalizeAndValidateName(request.name());
-        College targetCollege = request.collegeId() == null
-                ? department.getCollege()
-                : getActiveCollege(request.collegeId());
         boolean targetActive = request.active() == null ? department.isActive() : request.active();
 
-        if (targetActive && !targetCollege.isActive()) {
+        College college = department.getCollege();
+        if (targetActive && college != null && !college.isActive()) {
             throw new InvalidDepartmentRequestException("비활성 단과대 소속 학과는 활성화할 수 없습니다.");
         }
 
-        validateUniqueName(targetCollege.getId(), targetName, departmentId);
-        department.update(targetName, targetCollege, targetActive);
-
-        try {
-            return DepartmentResponseDTO.from(departmentRepository.saveAndFlush(department));
-        } catch (DataIntegrityViolationException exception) {
-            throw new DuplicateDepartmentException("해당 단과대에 같은 이름의 학과가 이미 존재합니다.");
-        }
+        department.update(targetName, targetActive);
+        return DepartmentResponseDTO.from(departmentRepository.saveAndFlush(department));
     }
 
     private College getActiveCollege(Long collegeId) {
+        if (collegeId == null) {
+            return null;
+        }
         College college = collegeRepository.findById(collegeId)
                 .orElseThrow(CollegeNotFoundException::new);
         if (!college.isActive()) {
-            throw new InvalidDepartmentRequestException("비활성 단과대에는 학과를 등록하거나 이동할 수 없습니다.");
+            throw new InvalidDepartmentRequestException("비활성 단과대에는 학과를 등록할 수 없습니다.");
         }
         return college;
     }
@@ -144,23 +135,11 @@ public class DepartmentService {
         }
     }
 
-    private void validateUniqueName(Long collegeId, String name, Long departmentId) {
-        boolean duplicated = departmentId == null
-                ? departmentRepository.existsByCollegeIdAndName(collegeId, name)
-                : departmentRepository.existsByCollegeIdAndNameAndIdNot(collegeId, name, departmentId);
-        if (duplicated) {
-            throw new DuplicateDepartmentException("해당 단과대에 같은 이름의 학과가 이미 존재합니다.");
+    private String validateCode(String rawCode) {
+        if (rawCode == null || rawCode.isBlank() || rawCode.length() > MAX_CODE_LENGTH) {
+            throw new InvalidDepartmentRequestException("code는 공백이 아닌 20자 이하의 값이어야 합니다.");
         }
-    }
-
-    private String normalizeAndValidateCode(String rawCode) {
-        String code = rawCode.trim().toUpperCase(Locale.ROOT);
-        if (code.length() > MAX_CODE_LENGTH || !DEPARTMENT_CODE_PATTERN.matcher(code).matches()) {
-            throw new InvalidDepartmentRequestException(
-                    "code는 50자 이하의 영문, 숫자, 하이픈만 사용할 수 있습니다."
-            );
-        }
-        return code;
+        return rawCode;
     }
 
     private String normalizeAndValidateName(String rawName) {

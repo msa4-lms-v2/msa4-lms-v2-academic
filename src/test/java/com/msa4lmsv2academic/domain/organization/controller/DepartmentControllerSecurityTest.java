@@ -126,10 +126,10 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void adminCreateReturns201AndGlobalResponseMatchingHttpStatus() throws Exception {
+    void adminCreateAllowsDocumentedCodeAndMissingCollege() throws Exception {
         String body = """
-                {"code":" aic ","name":"인공지능학과","collegeId":%d,"active":false}
-                """.formatted(engineering.getId());
+                {"code":"aic_01","name":"인공지능학과","active":false}
+                """;
 
         mockMvc.perform(post("/api/academic/catalog/departments")
                         .header("Authorization", bearer("ADMIN"))
@@ -137,7 +137,8 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("00"))
-                .andExpect(jsonPath("$.data.code").value("AIC"))
+                .andExpect(jsonPath("$.data.code").value("aic_01"))
+                .andExpect(jsonPath("$.data.college").doesNotExist())
                 .andExpect(jsonPath("$.data.active").value(false));
     }
 
@@ -163,6 +164,23 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                         .header("Authorization", bearer("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"NEW\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("E21"));
+
+        mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
+                        .header("Authorization", bearer("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"collegeId\":2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("E21"));
+    }
+
+    @Test
+    void adminCreateRejectsCodeLongerThanTwentyCharacters() throws Exception {
+        mockMvc.perform(post("/api/academic/catalog/departments")
+                        .header("Authorization", bearer("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"123456789012345678901\",\"name\":\"컴퓨터공학과\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("E21"));
     }

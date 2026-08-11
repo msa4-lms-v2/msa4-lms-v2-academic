@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.organization.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.error.DuplicateDepartmentException;
@@ -16,9 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 @SpringBootTest
 @Transactional
 class DepartmentServiceTest extends MySqlIntegrationTest {
@@ -33,7 +33,6 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
     private DepartmentRepository departmentRepository;
 
     private College engineering;
-    private College humanities;
     private College inactiveCollege;
 
     @BeforeEach
@@ -42,19 +41,28 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
         collegeRepository.deleteAllInBatch();
 
         engineering = collegeRepository.save(College.create("ENG", "공과대학", true));
-        humanities = collegeRepository.save(College.create("HUM", "인문대학", true));
         inactiveCollege = collegeRepository.save(College.create("OLD", "폐지대학", false));
     }
 
     @Test
-    void createDefaultsActiveToTrueAndNormalizesCodeAndName() {
+    void createDefaultsActiveAndKeepsDocumentedCodeValue() {
         DepartmentResponseDTO created = departmentService.createDepartment(
-                new DepartmentCreateRequestDTO(" cse ", " 컴퓨터공학과 ", engineering.getId(), null)
+                new DepartmentCreateRequestDTO("cse_01", " 컴퓨터공학과 ", engineering.getId(), null)
         );
 
-        assertThat(created.code()).isEqualTo("CSE");
+        assertThat(created.code()).isEqualTo("cse_01");
         assertThat(created.name()).isEqualTo("컴퓨터공학과");
         assertThat(created.active()).isTrue();
+    }
+
+    @Test
+    void createAllowsDepartmentWithoutCollege() {
+        DepartmentResponseDTO created = departmentService.createDepartment(
+                new DepartmentCreateRequestDTO("FREE", "자유전공학부", null, true)
+        );
+
+        assertThat(created.college()).isNull();
+        assertThat(departmentRepository.findById(created.id()).orElseThrow().getCollege()).isNull();
     }
 
     @Test
@@ -67,42 +75,44 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void createRejectsInvalidCodeFormat() {
+    void createRejectsCodeLongerThanTwentyCharacters() {
         assertThatThrownBy(() -> departmentService.createDepartment(
-                new DepartmentCreateRequestDTO("CSE_01", "컴퓨터공학과", engineering.getId(), true)
+                new DepartmentCreateRequestDTO("123456789012345678901", "컴퓨터공학과", engineering.getId(), true)
         )).isInstanceOf(InvalidDepartmentRequestException.class);
     }
 
     @Test
-    void createRejectsDuplicateCodeAndDuplicateNameWithinCollege() {
+    void createRejectsDuplicateCodeButAllowsDuplicateName() {
         departmentService.createDepartment(
                 new DepartmentCreateRequestDTO("CSE", "컴퓨터공학과", engineering.getId(), true)
         );
 
-        assertThatThrownBy(() -> departmentService.createDepartment(
+        DepartmentResponseDTO sameName = departmentService.createDepartment(
                 new DepartmentCreateRequestDTO("AIC", "컴퓨터공학과", engineering.getId(), true)
-        )).isInstanceOf(DuplicateDepartmentException.class);
+        );
+
+        assertThat(sameName.code()).isEqualTo("AIC");
         assertThatThrownBy(() -> departmentService.createDepartment(
-                new DepartmentCreateRequestDTO("CSE", "전산학과", humanities.getId(), true)
+                new DepartmentCreateRequestDTO("CSE", "전산학과", null, true)
         )).isInstanceOf(DuplicateDepartmentException.class);
     }
 
     @Test
-    void createRejectsInactiveCollege() {
+    void createRejectsInactiveCollegeWhenSpecified() {
         assertThatThrownBy(() -> departmentService.createDepartment(
                 new DepartmentCreateRequestDTO("OLD", "폐지학과", inactiveCollege.getId(), false)
         )).isInstanceOf(InvalidDepartmentRequestException.class);
     }
 
     @Test
-    void updateChangesOnlyProvidedFieldsAndNeverChangesCode() {
+    void updateChangesOnlyProvidedFieldsAndNeverChangesCodeOrCollege() {
         DepartmentResponseDTO created = departmentService.createDepartment(
                 new DepartmentCreateRequestDTO("CSE", "컴퓨터공학과", engineering.getId(), true)
         );
 
         DepartmentResponseDTO updated = departmentService.updateDepartment(
                 created.id(),
-                new DepartmentUpdateRequestDTO(" AI컴퓨터공학과 ", null, false)
+                new DepartmentUpdateRequestDTO(" AI컴퓨터공학과 ", false)
         );
 
         assertThat(updated.code()).isEqualTo("CSE");
@@ -118,39 +128,18 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
         );
 
         assertThatThrownBy(() -> departmentService.updateDepartment(
-                department.getId(), new DepartmentUpdateRequestDTO(null, null, null)
+                department.getId(), new DepartmentUpdateRequestDTO(null, null)
         )).isInstanceOf(InvalidDepartmentRequestException.class);
     }
 
     @Test
-    void updateValidatesFinalCollegeAndNameCombinationWhenMovingAndRenaming() {
-        Department moving = departmentRepository.saveAndFlush(
-                Department.create("CSE", engineering, "컴퓨터공학과", true)
-        );
-        departmentRepository.saveAndFlush(
-                Department.create("KOR", humanities, "국어국문학과", true)
-        );
-
-        assertThatThrownBy(() -> departmentService.updateDepartment(
-                moving.getId(),
-                new DepartmentUpdateRequestDTO("국어국문학과", humanities.getId(), null)
-        )).isInstanceOf(DuplicateDepartmentException.class);
-    }
-
-    @Test
-    void updateRejectsMoveToInactiveCollegeAndActivationUnderInactiveCollege() {
-        Department department = departmentRepository.saveAndFlush(
-                Department.create("CSE", engineering, "컴퓨터공학과", true)
-        );
+    void updateRejectsActivationUnderInactiveCollege() {
         Department inactiveDepartment = departmentRepository.saveAndFlush(
                 Department.create("OLD", inactiveCollege, "폐지학과", false)
         );
 
         assertThatThrownBy(() -> departmentService.updateDepartment(
-                department.getId(), new DepartmentUpdateRequestDTO(null, inactiveCollege.getId(), null)
-        )).isInstanceOf(InvalidDepartmentRequestException.class);
-        assertThatThrownBy(() -> departmentService.updateDepartment(
-                inactiveDepartment.getId(), new DepartmentUpdateRequestDTO(null, null, true)
+                inactiveDepartment.getId(), new DepartmentUpdateRequestDTO(null, true)
         )).isInstanceOf(InvalidDepartmentRequestException.class);
     }
 
@@ -161,7 +150,7 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
         );
 
         DepartmentResponseDTO updated = departmentService.updateDepartment(
-                department.getId(), new DepartmentUpdateRequestDTO(null, null, false)
+                department.getId(), new DepartmentUpdateRequestDTO(null, false)
         );
 
         assertThat(updated.active()).isFalse();

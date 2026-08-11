@@ -23,10 +23,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "departments",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_departments_code", columnNames = "code"),
-                @UniqueConstraint(name = "uk_departments_college_name", columnNames = {"college_id", "name"})
-        },
+        uniqueConstraints = @UniqueConstraint(name = "uk_departments_code", columnNames = "code"),
         indexes = @Index(name = "idx_departments_college_id", columnList = "college_id")
 )
 public class Department {
@@ -36,13 +33,12 @@ public class Department {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false, length = 50, updatable = false)
+    @Column(nullable = false, length = 20, updatable = false)
     private String code;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "college_id",
-            nullable = false,
             foreignKey = @ForeignKey(name = "fk_departments_college")
     )
     private College college;
@@ -64,9 +60,8 @@ public class Department {
         return new Department(code, college, name, active);
     }
 
-    public void update(String name, College college, boolean active) {
+    public void update(String name, boolean active) {
         this.name = name;
-        this.college = college;
         this.active = active;
     }
 }
