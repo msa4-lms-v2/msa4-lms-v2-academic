@@ -28,4 +28,9 @@ public class Professor {
     public static Professor create(User user, Short hireYear, Department department) {
         return new Professor(user, hireYear, department);
     }
+
+    public void updateEmployment(Department department, Short hireYear) {
+        this.department = department;
+        this.hireYear = hireYear;
+    }
 }
