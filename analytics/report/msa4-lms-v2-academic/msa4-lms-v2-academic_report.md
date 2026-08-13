@@ -22,3 +22,13 @@
 ### 검증
 
 - `testClasses`로 운영 코드와 변경된 테스트의 컴파일을 확인했다.
+
+## 2026-08-14 브라우저 보안 헤더
+
+- 모든 응답에 `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`를 추가했다.
+- CSP는 동일 출처 리소스만 허용하고 객체·프레임 포함을 차단하며, 리퍼러와 카메라·마이크·위치 권한 전송을 제한했다.
+- MockMvc 헤더 검증 테스트를 추가했다.
+
+### 검증
+
+- `testClasses`가 통과했다.
