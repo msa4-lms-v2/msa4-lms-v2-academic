@@ -20,6 +20,16 @@
 ### 검증
 
 - `AcademicCommonEntityTest`가 통과했다.
+
+## 2026-08-14 공지 비활성화 API 경로
+
+- 공지 논리 삭제를 `DELETE /{noticeId}`에서 `PATCH /{noticeId}/status`로 변경했다.
+- 기존 비활성화 동작과 응답·권한·감사 로그는 유지했다.
+- 컨트롤러와 런타임 OpenAPI 테스트를 새 경로에 맞췄다.
+
+### 검증
+
+- `testClasses`가 통과했다.
 - Testcontainers 기반 테스트는 로컬 Docker 데몬이 없어 실행하지 못했다.
 
 ## 2026-08-14 공지 본문 길이 제한

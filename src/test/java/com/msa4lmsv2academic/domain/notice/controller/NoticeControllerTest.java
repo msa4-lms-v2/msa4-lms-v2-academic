@@ -1,6 +1,5 @@
 package com.msa4lmsv2academic.domain.notice.controller;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -156,7 +155,7 @@ class NoticeControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$.data.title").value("수정 공지"))
                 .andExpect(jsonPath("$.data.targetRole").value("STUDENT"));
 
-        mockMvc.perform(delete("/api/academic/catalog/notices/{noticeId}", noticeId)
+        mockMvc.perform(patch("/api/academic/catalog/notices/{noticeId}/status", noticeId)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("00"))
@@ -178,7 +177,7 @@ class NoticeControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$.code").value("E03"));
 
         Notice inactive = save("삭제된 공지", "내용", NoticeTargetRole.ALL, false);
-        mockMvc.perform(delete("/api/academic/catalog/notices/{noticeId}", inactive.getId())
+        mockMvc.perform(patch("/api/academic/catalog/notices/{noticeId}/status", inactive.getId())
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("E11"));

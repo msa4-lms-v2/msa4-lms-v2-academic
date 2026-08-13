@@ -25,6 +25,7 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
     void generatedOpenApiContainsNoticeCrudContractsAndSchemas() throws Exception {
         String collectionPath = "$['paths']['/api/academic/catalog/notices']";
         String itemPath = "$['paths']['/api/academic/catalog/notices/{noticeId}']";
+        String statusPath = "$['paths']['/api/academic/catalog/notices/{noticeId}/status']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
@@ -32,14 +33,15 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(collectionPath + "['post']").exists())
                 .andExpect(jsonPath(itemPath + "['get']").exists())
                 .andExpect(jsonPath(itemPath + "['patch']").exists())
-                .andExpect(jsonPath(itemPath + "['delete']").exists())
+                .andExpect(jsonPath(itemPath + "['delete']").doesNotExist())
+                .andExpect(jsonPath(statusPath + "['patch']").exists())
                 .andExpect(jsonPath(collectionPath + "['get']['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(collectionPath + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(collectionPath + "['post']['responses']['409']").exists())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['403']").exists())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['404']").exists())
                 .andExpect(jsonPath(itemPath + "['patch']['responses']['409']").exists())
-                .andExpect(jsonPath(itemPath + "['delete']['responses']['409']").exists())
+                .andExpect(jsonPath(statusPath + "['patch']['responses']['409']").exists())
                 .andExpect(jsonPath(collectionPath + "['get']['operationId']")
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath(collectionPath + "['post']['operationId']")
@@ -48,7 +50,7 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath(itemPath + "['patch']['operationId']")
                         .value(not(containsString("SCRUM"))))
-                .andExpect(jsonPath(itemPath + "['delete']['operationId']")
+                .andExpect(jsonPath(statusPath + "['patch']['operationId']")
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath("$['components']['schemas']['NoticeCreateRequestDTO']['required']")
                         .value(hasItems("title", "targetRole")))
