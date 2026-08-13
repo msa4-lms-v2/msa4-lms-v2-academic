@@ -49,6 +49,14 @@ class AcademicDummyDataTest {
                 .isEqualTo(4);
         assertThat(count("SELECT COUNT(*) FROM semesters WHERE is_current = TRUE"))
                 .isEqualTo(1);
+        assertThat(count("""
+                SELECT COUNT(*)
+                FROM semesters
+                WHERE academic_year = 2026
+                  AND term = 'FIRST'
+                  AND start_date = '2026-03-02'
+                """))
+                .isEqualTo(1);
         assertThat(count("SELECT COUNT(*) FROM courses WHERE code LIKE 'CSE%' OR code LIKE 'GEN%'"))
                 .isEqualTo(6);
         assertThat(count("""
