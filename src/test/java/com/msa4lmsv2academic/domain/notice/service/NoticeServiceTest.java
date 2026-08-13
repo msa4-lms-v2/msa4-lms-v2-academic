@@ -16,7 +16,6 @@ import com.msa4lmsv2academic.domain.notice.response.NoticeSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
-import com.msa4lmsv2academic.global.error.DuplicateNoticeException;
 import com.msa4lmsv2academic.global.error.InvalidNoticeRequestException;
 import com.msa4lmsv2academic.global.error.NoticeAccessDeniedException;
 import com.msa4lmsv2academic.global.error.NoticeNotFoundException;
@@ -99,17 +98,12 @@ class NoticeServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void createRejectsActiveDuplicateButAllowsSameInactiveNotice() {
-        NoticeDetailResponseDTO original = create("중복 공지", "같은 내용", NoticeTargetRole.STUDENT);
+    void createAllowsRepeatedTitleContentAndTargetRole() {
+        NoticeDetailResponseDTO original = create("재공지", "같은 내용", NoticeTargetRole.STUDENT);
+        NoticeDetailResponseDTO repeated = create("재공지", "같은 내용", NoticeTargetRole.STUDENT);
 
-        assertThatThrownBy(() -> create("중복 공지", "같은 내용", NoticeTargetRole.STUDENT))
-                .isInstanceOf(DuplicateNoticeException.class);
-
-        noticeService.deleteNotice(original.id(), ADMIN, null, null);
-        NoticeDetailResponseDTO recreated = create("중복 공지", "같은 내용", NoticeTargetRole.STUDENT);
-
-        assertThat(recreated.id()).isNotEqualTo(original.id());
-        assertThat(recreated.isActive()).isTrue();
+        assertThat(repeated.id()).isNotEqualTo(original.id());
+        assertThat(repeated.isActive()).isTrue();
     }
 
     @Test
@@ -189,7 +183,7 @@ class NoticeServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void updateRejectsSameStateAndDuplicateReactivation() {
+    void updateRejectsSameStateAndAllowsRepeatedContentOnReactivation() {
         NoticeDetailResponseDTO active = create("활성 공지", "내용", NoticeTargetRole.ALL);
         NoticeDetailResponseDTO inactive = create("복구 대상", "내용", NoticeTargetRole.STUDENT);
         noticeService.deleteNotice(inactive.id(), ADMIN, null, null);
@@ -202,14 +196,17 @@ class NoticeServiceTest extends MySqlIntegrationTest {
                 null
         )).isInstanceOf(NoticeStateConflictException.class);
 
-        create("중복 대상", "동일", NoticeTargetRole.PROFESSOR);
-        assertThatThrownBy(() -> noticeService.updateNotice(
+        create("재공지 대상", "동일", NoticeTargetRole.PROFESSOR);
+        NoticeDetailResponseDTO reactivated = noticeService.updateNotice(
                 inactive.id(),
-                new NoticeUpdateRequestDTO("중복 대상", "동일", NoticeTargetRole.PROFESSOR, true),
+                new NoticeUpdateRequestDTO("재공지 대상", "동일", NoticeTargetRole.PROFESSOR, true),
                 ADMIN,
                 null,
                 null
-        )).isInstanceOf(DuplicateNoticeException.class);
+        );
+
+        assertThat(reactivated.isActive()).isTrue();
+        assertThat(reactivated.title()).isEqualTo("재공지 대상");
     }
 
     @Test

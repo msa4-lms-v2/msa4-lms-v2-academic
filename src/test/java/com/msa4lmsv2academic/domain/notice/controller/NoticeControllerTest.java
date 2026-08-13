@@ -185,7 +185,7 @@ class NoticeControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void duplicateAndInvalidRequestsReturnDocumentedErrors() throws Exception {
+    void repeatedAndInvalidRequestsFollowNoticeRules() throws Exception {
         mockMvc.perform(post("/api/academic/catalog/notices")
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -196,8 +196,8 @@ class NoticeControllerTest extends MySqlIntegrationTest {
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validCreateBody("중복 공지")))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("E11"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("00"));
 
         mockMvc.perform(patch("/api/academic/catalog/notices/{noticeId}", 1L)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))

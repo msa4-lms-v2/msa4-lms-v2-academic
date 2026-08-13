@@ -14,7 +14,6 @@ import com.msa4lmsv2academic.domain.notice.response.NoticeDetailResponseDTO;
 import com.msa4lmsv2academic.domain.notice.response.NoticeSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.repository.UserRepository;
-import com.msa4lmsv2academic.global.error.DuplicateNoticeException;
 import com.msa4lmsv2academic.global.error.InvalidNoticeRequestException;
 import com.msa4lmsv2academic.global.error.NoticeAccessDeniedException;
 import com.msa4lmsv2academic.global.error.NoticeAuthorNotFoundException;
@@ -104,7 +103,6 @@ public class NoticeService {
 
         String title = normalizeTitle(request.title());
         String content = normalizeContent(request.content());
-        validateDuplicate(title, content, request.targetRole(), null);
 
         User author = userRepository.findById(currentUser.id())
                 .orElseThrow(NoticeAuthorNotFoundException::new);
@@ -145,10 +143,6 @@ public class NoticeService {
         if (isSameNotice(notice, targetTitle, targetContent, targetRole, targetActive)) {
             return NoticeDetailResponseDTO.from(notice);
         }
-        if (targetActive) {
-            validateDuplicate(targetTitle, targetContent, targetRole, notice.getId());
-        }
-
         Map<String, Object> beforeValue = snapshot(notice);
         notice.update(targetTitle, targetContent, targetRole, targetActive);
         Notice savedNotice = noticeRepository.saveAndFlush(notice);
@@ -251,12 +245,6 @@ public class NoticeService {
     private Notice findNotice(Long noticeId) {
         return noticeRepository.findById(noticeId)
                 .orElseThrow(NoticeNotFoundException::new);
-    }
-
-    private void validateDuplicate(String title, String content, NoticeTargetRole targetRole, Long excludedNoticeId) {
-        if (noticeQueryRepository.existsActiveDuplicate(title, content, targetRole, excludedNoticeId)) {
-            throw new DuplicateNoticeException();
-        }
     }
 
     private boolean isSameNotice(Notice notice, String title, String content, NoticeTargetRole targetRole,

@@ -102,7 +102,7 @@ public class NoticeController {
     @Operation(
             summary = "공지사항 등록",
             description = "ADMIN만 공지사항을 등록할 수 있습니다. 공지는 활성 상태로 생성되고 작성자 ID는 "
-                    + "Gateway 인증 사용자로 기록합니다. 제목·본문·대상 역할이 같은 활성 공지는 중복 등록할 수 없습니다.",
+                    + "Gateway 인증 사용자로 기록합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
@@ -114,8 +114,6 @@ public class NoticeController {
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "활성 공지 중복",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
     @PostMapping
@@ -139,7 +137,7 @@ public class NoticeController {
     @Operation(
             summary = "공지사항 부분 수정 및 복구",
             description = "ADMIN만 제목, 본문, 대상 역할, 활성 상태를 부분 수정합니다. 비활성 공지도 수정·복구할 수 "
-                    + "있으며 같은 활성 상태 요청과 활성 공지 중복은 409로 처리합니다. 본문에 공백 문자열을 전달하면 null로 제거합니다.",
+                    + "있으며 같은 활성 상태 요청은 409로 처리합니다. 본문에 공백 문자열을 전달하면 null로 제거합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
@@ -152,7 +150,7 @@ public class NoticeController {
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "404", description = "공지사항 없음",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "같은 활성 상태 요청 또는 활성 공지 중복",
+            @ApiResponse(responseCode = "409", description = "같은 활성 상태 요청",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
     @PatchMapping("/{noticeId}")
