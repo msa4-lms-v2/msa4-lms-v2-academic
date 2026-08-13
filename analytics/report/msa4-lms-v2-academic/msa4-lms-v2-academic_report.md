@@ -11,6 +11,15 @@
 ### 검증
 
 - `testClasses`가 통과했다.
+
+## 2026-08-14 Academic 사용자 역할 정리
+
+- 영속 `UserRole`에서 계약에 없는 `SYSTEM` 상수를 제거했다.
+- 허용 역할이 `STUDENT`, `PROFESSOR`, `ADMIN`으로 고정되는 단위 테스트를 추가했다.
+
+### 검증
+
+- `AcademicCommonEntityTest`가 통과했다.
 - Testcontainers 기반 테스트는 로컬 Docker 데몬이 없어 실행하지 못했다.
 
 ## 2026-08-14 공지 본문 길이 제한

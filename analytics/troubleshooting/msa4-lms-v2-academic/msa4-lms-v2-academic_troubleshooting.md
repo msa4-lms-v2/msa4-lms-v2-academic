@@ -31,3 +31,13 @@ Security 설정에 기본 브라우저 보안 헤더만 적용되어 콘텐츠 �
 ### 해결
 
 `SecurityFilterChain`에 CSP, Referrer-Policy, Permissions-Policy를 명시적으로 추가했다.
+
+## 2026-08-14 계약 외 사용자 역할 영속 허용
+
+### 원인
+
+Academic 영속 역할 enum에 사용자 계약에서 허용하지 않는 `SYSTEM`이 포함되어 있었다.
+
+### 해결
+
+영속 enum을 학생, 교수, 관리자 역할만 표현하도록 축소하고 허용 목록을 테스트로 고정했다.
