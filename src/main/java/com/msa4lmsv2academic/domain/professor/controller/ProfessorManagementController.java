@@ -62,9 +62,12 @@ public class ProfessorManagementController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<GlobalRes<PageRes<ProfessorSummaryResponseDTO>>> searchProfessors(
-            @ParameterObject @Valid @ModelAttribute ProfessorSearchRequestDTO request
+            @ParameterObject @Valid @ModelAttribute ProfessorSearchRequestDTO request,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(professorManagementService.searchProfessors(request)));
+        return ResponseEntity.ok(GlobalRes.success(
+                professorManagementService.searchProfessors(request, currentUser)
+        ));
     }
 
     @Operation(
@@ -88,9 +91,12 @@ public class ProfessorManagementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<GlobalRes<ProfessorDetailResponseDTO>> getProfessor(
             @Parameter(description = "Professor 엔티티 ID", example = "10", required = true)
-            @PathVariable @Positive(message = "professorId는 양수여야 합니다.") Long professorId
+            @PathVariable @Positive(message = "professorId는 양수여야 합니다.") Long professorId,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(professorManagementService.getProfessor(professorId)));
+        return ResponseEntity.ok(GlobalRes.success(
+                professorManagementService.getProfessor(professorId, currentUser)
+        ));
     }
 
     @Operation(
