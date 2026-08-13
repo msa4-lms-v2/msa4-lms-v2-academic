@@ -203,6 +203,7 @@ public class NoticeService {
         if (request.title().strip().length() > 100) {
             throw new InvalidNoticeRequestException("title은 100자 이하여야 합니다.");
         }
+        validateContentLength(request.content());
     }
 
     private void validateUpdateRequest(NoticeUpdateRequestDTO request) {
@@ -212,11 +213,18 @@ public class NoticeService {
         if (request.title() != null && (request.title().isBlank() || request.title().strip().length() > 100)) {
             throw new InvalidNoticeRequestException("title은 공백이 아닌 100자 이하의 값이어야 합니다.");
         }
+        validateContentLength(request.content());
     }
 
     private void validateAdmin(CurrentUser currentUser) {
         if (currentUser == null || !currentUser.isAdmin()) {
             throw new NoticeAccessDeniedException();
+        }
+    }
+
+    private void validateContentLength(String content) {
+        if (content != null && content.length() > 5000) {
+            throw new InvalidNoticeRequestException("content는 5000자 이하여야 합니다.");
         }
     }
 

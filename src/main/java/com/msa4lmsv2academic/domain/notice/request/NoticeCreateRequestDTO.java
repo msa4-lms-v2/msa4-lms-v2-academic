@@ -22,8 +22,10 @@ public record NoticeCreateRequestDTO(
         @Schema(
                 description = "공지 본문. 생략하거나 공백이면 null로 저장됩니다.",
                 example = "수강신청 기간과 유의사항을 확인해 주세요.",
+                maxLength = 5000,
                 nullable = true
         )
+        @Size(max = 5000, message = "content는 5000자 이하여야 합니다.")
         String content,
 
         @Schema(
