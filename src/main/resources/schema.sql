@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE TABLE IF NOT EXISTS notices (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    version BIGINT NOT NULL DEFAULT 0,
     title VARCHAR(100) NOT NULL,
     content TEXT NULL,
     target_role VARCHAR(20) NOT NULL,
@@ -88,6 +89,7 @@ CREATE TABLE IF NOT EXISTS majors (
 
 CREATE TABLE IF NOT EXISTS professors (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
     hire_year SMALLINT NULL,
     department_id BIGINT NOT NULL,

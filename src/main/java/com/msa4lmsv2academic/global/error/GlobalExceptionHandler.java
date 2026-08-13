@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -64,6 +65,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GlobalRes<Void>> handleAccessDenied(AccessDeniedException exception) {
         log.warn("[{}] {}", CustomResponseCode.ACCESS_DENIED.getCode(), exception.getMessage());
         return fail(CustomResponseCode.ACCESS_DENIED, "접근 권한이 없습니다.");
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<GlobalRes<Void>> handleOptimisticLockingFailure(
+            ObjectOptimisticLockingFailureException exception
+    ) {
+        log.warn("[{}] {}", CustomResponseCode.DUPLICATE_DATA.getCode(), exception.getMessage());
+        return fail(CustomResponseCode.DUPLICATE_DATA, "다른 요청에서 먼저 수정했습니다. 최신 정보를 조회한 뒤 다시 시도해 주세요.");
     }
 
     @ExceptionHandler(DataAccessException.class)
