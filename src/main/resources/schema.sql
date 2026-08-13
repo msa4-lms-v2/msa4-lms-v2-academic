@@ -34,6 +34,21 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_audit_logs_created_at (created_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS notices (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NULL,
+    target_role VARCHAR(20) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    author_id BIGINT NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_notices_author
+        FOREIGN KEY (author_id) REFERENCES users (id)
+        ON DELETE RESTRICT,
+    INDEX idx_notices_target_active_created (target_role, is_active, created_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS colleges (
     id BIGINT NOT NULL AUTO_INCREMENT,
     code VARCHAR(20) NOT NULL,
