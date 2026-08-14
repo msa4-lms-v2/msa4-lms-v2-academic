@@ -28,11 +28,9 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         CustomResponseCode code = invalidAuthentication
                 ? CustomResponseCode.INVALID_TOKEN
                 : CustomResponseCode.UNAUTHENTICATED;
-        String message = invalidAuthentication ? "유효하지 않은 인증 정보입니다." : "인증이 필요합니다.";
-
         response.setStatus(code.getHttpStatus().value());
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write(objectMapper.writeValueAsString(GlobalRes.fail(code, message, null)));
+        response.getWriter().write(objectMapper.writeValueAsString(GlobalRes.fail(code, null)));
     }
 }

@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
         } else {
             log.warn("[{}] {}", code.getCode(), exception.getMessage());
         }
-        return fail(code, exception.getMessage());
+        return fail(code);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -39,7 +39,8 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .distinct()
                 .collect(Collectors.joining(", "));
-        return invalidParameter(message);
+        log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), message);
+        return fail(CustomResponseCode.INVALID_PARAMETER);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -48,7 +49,8 @@ public class GlobalExceptionHandler {
                 .map(violation -> violation.getMessage())
                 .distinct()
                 .collect(Collectors.joining(", "));
-        return invalidParameter(message);
+        log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), message);
+        return fail(CustomResponseCode.INVALID_PARAMETER);
     }
 
     @ExceptionHandler({
@@ -58,13 +60,13 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<GlobalRes<Void>> handleMalformedRequest(Exception exception) {
         log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), exception.getMessage());
-        return fail(CustomResponseCode.INVALID_PARAMETER, "요청 형식이 올바르지 않습니다.");
+        return fail(CustomResponseCode.INVALID_PARAMETER);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<GlobalRes<Void>> handleAccessDenied(AccessDeniedException exception) {
         log.warn("[{}] {}", CustomResponseCode.ACCESS_DENIED.getCode(), exception.getMessage());
-        return fail(CustomResponseCode.ACCESS_DENIED, "접근 권한이 없습니다.");
+        return fail(CustomResponseCode.ACCESS_DENIED);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
@@ -72,31 +74,23 @@ public class GlobalExceptionHandler {
             ObjectOptimisticLockingFailureException exception
     ) {
         log.warn("[{}] {}", CustomResponseCode.DUPLICATE_DATA.getCode(), exception.getMessage());
-        return fail(CustomResponseCode.DUPLICATE_DATA, "다른 요청에서 먼저 수정했습니다. 최신 정보를 조회한 뒤 다시 시도해 주세요.");
+        return fail(CustomResponseCode.DUPLICATE_DATA);
     }
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<GlobalRes<Void>> handleDataAccess(DataAccessException exception) {
         log.error("[{}] {}", CustomResponseCode.DATABASE_ERROR.getCode(), exception.getMessage(), exception);
-        return fail(CustomResponseCode.DATABASE_ERROR, "데이터 처리 중 오류가 발생했습니다.");
+        return fail(CustomResponseCode.DATABASE_ERROR);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GlobalRes<Void>> handleException(Exception exception) {
         log.error("[{}] {}", CustomResponseCode.SYSTEM_ERROR.getCode(), exception.getMessage(), exception);
-        return fail(CustomResponseCode.SYSTEM_ERROR, "일시적인 오류가 발생했습니다.");
+        return fail(CustomResponseCode.SYSTEM_ERROR);
     }
 
-    private ResponseEntity<GlobalRes<Void>> invalidParameter(String message) {
-        String responseMessage = message == null || message.isBlank()
-                ? "요청 값이 올바르지 않습니다."
-                : message;
-        log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), responseMessage);
-        return fail(CustomResponseCode.INVALID_PARAMETER, responseMessage);
-    }
-
-    private ResponseEntity<GlobalRes<Void>> fail(CustomResponseCode code, String message) {
+    private ResponseEntity<GlobalRes<Void>> fail(CustomResponseCode code) {
         return ResponseEntity.status(code.getHttpStatus())
-                .body(GlobalRes.fail(code, message, null));
+                .body(GlobalRes.fail(code, null));
     }
 }
