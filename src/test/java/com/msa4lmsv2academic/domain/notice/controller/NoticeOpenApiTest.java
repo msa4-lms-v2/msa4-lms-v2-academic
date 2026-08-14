@@ -37,7 +37,7 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(statusPath + "['patch']").exists())
                 .andExpect(jsonPath(collectionPath + "['get']['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(collectionPath + "['post']['responses']['201']").exists())
-                .andExpect(jsonPath(collectionPath + "['post']['responses']['409']").exists())
+                .andExpect(jsonPath(collectionPath + "['post']['responses']['409']").doesNotExist())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['403']").exists())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['404']").exists())
                 .andExpect(jsonPath(itemPath + "['patch']['responses']['409']").exists())

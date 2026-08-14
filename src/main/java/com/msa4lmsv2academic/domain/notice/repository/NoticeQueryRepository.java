@@ -3,7 +3,6 @@ package com.msa4lmsv2academic.domain.notice.repository;
 import static com.msa4lmsv2academic.domain.notice.entity.QNotice.notice;
 
 import com.msa4lmsv2academic.domain.notice.entity.Notice;
-import com.msa4lmsv2academic.domain.notice.entity.NoticeTargetRole;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
@@ -47,24 +46,5 @@ public class NoticeQueryRepository {
                 .fetchOne();
 
         return new NoticeSearchResult(items, totalCount == null ? 0 : totalCount);
-    }
-
-    public boolean existsActiveDuplicate(String title, String content, NoticeTargetRole targetRole,
-                                         Long excludedNoticeId) {
-        BooleanBuilder predicates = new BooleanBuilder()
-                .and(notice.active.isTrue())
-                .and(notice.title.eq(title))
-                .and(notice.targetRole.eq(targetRole));
-
-        predicates.and(content == null ? notice.content.isNull() : notice.content.eq(content));
-        if (excludedNoticeId != null) {
-            predicates.and(notice.id.ne(excludedNoticeId));
-        }
-
-        return jpaQueryFactory
-                .selectOne()
-                .from(notice)
-                .where(predicates)
-                .fetchFirst() != null;
     }
 }
