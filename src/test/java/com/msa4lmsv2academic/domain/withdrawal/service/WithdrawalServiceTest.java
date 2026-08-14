@@ -1,0 +1,103 @@
+package com.msa4lmsv2academic.domain.withdrawal.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
+import com.msa4lmsv2academic.domain.semester.entity.Semester;
+import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
+import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
+import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
+import com.msa4lmsv2academic.domain.user.entity.User;
+import com.msa4lmsv2academic.domain.user.repository.UserRepository;
+import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalRequest;
+import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalStatus;
+import com.msa4lmsv2academic.domain.withdrawal.repository.AcademicStatusHistoryRepository;
+import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalRequestRepository;
+import com.msa4lmsv2academic.domain.withdrawal.request.FinalWithdrawalReviewRequestDTO;
+import com.msa4lmsv2academic.global.security.CurrentUser;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class WithdrawalServiceTest {
+
+    @Mock
+    private WithdrawalRequestRepository withdrawalRepository;
+    @Mock
+    private AcademicStatusHistoryRepository historyRepository;
+    @Mock
+    private StudentRepository studentRepository;
+    @Mock
+    private SemesterRepository semesterRepository;
+    @Mock
+    private UserRepository userRepository;
+
+    private WithdrawalService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new WithdrawalService(
+                withdrawalRepository,
+                historyRepository,
+                studentRepository,
+                semesterRepository,
+                userRepository
+        );
+    }
+
+    @Test
+    void adminApprovalChangesStudentStatusAndCreatesHistoryInSameServiceCall() {
+        User studentUser = user(21L, "학생");
+        User advisorUser = user(11L, "지도교수");
+        User adminUser = user(1L, "관리자");
+        Professor advisor = mock(Professor.class);
+        lenient().when(advisor.getUser()).thenReturn(advisorUser);
+        Student student = mock(Student.class);
+        lenient().when(student.getId()).thenReturn(41L);
+        lenient().when(student.getUser()).thenReturn(studentUser);
+        lenient().when(student.getAdvisor()).thenReturn(advisor);
+        when(student.getAcademicStatus()).thenReturn(AcademicStatus.ENROLLED);
+
+        WithdrawalRequest withdrawal = WithdrawalRequest.create(
+                student, "개인 사유", LocalDate.of(2026, 9, 1), studentUser
+        );
+        withdrawal.advisorApprove(advisorUser, LocalDateTime.now());
+        Semester semester = mock(Semester.class);
+        when(semester.getStartDate()).thenReturn(LocalDate.of(2026, 9, 1));
+        when(withdrawalRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(withdrawal));
+        when(studentRepository.findByIdForUpdate(41L)).thenReturn(Optional.of(student));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(adminUser));
+        when(semesterRepository.findFirstByCurrentTrue()).thenReturn(Optional.of(semester));
+
+        var response = service.reviewByAdmin(
+                51L,
+                new FinalWithdrawalReviewRequestDTO(true, LocalDate.of(2026, 9, 10), null),
+                new CurrentUser(1L, "ADMIN")
+        );
+
+        assertThat(response.status()).isEqualTo(WithdrawalStatus.APPROVED);
+        assertThat(response.refundRate()).isEqualByComparingTo(new BigDecimal("0.8333"));
+        verify(student).changeAcademicStatus(AcademicStatus.WITHDRAWN);
+        verify(withdrawalRepository).flush();
+        verify(historyRepository).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    private User user(Long id, String name) {
+        User user = mock(User.class);
+        lenient().when(user.getId()).thenReturn(id);
+        lenient().when(user.getName()).thenReturn(name);
+        return user;
+    }
+}
