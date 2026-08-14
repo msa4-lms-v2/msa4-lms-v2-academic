@@ -1,4 +1,4 @@
-package com.msa4lmsv2academic.domain.notice.entity;
+package com.msa4lmsv2academic.domain.academicschedule.entity;
 
 import com.msa4lmsv2academic.domain.user.entity.User;
 import jakarta.persistence.Column;
@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -26,8 +27,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "notices")
-public class Notice {
+@Table(name = "academic_schedules")
+public class AcademicSchedule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,9 +41,15 @@ public class Notice {
     @Column(columnDefinition = "text")
     private String content;
 
+    @Column(name = "start_date", nullable = false)
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "target_role", nullable = false, length = 20)
-    private NoticeTargetRole targetRole;
+    private AcademicScheduleTargetRole targetRole;
 
     @Column(name = "is_active", nullable = false)
     private boolean active;
@@ -55,26 +62,32 @@ public class Notice {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
-    private Notice(String title, String content, NoticeTargetRole targetRole, User author) {
+    private AcademicSchedule(String title, String content, LocalDate startDate, LocalDate endDate,
+                             AcademicScheduleTargetRole targetRole, User author) {
         this.title = title;
         this.content = content;
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.targetRole = targetRole;
         this.active = true;
         this.author = author;
     }
 
-    public static Notice create(String title, String content, NoticeTargetRole targetRole, User author) {
-        return new Notice(title, content, targetRole, author);
+    public static AcademicSchedule create(String title, String content, LocalDate startDate, LocalDate endDate,
+                                          AcademicScheduleTargetRole targetRole, User author) {
+        return new AcademicSchedule(title, content, startDate, endDate, targetRole, author);
     }
 
-    public void update(String title, String content, NoticeTargetRole targetRole, boolean active) {
+    public void update(String title, String content, LocalDate startDate, LocalDate endDate,
+                       AcademicScheduleTargetRole targetRole) {
         this.title = title;
         this.content = content;
+        this.startDate = startDate;
+        this.endDate = endDate;
         this.targetRole = targetRole;
-        this.active = active;
     }
 
-    public void deactivate() {
-        this.active = false;
+    public void changeActive(boolean active) {
+        this.active = active;
     }
 }
