@@ -27,6 +27,6 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write(
-                objectMapper.writeValueAsString(GlobalRes.fail(code, "접근 권한이 없습니다.", null)));
+                objectMapper.writeValueAsString(GlobalRes.fail(code, null)));
     }
 }

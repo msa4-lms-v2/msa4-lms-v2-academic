@@ -10,14 +10,18 @@ public record GlobalRes<T>(
 ) {
 
     public static <T> GlobalRes<T> success(T data) {
-        return new GlobalRes<>(CustomResponseCode.SUCCESS.getCode(), "정상 처리되었습니다.", data);
+        return from(CustomResponseCode.SUCCESS, data);
     }
 
     public static GlobalRes<Void> success() {
-        return new GlobalRes<>(CustomResponseCode.SUCCESS.getCode(), "정상 처리되었습니다.", null);
+        return from(CustomResponseCode.SUCCESS, null);
     }
 
-    public static <T> GlobalRes<T> fail(CustomResponseCode code, String message, T data) {
-        return new GlobalRes<>(code.getCode(), message, data);
+    public static <T> GlobalRes<T> fail(CustomResponseCode code, T data) {
+        return from(code, data);
+    }
+
+    private static <T> GlobalRes<T> from(CustomResponseCode code, T data) {
+        return new GlobalRes<>(code.getCode(), code.getMessage(), data);
     }
 }
