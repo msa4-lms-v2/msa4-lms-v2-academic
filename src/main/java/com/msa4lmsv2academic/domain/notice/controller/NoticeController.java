@@ -27,7 +27,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -176,13 +175,13 @@ public class NoticeController {
     }
 
     @Operation(
-            summary = "공지사항 논리 삭제",
-            description = "ADMIN만 공지사항을 삭제할 수 있습니다. 실제 행은 제거하지 않고 비활성 상태로 변경하며 "
-                    + "이미 비활성인 공지를 다시 삭제하면 409로 처리합니다.",
+            summary = "공지사항 비활성화",
+            description = "ADMIN만 공지사항 상태를 비활성으로 변경할 수 있습니다. 실제 행은 제거하지 않으며 "
+                    + "이미 비활성인 공지를 다시 요청하면 409로 처리합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "논리 삭제 성공. data는 null입니다."),
+            @ApiResponse(responseCode = "200", description = "비활성화 성공. data는 null입니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 공지사항 ID",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
@@ -194,9 +193,9 @@ public class NoticeController {
             @ApiResponse(responseCode = "409", description = "이미 비활성 상태인 공지",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
-    @DeleteMapping("/{noticeId}")
+    @PatchMapping("/{noticeId}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<Void>> deleteNotice(
+    public ResponseEntity<GlobalRes<Void>> deactivateNotice(
             @Parameter(description = "공지사항 ID", example = "1", required = true)
             @PathVariable @Positive(message = "noticeId는 양수여야 합니다.") Long noticeId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,

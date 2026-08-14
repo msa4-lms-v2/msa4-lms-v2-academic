@@ -41,7 +41,9 @@ public class ProfessorManagementService {
     private final DepartmentRepository departmentRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<ProfessorSummaryResponseDTO> searchProfessors(ProfessorSearchRequestDTO request) {
+    public PageRes<ProfessorSummaryResponseDTO> searchProfessors(ProfessorSearchRequestDTO request,
+                                                                 CurrentUser currentUser) {
+        validateAdmin(currentUser);
         validateHireYear(request.hireYear());
 
         int page = request.resolvedPage();
@@ -64,7 +66,8 @@ public class ProfessorManagementService {
         return new PageRes<>(items, result.totalCount(), page, size, hasNext);
     }
 
-    public ProfessorDetailResponseDTO getProfessor(Long professorId) {
+    public ProfessorDetailResponseDTO getProfessor(Long professorId, CurrentUser currentUser) {
+        validateAdmin(currentUser);
         return ProfessorDetailResponseDTO.from(findProfessor(professorId));
     }
 

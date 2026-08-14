@@ -16,6 +16,7 @@ import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.global.error.InvalidProfessorRequestException;
+import com.msa4lmsv2academic.global.error.ProfessorAccessDeniedException;
 import com.msa4lmsv2academic.global.response.PageRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 class ProfessorManagementServiceTest extends MySqlIntegrationTest {
 
     private static final Long ADMIN_ID = 9301L;
+    private static final CurrentUser ADMIN = new CurrentUser(ADMIN_ID, "ADMIN");
 
     @Autowired
     private ProfessorManagementService professorManagementService;
@@ -87,10 +89,12 @@ class ProfessorManagementServiceTest extends MySqlIntegrationTest {
     @Test
     void searchFiltersNameOrEmailIgnoringCaseAndReturnsStatus() {
         PageRes<?> byName = professorManagementService.searchProfessors(
-                new ProfessorSearchRequestDTO(1, 20, null, null, UserStatus.ACTIVE, "  김교수  ")
+                new ProfessorSearchRequestDTO(1, 20, null, null, UserStatus.ACTIVE, "  김교수  "),
+                ADMIN
         );
         PageRes<?> byEmail = professorManagementService.searchProfessors(
-                new ProfessorSearchRequestDTO(1, 20, null, 2020, null, "KIM.PROFESSOR")
+                new ProfessorSearchRequestDTO(1, 20, null, 2020, null, "KIM.PROFESSOR"),
+                ADMIN
         );
 
         assertThat(byName.totalCount()).isEqualTo(1);
@@ -108,12 +112,25 @@ class ProfessorManagementServiceTest extends MySqlIntegrationTest {
         entityManager.flush();
 
         var result = professorManagementService.searchProfessors(
-                new ProfessorSearchRequestDTO(1, 500, null, null, null, "")
+                new ProfessorSearchRequestDTO(1, 500, null, null, null, ""),
+                ADMIN
         );
 
         assertThat(result.size()).isEqualTo(100);
         assertThat(result.items()).extracting("name").containsExactly("김교수", "김교수", "박교수");
         assertThat(result.items().get(0).professorId()).isEqualTo(kimProfessor.getId());
+    }
+
+    @Test
+    void queryRejectsNonAdminWhenCalledOutsideController() {
+        CurrentUser professor = new CurrentUser(9302L, "PROFESSOR");
+
+        assertThatThrownBy(() -> professorManagementService.searchProfessors(
+                new ProfessorSearchRequestDTO(1, 20, null, null, null, null),
+                professor
+        )).isInstanceOf(ProfessorAccessDeniedException.class);
+        assertThatThrownBy(() -> professorManagementService.getProfessor(kimProfessor.getId(), professor))
+                .isInstanceOf(ProfessorAccessDeniedException.class);
     }
 
     @Test

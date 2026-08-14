@@ -29,6 +29,15 @@ import org.junit.jupiter.api.Test;
 class AcademicCommonEntityTest {
 
     @Test
+    void userRolesMatchAcademicContract() {
+        assertThat(UserRole.values()).containsExactly(
+                UserRole.STUDENT,
+                UserRole.PROFESSOR,
+                UserRole.ADMIN
+        );
+    }
+
+    @Test
     void confirmedErdRelationshipsAreConnected() {
         College college = College.create("ENG", "공과대학", true);
         Department department = Department.create("CSE", college, "컴퓨터공학과", true);

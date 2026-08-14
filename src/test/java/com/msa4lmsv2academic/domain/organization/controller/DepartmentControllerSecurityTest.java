@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -88,6 +89,22 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
         mockMvc.perform(get("/api/academic/catalog/departments"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("E02"));
+    }
+
+    @Test
+    void responsesIncludeBrowserSecurityHeaders() throws Exception {
+        mockMvc.perform(get("/api/academic/catalog/departments")
+                        .headers(gatewayHeaders(1L, "STUDENT")))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        "Content-Security-Policy",
+                        "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+                ))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andExpect(header().string(
+                        "Permissions-Policy",
+                        "camera=(), microphone=(), geolocation=()"
+                ));
     }
 
     @Test

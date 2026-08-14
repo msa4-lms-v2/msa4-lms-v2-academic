@@ -12,7 +12,8 @@ public record NoticeUpdateRequestDTO(
         String title,
 
         @Schema(description = "변경할 본문. 생략하거나 null이면 기존 값 유지, 공백 문자열이면 본문 제거",
-                example = "변경된 일정을 확인해 주세요.", nullable = true)
+                example = "변경된 일정을 확인해 주세요.", maxLength = 5000, nullable = true)
+        @Size(max = 5000, message = "content는 5000자 이하여야 합니다.")
         String content,
 
         @Schema(description = "변경할 대상 역할. 생략하거나 null이면 기존 값 유지", example = "STUDENT",

@@ -113,6 +113,27 @@ class NoticeServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void mutationRejectsContentLongerThanFiveThousandCharacters() {
+        String oversizedContent = "가".repeat(5001);
+
+        assertThatThrownBy(() -> noticeService.createNotice(
+                new NoticeCreateRequestDTO("긴 공지", oversizedContent, NoticeTargetRole.ALL),
+                ADMIN,
+                null,
+                null
+        )).isInstanceOf(InvalidNoticeRequestException.class);
+
+        NoticeDetailResponseDTO notice = create("수정 대상", "본문", NoticeTargetRole.ALL);
+        assertThatThrownBy(() -> noticeService.updateNotice(
+                notice.id(),
+                new NoticeUpdateRequestDTO(null, oversizedContent, null, null),
+                ADMIN,
+                null,
+                null
+        )).isInstanceOf(InvalidNoticeRequestException.class);
+    }
+
+    @Test
     void searchRestrictsGeneralUsersAndLetsAdminSeeAllStatuses() {
         create("전체 공지", "전체 내용", NoticeTargetRole.ALL);
         NoticeDetailResponseDTO studentNotice = create("학생 공지", "학생 내용", NoticeTargetRole.STUDENT);
