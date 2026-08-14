@@ -7,8 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
-import com.msa4lmsv2academic.domain.semester.entity.Semester;
-import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
@@ -20,7 +18,6 @@ import com.msa4lmsv2academic.domain.withdrawal.repository.AcademicStatusHistoryR
 import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalRequestRepository;
 import com.msa4lmsv2academic.domain.withdrawal.request.FinalWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -40,8 +37,6 @@ class WithdrawalServiceTest {
     @Mock
     private StudentRepository studentRepository;
     @Mock
-    private SemesterRepository semesterRepository;
-    @Mock
     private UserRepository userRepository;
 
     private WithdrawalService service;
@@ -52,7 +47,6 @@ class WithdrawalServiceTest {
                 withdrawalRepository,
                 historyRepository,
                 studentRepository,
-                semesterRepository,
                 userRepository
         );
     }
@@ -74,12 +68,9 @@ class WithdrawalServiceTest {
                 student, "개인 사유", LocalDate.of(2026, 9, 1), studentUser
         );
         withdrawal.advisorApprove(advisorUser, LocalDateTime.now());
-        Semester semester = mock(Semester.class);
-        when(semester.getStartDate()).thenReturn(LocalDate.of(2026, 9, 1));
         when(withdrawalRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(withdrawal));
         when(studentRepository.findByIdForUpdate(41L)).thenReturn(Optional.of(student));
         when(userRepository.findById(1L)).thenReturn(Optional.of(adminUser));
-        when(semesterRepository.findFirstByCurrentTrue()).thenReturn(Optional.of(semester));
 
         var response = service.reviewByAdmin(
                 51L,
@@ -88,7 +79,7 @@ class WithdrawalServiceTest {
         );
 
         assertThat(response.status()).isEqualTo(WithdrawalStatus.APPROVED);
-        assertThat(response.refundRate()).isEqualByComparingTo(new BigDecimal("0.8333"));
+        assertThat(response.effectiveDate()).isEqualTo(LocalDate.of(2026, 9, 10));
         verify(student).changeAcademicStatus(AcademicStatus.WITHDRAWN);
         verify(withdrawalRepository).flush();
         verify(historyRepository).saveAndFlush(org.mockito.ArgumentMatchers.any());

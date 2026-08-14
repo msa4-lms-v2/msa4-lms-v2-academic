@@ -2,7 +2,6 @@ package com.msa4lmsv2academic.domain.withdrawal.response;
 
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalRequest;
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalStatus;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -20,11 +19,12 @@ public record WithdrawalResponseDTO(
         Long processedBy,
         LocalDateTime processedAt,
         String rejectReason,
-        BigDecimal refundRate,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static WithdrawalResponseDTO from(WithdrawalRequest request, BigDecimal refundRate) {
+    // 환불률은 Payment가 실제 결제·환불 기록을 근거로 계산해 소유한다(수정사항.md 4.5) - Academic은
+    // 승인 여부와 효력일만 내려주고 여기서 별도로 계산·중복 보유하지 않는다.
+    public static WithdrawalResponseDTO from(WithdrawalRequest request) {
         return new WithdrawalResponseDTO(
                 request.getId(),
                 request.getStudent().getId(),
@@ -39,7 +39,6 @@ public record WithdrawalResponseDTO(
                 request.getProcessedBy() == null ? null : request.getProcessedBy().getId(),
                 request.getProcessedAt(),
                 request.getRejectReason(),
-                refundRate,
                 request.getCreatedAt(),
                 request.getUpdatedAt()
         );

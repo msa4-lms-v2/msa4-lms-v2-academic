@@ -1,7 +1,5 @@
 package com.msa4lmsv2academic.domain.withdrawal.service;
 
-import com.msa4lmsv2academic.domain.semester.entity.Semester;
-import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
@@ -23,11 +21,8 @@ import com.msa4lmsv2academic.global.error.WithdrawalAccessDeniedException;
 import com.msa4lmsv2academic.global.error.WithdrawalNotFoundException;
 import com.msa4lmsv2academic.global.response.PageRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -52,7 +47,6 @@ public class WithdrawalService {
     private final WithdrawalRequestRepository withdrawalRepository;
     private final AcademicStatusHistoryRepository historyRepository;
     private final StudentRepository studentRepository;
-    private final SemesterRepository semesterRepository;
     private final UserRepository userRepository;
 
     public PageRes<WithdrawalResponseDTO> search(
@@ -154,7 +148,6 @@ public class WithdrawalService {
         try {
             if (Boolean.TRUE.equals(review.approved())) {
                 LocalDate effectiveDate = requiredEffectiveDate(review.effectiveDate());
-                Semester semester = currentSemester();
                 Student student = studentRepository.findByIdForUpdate(request.getStudent().getId())
                         .orElseThrow(() -> new InvalidWithdrawalRequestException("학생 정보를 찾을 수 없습니다."));
                 AcademicStatus previousStatus = student.getAcademicStatus();
@@ -164,7 +157,7 @@ public class WithdrawalService {
                 historyRepository.saveAndFlush(AcademicStatusHistory.withdrawalApproved(
                         student, previousStatus, processor, request.getId()
                 ));
-                return WithdrawalResponseDTO.from(request, refundRate(effectiveDate, semester.getStartDate()));
+                return WithdrawalResponseDTO.from(request);
             }
             request.reject(processor, requiredRejectReason(review.rejectReason()), now);
         } catch (IllegalStateException exception) {
@@ -195,35 +188,7 @@ public class WithdrawalService {
     }
 
     private WithdrawalResponseDTO toResponse(WithdrawalRequest request) {
-        BigDecimal rate = null;
-        if (request.getStatus() == WithdrawalStatus.APPROVED && request.getEffectiveDate() != null) {
-            rate = semesterRepository.findFirstByCurrentTrue()
-                    .map(semester -> refundRate(request.getEffectiveDate(), semester.getStartDate()))
-                    .orElse(null);
-        }
-        return WithdrawalResponseDTO.from(request, rate);
-    }
-
-    private Semester currentSemester() {
-        return semesterRepository.findFirstByCurrentTrue()
-                .orElseThrow(() -> new InvalidWithdrawalRequestException("현재 학기가 설정되지 않았습니다."));
-    }
-
-    private BigDecimal refundRate(LocalDate effectiveDate, LocalDate semesterStartDate) {
-        if (effectiveDate.isBefore(semesterStartDate)) {
-            return BigDecimal.ONE.setScale(4, RoundingMode.UNNECESSARY);
-        }
-        long days = ChronoUnit.DAYS.between(semesterStartDate, effectiveDate);
-        if (days < 30) {
-            return BigDecimal.valueOf(5).divide(BigDecimal.valueOf(6), 4, RoundingMode.HALF_UP);
-        }
-        if (days < 60) {
-            return BigDecimal.valueOf(2).divide(BigDecimal.valueOf(3), 4, RoundingMode.HALF_UP);
-        }
-        if (days < 90) {
-            return BigDecimal.valueOf(1).divide(BigDecimal.valueOf(2), 4, RoundingMode.UNNECESSARY);
-        }
-        return BigDecimal.ZERO.setScale(4, RoundingMode.UNNECESSARY);
+        return WithdrawalResponseDTO.from(request);
     }
 
     private LocalDate requiredEffectiveDate(LocalDate effectiveDate) {
