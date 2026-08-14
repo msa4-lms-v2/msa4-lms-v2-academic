@@ -148,8 +148,11 @@ CREATE TABLE IF NOT EXISTS semesters (
     enrollment_start_at DATETIME NOT NULL,
     enrollment_end_at DATETIME NOT NULL,
     is_current TINYINT(1) NOT NULL DEFAULT 0,
+    current_semester_guard TINYINT
+        GENERATED ALWAYS AS (CASE WHEN is_current = 1 THEN 1 ELSE NULL END) STORED,
     PRIMARY KEY (id),
-    CONSTRAINT uk_semesters_academic_year_term UNIQUE (academic_year, term)
+    CONSTRAINT uk_semesters_academic_year_term UNIQUE (academic_year, term),
+    CONSTRAINT uk_semesters_single_current UNIQUE (current_semester_guard)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS courses (

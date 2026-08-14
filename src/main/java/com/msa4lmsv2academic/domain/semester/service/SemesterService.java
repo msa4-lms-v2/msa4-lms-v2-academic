@@ -66,6 +66,7 @@ public class SemesterService {
 
         if (request.resolvedCurrent()) {
             unsetCurrentSemesters(currentUser.id(), requestId, ipAddress);
+            semesterRepository.flush();
         }
 
         Semester semester = Semester.create(
