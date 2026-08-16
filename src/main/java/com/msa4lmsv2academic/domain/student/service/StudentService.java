@@ -1,5 +1,6 @@
 package com.msa4lmsv2academic.domain.student.service;
 
+import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.student.response.StudentProfileResponseDTO;
@@ -15,10 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final GraduationCreditQueryRepository graduationCreditQueryRepository;
 
     public StudentProfileResponseDTO getMyProfile(CurrentUser currentUser) {
         Student student = studentRepository.findByUserId(currentUser.id())
                 .orElseThrow(StudentNotFoundException::new);
-        return StudentProfileResponseDTO.from(student);
+        int totalCredits = graduationCreditQueryRepository.sumTotalCreditsByStudentId(student.getId());
+        return StudentProfileResponseDTO.from(student, totalCredits);
     }
 }
