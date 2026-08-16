@@ -11,6 +11,11 @@ public abstract class BusinessException extends RuntimeException {
         this.code = code;
     }
 
+    protected BusinessException(CustomResponseCode code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
     public CustomResponseCode getCode() {
         return code;
     }

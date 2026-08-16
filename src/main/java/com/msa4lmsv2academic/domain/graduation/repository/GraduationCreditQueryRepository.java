@@ -45,7 +45,26 @@ public class GraduationCreditQueryRepository {
             return Optional.empty();
         }
 
-        List<Tuple> completedCourses = jpaQueryFactory
+        CreditTotals earned = sumCredits(findCompletedCourses(studentId));
+        return Optional.of(new GraduationCreditDiagnosisQueryResult(
+                requiredValue(requirement, graduationRequirement.requiredMajorCredits),
+                requiredValue(requirement, graduationRequirement.requiredGeneralCredits),
+                requiredValue(requirement, graduationRequirement.requiredTotalCredits),
+                earned.major(),
+                earned.general(),
+                earned.required(),
+                earned.elective(),
+                earned.total()
+        ));
+    }
+
+    // 졸업 요건(graduationRequirement) 존재 여부와 무관하게 취득 학점 합계만 필요한 조회(예: 학적조회 화면)용.
+    public int sumTotalCreditsByStudentId(Long studentId) {
+        return sumCredits(findCompletedCourses(studentId)).total();
+    }
+
+    private List<Tuple> findCompletedCourses(Long studentId) {
+        return jpaQueryFactory
                 .select(course.id, course.credits, course.completionType)
                 .from(enrollment)
                 .join(enrollment.lecture, lecture)
@@ -59,18 +78,6 @@ public class GraduationCreditQueryRepository {
                 )
                 .groupBy(course.id, course.credits, course.completionType)
                 .fetch();
-
-        CreditTotals earned = sumCredits(completedCourses);
-        return Optional.of(new GraduationCreditDiagnosisQueryResult(
-                requiredValue(requirement, graduationRequirement.requiredMajorCredits),
-                requiredValue(requirement, graduationRequirement.requiredGeneralCredits),
-                requiredValue(requirement, graduationRequirement.requiredTotalCredits),
-                earned.major(),
-                earned.general(),
-                earned.required(),
-                earned.elective(),
-                earned.total()
-        ));
     }
 
     public boolean isStudentOwnedByUser(Long studentId, Long userId) {

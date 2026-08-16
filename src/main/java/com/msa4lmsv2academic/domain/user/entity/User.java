@@ -47,6 +47,9 @@ public class User {
     @Column(length = 255)
     private String address;
 
+    @Column(name = "profile_image_key", length = 500)
+    private String profileImageKey;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private UserRole role;
@@ -89,5 +92,14 @@ public class User {
     public void synchronizeAccount(UserRole role, UserStatus status) {
         this.role = role;
         this.status = status;
+    }
+
+    // 학적 정보 변경 신청 승인 시 반영한다. null인 필드는 변경하지 않는다.
+    public void applyProfileChange(String name, String phoneNumber, String email, String address, String profileImageKey) {
+        if (name != null) this.name = name;
+        if (phoneNumber != null) this.phoneNumber = phoneNumber;
+        if (email != null) this.email = email;
+        if (address != null) this.address = address;
+        if (profileImageKey != null) this.profileImageKey = profileImageKey;
     }
 }
