@@ -10,12 +10,12 @@ import static org.mockito.Mockito.when;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisQueryResult;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
+import com.msa4lmsv2academic.global.error.GraduationCreditAccessDeniedException;
 import com.msa4lmsv2academic.global.error.GraduationCreditDataNotFoundException;
 import com.msa4lmsv2academic.global.error.InvalidCreditDiagnosisRequestException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.access.AccessDeniedException;
 
 class GraduationCreditDiagnosisServiceTest {
 
@@ -74,7 +74,7 @@ class GraduationCreditDiagnosisServiceTest {
         when(repository.isStudentOwnedByUser(1001L, 2001L)).thenReturn(false);
         GraduationCreditDiagnosisService service = new GraduationCreditDiagnosisService(repository);
 
-        assertThrows(AccessDeniedException.class,
+        assertThrows(GraduationCreditAccessDeniedException.class,
                 () -> service.diagnose(1001L, new CurrentUser(2001L, "STUDENT")));
     }
 
