@@ -19,11 +19,11 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class StudentClassQueryRepository {
+public class StudentEnrollmentQueryRepository {
 
     private final JPAQueryFactory jpaQueryFactory;
 
-    public List<StudentClassQueryResult> findActiveClassesByStudentUserId(
+    public List<StudentEnrollmentQueryResult> findActiveEnrollmentsByStudentUserId(
             Long userId,
             Short academicYear,
             SemesterTerm term
@@ -33,7 +33,10 @@ public class StudentClassQueryRepository {
 
         return jpaQueryFactory
                 .select(Projections.constructor(
-                        StudentClassQueryResult.class,
+                        StudentEnrollmentQueryResult.class,
+                        enrollment.id,
+                        enrollment.status,
+                        enrollment.enrolledAt,
                         lecture.id,
                         course.id,
                         course.code,

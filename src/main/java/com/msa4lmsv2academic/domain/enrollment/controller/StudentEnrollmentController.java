@@ -1,8 +1,8 @@
-package com.msa4lmsv2academic.domain.lecture.controller;
+package com.msa4lmsv2academic.domain.enrollment.controller;
 
-import com.msa4lmsv2academic.domain.lecture.request.StudentClassSearchRequestDTO;
-import com.msa4lmsv2academic.domain.lecture.response.StudentClassResponseDTO;
-import com.msa4lmsv2academic.domain.lecture.service.StudentClassQueryService;
+import com.msa4lmsv2academic.domain.enrollment.request.StudentEnrollmentSearchRequestDTO;
+import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentResponseDTO;
+import com.msa4lmsv2academic.domain.enrollment.service.StudentEnrollmentQueryService;
 import com.msa4lmsv2academic.global.response.GlobalRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,13 +24,13 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Classes", description = "학생 강의 조회 API")
+@Tag(name = "Enrollments", description = "학생 본인 수강 조회 API")
 @RestController
-@RequestMapping("/api/academic/classes")
+@RequestMapping("/api/academic/enrollments")
 @RequiredArgsConstructor
-public class ClassController {
+public class StudentEnrollmentController {
 
-    private final StudentClassQueryService studentClassQueryService;
+    private final StudentEnrollmentQueryService studentEnrollmentQueryService;
 
     @Operation(
             summary = "학생 본인 강의 조회",
@@ -50,10 +50,12 @@ public class ClassController {
     })
     @GetMapping
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<List<StudentClassResponseDTO>>> getMyClasses(
-            @Valid @ModelAttribute StudentClassSearchRequestDTO request,
+    public ResponseEntity<GlobalRes<List<StudentEnrollmentResponseDTO>>> getMyEnrollments(
+            @Valid @ModelAttribute StudentEnrollmentSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(studentClassQueryService.getMyClasses(request, currentUser)));
+        return ResponseEntity.ok(GlobalRes.success(
+                studentEnrollmentQueryService.getMyEnrollments(request, currentUser)
+        ));
     }
 }

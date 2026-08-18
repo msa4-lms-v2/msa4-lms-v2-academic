@@ -2,6 +2,7 @@ package com.msa4lmsv2academic.domain.enrollment.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import java.time.LocalDateTime;
@@ -15,14 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
-class StudentClassQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
+class StudentEnrollmentQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
 
     private static final long STUDENT_USER_ID = 92001L;
     private static final long STUDENT_ID = 92001L;
     private static final long PROFESSOR_ID = 92001L;
 
     @Autowired
-    private StudentClassQueryRepository studentClassQueryRepository;
+    private StudentEnrollmentQueryRepository studentEnrollmentQueryRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -57,32 +58,37 @@ class StudentClassQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
 
     @Test
     void returnsOnlyActiveEnrollmentsMatchingAcademicYearAndTerm() {
-        List<StudentClassQueryResult> result = studentClassQueryRepository.findActiveClassesByStudentUserId(
-                STUDENT_USER_ID,
-                (short) 2026,
-                SemesterTerm.FIRST
-        );
+        List<StudentEnrollmentQueryResult> result =
+                studentEnrollmentQueryRepository.findActiveEnrollmentsByStudentUserId(
+                        STUDENT_USER_ID,
+                        (short) 2026,
+                        SemesterTerm.FIRST
+                );
 
-        assertThat(result).extracting(StudentClassQueryResult::courseName).containsExactly("자료구조");
+        assertThat(result).extracting(StudentEnrollmentQueryResult::courseName).containsExactly("자료구조");
+        assertThat(result.getFirst().enrollmentId()).isEqualTo(92001L);
+        assertThat(result.getFirst().enrollmentStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
+        assertThat(result.getFirst().enrolledAt()).isEqualTo(LocalDateTime.of(2026, 2, 2, 9, 0));
         assertThat(result.getFirst().departmentName()).isEqualTo("강의조회학과");
         assertThat(result.getFirst().professorName()).isEqualTo("조회교수");
     }
 
     @Test
-    void returnsEmptyListWhenStudentHasNoMatchingClasses() {
-        List<StudentClassQueryResult> result = studentClassQueryRepository.findActiveClassesByStudentUserId(
-                STUDENT_USER_ID,
-                (short) 2025,
-                SemesterTerm.FIRST
-        );
+    void returnsEmptyListWhenStudentHasNoMatchingEnrollments() {
+        List<StudentEnrollmentQueryResult> result =
+                studentEnrollmentQueryRepository.findActiveEnrollmentsByStudentUserId(
+                        STUDENT_USER_ID,
+                        (short) 2025,
+                        SemesterTerm.FIRST
+                );
 
         assertThat(result).isEmpty();
     }
 
     @Test
     void verifiesAcademicStudentProfileByAuthenticatedUserId() {
-        assertThat(studentClassQueryRepository.existsStudentByUserId(STUDENT_USER_ID)).isTrue();
-        assertThat(studentClassQueryRepository.existsStudentByUserId(99999L)).isFalse();
+        assertThat(studentEnrollmentQueryRepository.existsStudentByUserId(STUDENT_USER_ID)).isTrue();
+        assertThat(studentEnrollmentQueryRepository.existsStudentByUserId(99999L)).isFalse();
     }
 
     private void insertSemester(long id, String term) {
