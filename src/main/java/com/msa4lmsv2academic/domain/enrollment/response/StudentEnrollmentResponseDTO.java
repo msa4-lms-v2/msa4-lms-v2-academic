@@ -1,13 +1,18 @@
-package com.msa4lmsv2academic.domain.lecture.response;
+package com.msa4lmsv2academic.domain.enrollment.response;
 
 import com.msa4lmsv2academic.domain.course.entity.CompletionType;
-import com.msa4lmsv2academic.domain.enrollment.repository.StudentClassQueryResult;
+import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
+import com.msa4lmsv2academic.domain.enrollment.repository.StudentEnrollmentQueryResult;
 import com.msa4lmsv2academic.domain.lecture.entity.LectureStatus;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
 
 @Schema(description = "학생 본인 수강 강의")
-public record StudentClassResponseDTO(
+public record StudentEnrollmentResponseDTO(
+        @Schema(description = "수강신청 ID", example = "501") Long enrollmentId,
+        @Schema(description = "수강 상태", example = "ACTIVE") EnrollmentStatus enrollmentStatus,
+        @Schema(description = "수강신청 일시", example = "2026-02-10T10:30:00") LocalDateTime enrolledAt,
         @Schema(description = "강의 ID", example = "101") Long classId,
         @Schema(description = "교과목 ID", example = "31") Long courseId,
         @Schema(description = "교과목 코드", example = "CSE301") String courseCode,
@@ -25,8 +30,11 @@ public record StudentClassResponseDTO(
         @Schema(description = "강의 상태", example = "OPEN") LectureStatus status
 ) {
 
-    public static StudentClassResponseDTO from(StudentClassQueryResult result) {
-        return new StudentClassResponseDTO(
+    public static StudentEnrollmentResponseDTO from(StudentEnrollmentQueryResult result) {
+        return new StudentEnrollmentResponseDTO(
+                result.enrollmentId(),
+                result.enrollmentStatus(),
+                result.enrolledAt(),
                 result.classId(),
                 result.courseId(),
                 result.courseCode(),
