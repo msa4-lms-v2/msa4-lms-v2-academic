@@ -282,6 +282,68 @@ CREATE TABLE IF NOT EXISTS courses (
     INDEX idx_courses_department_id (department_id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS lecture_opening_requests (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    version BIGINT NOT NULL DEFAULT 0,
+    course_id BIGINT NOT NULL,
+    professor_id BIGINT NOT NULL,
+    semester_id BIGINT NOT NULL,
+    section_no VARCHAR(10) NOT NULL,
+    requested_capacity INT NOT NULL,
+    classroom VARCHAR(50) NOT NULL,
+    midterm_ratio INT NOT NULL DEFAULT 30,
+    final_ratio INT NOT NULL DEFAULT 30,
+    assignment_ratio INT NOT NULL DEFAULT 30,
+    attendance_ratio INT NOT NULL DEFAULT 10,
+    syllabus TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    reject_reason VARCHAR(500) NULL,
+    reviewed_by BIGINT NULL,
+    reviewed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    active_request_guard TINYINT
+        GENERATED ALWAYS AS (CASE WHEN status = 'PENDING' THEN 1 ELSE NULL END) STORED,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_lecture_opening_requests_pending
+        UNIQUE (course_id, professor_id, semester_id, section_no, active_request_guard),
+    CONSTRAINT ck_lecture_opening_requests_capacity CHECK (requested_capacity > 0),
+    CONSTRAINT ck_lecture_opening_requests_ratios CHECK (
+        midterm_ratio + final_ratio + assignment_ratio + attendance_ratio = 100
+    ),
+    CONSTRAINT fk_lecture_opening_requests_course
+        FOREIGN KEY (course_id) REFERENCES courses (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lecture_opening_requests_professor
+        FOREIGN KEY (professor_id) REFERENCES professors (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lecture_opening_requests_semester
+        FOREIGN KEY (semester_id) REFERENCES semesters (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_lecture_opening_requests_reviewer
+        FOREIGN KEY (reviewed_by) REFERENCES users (id)
+        ON DELETE RESTRICT,
+    INDEX idx_lecture_opening_requests_professor_status (professor_id, status),
+    INDEX idx_lecture_opening_requests_status_created (status, created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS lecture_opening_request_schedules (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    request_id BIGINT NOT NULL,
+    day_of_week VARCHAR(10) NOT NULL,
+    start_period TINYINT NOT NULL,
+    end_period TINYINT NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_lecture_opening_request_schedules_slot
+        UNIQUE (request_id, day_of_week, start_period, end_period),
+    CONSTRAINT ck_lecture_opening_request_schedules_period
+        CHECK (start_period > 0 AND end_period >= start_period),
+    CONSTRAINT fk_lecture_opening_request_schedules_request
+        FOREIGN KEY (request_id) REFERENCES lecture_opening_requests (id)
+        ON DELETE CASCADE,
+    INDEX idx_lecture_opening_request_schedules_request_id (request_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS lectures (
     id BIGINT NOT NULL AUTO_INCREMENT,
     semester_id BIGINT NOT NULL,
@@ -296,7 +358,10 @@ CREATE TABLE IF NOT EXISTS lectures (
     assignment_ratio INT NOT NULL DEFAULT 30,
     attendance_ratio INT NOT NULL DEFAULT 10,
     syllabus TEXT NULL,
+    approved_request_id BIGINT NULL,
     PRIMARY KEY (id),
+    CONSTRAINT uk_lectures_semester_course_section UNIQUE (semester_id, course_id, section_no),
+    CONSTRAINT uk_lectures_approved_request UNIQUE (approved_request_id),
     CONSTRAINT fk_lectures_semester
         FOREIGN KEY (semester_id) REFERENCES semesters (id)
         ON DELETE RESTRICT,
@@ -306,9 +371,28 @@ CREATE TABLE IF NOT EXISTS lectures (
     CONSTRAINT fk_lectures_professor
         FOREIGN KEY (professor_id) REFERENCES professors (id)
         ON DELETE RESTRICT,
+    CONSTRAINT fk_lectures_approved_request
+        FOREIGN KEY (approved_request_id) REFERENCES lecture_opening_requests (id)
+        ON DELETE RESTRICT,
     INDEX idx_lectures_semester_id (semester_id),
     INDEX idx_lectures_course_id (course_id),
     INDEX idx_lectures_professor_id (professor_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS lecture_schedules (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    lecture_id BIGINT NOT NULL,
+    day_of_week VARCHAR(10) NOT NULL,
+    start_period TINYINT NOT NULL,
+    end_period TINYINT NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_lecture_schedules_slot
+        UNIQUE (lecture_id, day_of_week, start_period),
+    CONSTRAINT ck_lecture_schedules_period CHECK (start_period > 0 AND end_period >= start_period),
+    CONSTRAINT fk_lecture_schedules_lecture
+        FOREIGN KEY (lecture_id) REFERENCES lectures (id)
+        ON DELETE CASCADE,
+    INDEX idx_lecture_schedules_lecture_id (lecture_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS enrollments (
