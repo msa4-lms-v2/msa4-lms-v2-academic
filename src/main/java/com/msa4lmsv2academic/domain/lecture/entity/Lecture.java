@@ -11,6 +11,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor(access = AccessLevel.PROTECTED) @EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "lectures",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_lectures_semester_course_section",
+                columnNames = {"semester_id", "course_id", "section_no"}
+        ),
         indexes = {
                 @Index(name = "idx_lectures_semester_id", columnList = "semester_id"),
                 @Index(name = "idx_lectures_course_id", columnList = "course_id"),
@@ -31,10 +35,21 @@ public class Lecture {
     @Column(name = "assignment_ratio", nullable = false) private int assignmentRatio;
     @Column(name = "attendance_ratio", nullable = false) private int attendanceRatio;
     @Column(columnDefinition = "text") private String syllabus;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_request_id", unique = true)
+    private LectureOpeningRequest approvedRequest;
 
     private Lecture(Semester semester, Course course, Professor professor, String sectionNo, int capacity,
                     String classroom, LectureStatus status, int midtermRatio, int finalRatio,
                     int assignmentRatio, int attendanceRatio, String syllabus) {
+        this(semester, course, professor, sectionNo, capacity, classroom, status,
+                midtermRatio, finalRatio, assignmentRatio, attendanceRatio, syllabus, null);
+    }
+
+    private Lecture(Semester semester, Course course, Professor professor, String sectionNo, int capacity,
+                    String classroom, LectureStatus status, int midtermRatio, int finalRatio,
+                    int assignmentRatio, int attendanceRatio, String syllabus,
+                    LectureOpeningRequest approvedRequest) {
         this.semester = semester;
         this.course = course;
         this.professor = professor;
@@ -47,6 +62,7 @@ public class Lecture {
         this.assignmentRatio = assignmentRatio;
         this.attendanceRatio = attendanceRatio;
         this.syllabus = syllabus;
+        this.approvedRequest = approvedRequest;
     }
 
     public static Lecture create(Semester semester, Course course, Professor professor, String sectionNo,
@@ -54,5 +70,23 @@ public class Lecture {
                                  int finalRatio, int assignmentRatio, int attendanceRatio, String syllabus) {
         return new Lecture(semester, course, professor, sectionNo, capacity, classroom, status,
                 midtermRatio, finalRatio, assignmentRatio, attendanceRatio, syllabus);
+    }
+
+    public static Lecture fromApprovedOpeningRequest(LectureOpeningRequest request) {
+        return new Lecture(
+                request.getSemester(),
+                request.getCourse(),
+                request.getProfessor(),
+                request.getSectionNo(),
+                request.getRequestedCapacity(),
+                request.getClassroom(),
+                LectureStatus.OPEN,
+                request.getMidtermRatio(),
+                request.getFinalRatio(),
+                request.getAssignmentRatio(),
+                request.getAttendanceRatio(),
+                request.getSyllabus(),
+                request
+        );
     }
 }
