@@ -3,11 +3,11 @@ package com.msa4lmsv2academic.domain.graduation.service;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditDiagnosisQueryResult;
 import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
+import com.msa4lmsv2academic.global.error.GraduationCreditAccessDeniedException;
 import com.msa4lmsv2academic.global.error.GraduationCreditDataNotFoundException;
 import com.msa4lmsv2academic.global.error.InvalidCreditDiagnosisRequestException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +58,7 @@ public class GraduationCreditDiagnosisService {
 
     private void validateAccess(Long studentId, CurrentUser currentUser) {
         if (currentUser == null || currentUser.id() == null || currentUser.role() == null) {
-            throw new AccessDeniedException("인증 사용자 정보가 없습니다.");
+            throw new GraduationCreditAccessDeniedException("인증 사용자 정보가 없습니다.");
         }
 
         boolean accessible = switch (currentUser.role()) {
@@ -68,7 +68,7 @@ public class GraduationCreditDiagnosisService {
             default -> false;
         };
         if (!accessible) {
-            throw new AccessDeniedException("해당 학생의 졸업 학점 진단 권한이 없습니다.");
+            throw new GraduationCreditAccessDeniedException("해당 학생의 졸업 학점 진단 권한이 없습니다.");
         }
     }
 
