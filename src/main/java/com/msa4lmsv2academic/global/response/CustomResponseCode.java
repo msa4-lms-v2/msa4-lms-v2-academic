@@ -17,6 +17,9 @@ public enum CustomResponseCode {
 
     INVALID_PARAMETER("E21", HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
 
+    FILE_ERROR("E40", HttpStatus.BAD_REQUEST, "파일 처리 요청이 올바르지 않습니다."),
+    FILE_SIZE_EXCEEDED("E41", HttpStatus.PAYLOAD_TOO_LARGE, "업로드 가능한 파일 크기를 초과했습니다."),
+
     DATABASE_ERROR("E80", HttpStatus.INTERNAL_SERVER_ERROR, "데이터 처리 중 오류가 발생했습니다."),
     SYSTEM_ERROR("E99", HttpStatus.INTERNAL_SERVER_ERROR, "일시적인 오류가 발생했습니다.");
 
