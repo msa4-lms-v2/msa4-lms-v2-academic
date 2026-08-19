@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -67,6 +68,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GlobalRes<Void>> handleAccessDenied(AccessDeniedException exception) {
         log.warn("[{}] {}", CustomResponseCode.ACCESS_DENIED.getCode(), exception.getMessage());
         return fail(CustomResponseCode.ACCESS_DENIED);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<GlobalRes<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+        log.warn("[{}] {}", CustomResponseCode.FILE_SIZE_EXCEEDED.getCode(), exception.getMessage());
+        return fail(CustomResponseCode.FILE_SIZE_EXCEEDED);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

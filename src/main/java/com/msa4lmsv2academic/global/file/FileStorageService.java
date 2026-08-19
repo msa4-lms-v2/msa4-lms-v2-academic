@@ -1,8 +1,10 @@
 package com.msa4lmsv2academic.global.file;
 
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
 import java.io.IOException;
 import java.time.Duration;
@@ -27,6 +29,15 @@ public class FileStorageService {
     // MinIO에 파일을 업로드하고 버킷 내 objectKey를 반환한다. 실제 파일 내용은 저장하지 않고 objectKey만 DB에 남긴다.
     public String upload(String pathPrefix, MultipartFile file) {
         String objectKey = pathPrefix + "/" + UUID.randomUUID() + "-" + sanitize(file.getOriginalFilename());
+        return uploadObject(objectKey, file);
+    }
+
+    public String uploadEvidence(String pathPrefix, MultipartFile file) {
+        String objectKey = pathPrefix + "/" + UUID.randomUUID() + ".pdf";
+        return uploadObject(objectKey, file);
+    }
+
+    private String uploadObject(String objectKey, MultipartFile file) {
         try (var inputStream = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket)
@@ -53,6 +64,31 @@ public class FileStorageService {
                     .build());
         } catch (Exception e) {
             throw new FileStorageException("다운로드 URL 발급에 실패했습니다: " + objectKey, e);
+        }
+    }
+
+    public byte[] download(String objectKey) {
+        try (var inputStream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(bucket)
+                .object(objectKey)
+                .build())) {
+            return inputStream.readAllBytes();
+        } catch (Exception exception) {
+            throw new FileStorageException("파일 다운로드에 실패했습니다: " + objectKey, exception);
+        }
+    }
+
+    public void delete(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .build());
+        } catch (Exception exception) {
+            throw new FileStorageException("파일 삭제에 실패했습니다: " + objectKey, exception);
         }
     }
 
