@@ -89,4 +89,8 @@ public class Lecture {
                 request
         );
     }
+
+    public void updateSyllabus(String syllabus) {
+        this.syllabus = syllabus;
+    }
 }
