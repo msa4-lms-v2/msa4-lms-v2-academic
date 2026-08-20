@@ -2,10 +2,6 @@ package com.msa4lmsv2academic.domain.organization.service;
 
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.error.CollegeNotFoundException;
-import com.msa4lmsv2academic.domain.organization.error.DepartmentNotFoundException;
-import com.msa4lmsv2academic.domain.organization.error.DuplicateDepartmentException;
-import com.msa4lmsv2academic.domain.organization.error.InvalidDepartmentRequestException;
 import com.msa4lmsv2academic.domain.organization.repository.CollegeRepository;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentQueryRepository;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
@@ -15,6 +11,10 @@ import com.msa4lmsv2academic.domain.organization.request.DepartmentCreateRequest
 import com.msa4lmsv2academic.domain.organization.request.DepartmentSearchRequestDTO;
 import com.msa4lmsv2academic.domain.organization.request.DepartmentUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.organization.response.DepartmentResponseDTO;
+import com.msa4lmsv2academic.global.error.CollegeNotFoundException;
+import com.msa4lmsv2academic.global.error.DepartmentNotFoundException;
+import com.msa4lmsv2academic.global.error.DuplicateDepartmentException;
+import com.msa4lmsv2academic.global.error.InvalidDepartmentRequestException;
 import com.msa4lmsv2academic.global.response.PageRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import lombok.RequiredArgsConstructor;

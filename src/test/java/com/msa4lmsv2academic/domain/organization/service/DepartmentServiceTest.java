@@ -5,13 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.error.DuplicateDepartmentException;
-import com.msa4lmsv2academic.domain.organization.error.InvalidDepartmentRequestException;
 import com.msa4lmsv2academic.domain.organization.repository.CollegeRepository;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
 import com.msa4lmsv2academic.domain.organization.request.DepartmentCreateRequestDTO;
 import com.msa4lmsv2academic.domain.organization.request.DepartmentUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.organization.response.DepartmentResponseDTO;
+import com.msa4lmsv2academic.global.error.DuplicateDepartmentException;
+import com.msa4lmsv2academic.global.error.InvalidDepartmentRequestException;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
