@@ -48,7 +48,7 @@ class LectureOpeningRequestTest {
     }
 
     private LectureOpeningRequest request() {
-        Department department = Department.create("CSE", null, "컴퓨터공학과", true);
+        Department department = Department.create("100", null, "컴퓨터공학과", true);
         User professorUser = User.synchronize(
                 9001L, "담당교수", null, null, null, UserRole.PROFESSOR, UserStatus.ACTIVE
         );

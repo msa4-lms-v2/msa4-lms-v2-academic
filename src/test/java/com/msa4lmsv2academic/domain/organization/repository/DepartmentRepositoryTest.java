@@ -48,24 +48,24 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
 
     @Test
     void departmentCodeHasDatabaseUniqueConstraint() {
-        departmentRepository.saveAndFlush(Department.create("CSE", engineering, "컴퓨터공학과", true));
+        departmentRepository.saveAndFlush(Department.create("100", engineering, "컴퓨터공학과", true));
 
         assertThatThrownBy(() -> departmentRepository.saveAndFlush(
-                Department.create("CSE", humanities, "다른컴퓨터학과", true)
+                Department.create("100", humanities, "다른컴퓨터학과", true)
         )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    void departmentCodeHasDatabaseLengthOfTwenty() {
+    void departmentCodeHasDatabaseLengthOfThree() {
         assertThatThrownBy(() -> departmentRepository.saveAndFlush(
-                Department.create("123456789012345678901", engineering, "컴퓨터공학과", true)
+                Department.create("1234", engineering, "컴퓨터공학과", true)
         )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void duplicateDepartmentNameIsAllowedWithinSameCollege() {
-        departmentRepository.save(Department.create("CSE", engineering, "컴퓨터공학과", true));
-        departmentRepository.saveAndFlush(Department.create("AIC", engineering, "컴퓨터공학과", true));
+        departmentRepository.save(Department.create("100", engineering, "컴퓨터공학과", true));
+        departmentRepository.saveAndFlush(Department.create("101", engineering, "컴퓨터공학과", true));
 
         assertThat(departmentRepository.count()).isEqualTo(2);
     }
@@ -73,10 +73,10 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
     @Test
     void departmentKeepsNullableCollegeRelationship() {
         Department withCollege = departmentRepository.saveAndFlush(
-                Department.create("CSE", engineering, "컴퓨터공학과", true)
+                Department.create("100", engineering, "컴퓨터공학과", true)
         );
         Department withoutCollege = departmentRepository.saveAndFlush(
-                Department.create("FREE", null, "자유전공학부", true)
+                Department.create("105", null, "자유전공학부", true)
         );
         entityManager.clear();
 
@@ -92,16 +92,16 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
     @Test
     void queryDslSearchCombinesRoleScopeCollegeActiveAndKeyword() {
         departmentRepository.saveAllAndFlush(List.of(
-                Department.create("CSE", engineering, "컴퓨터공학과", true),
-                Department.create("MEC", engineering, "기계공학과", false),
-                Department.create("KOR", humanities, "국어국문학과", true),
-                Department.create("OLD", inactiveCollege, "폐지학과", true),
-                Department.create("FREE", null, "자유전공학부", true)
+                Department.create("100", engineering, "컴퓨터공학과", true),
+                Department.create("102", engineering, "기계공학과", false),
+                Department.create("103", humanities, "국어국문학과", true),
+                Department.create("104", inactiveCollege, "폐지학과", true),
+                Department.create("105", null, "자유전공학부", true)
         ));
         entityManager.clear();
 
         DepartmentSearchResult studentCodeResult = departmentQueryRepository.search(
-                new DepartmentSearchCondition(0, 20, engineering.getId(), false, " CSE ", false)
+                new DepartmentSearchCondition(0, 20, engineering.getId(), false, " 100 ", false)
         );
         DepartmentSearchResult studentAllResult = departmentQueryRepository.search(
                 new DepartmentSearchCondition(0, 20, null, null, null, false)
@@ -110,18 +110,18 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
                 new DepartmentSearchCondition(0, 20, engineering.getId(), false, "공학", true)
         );
 
-        assertThat(studentCodeResult.items()).extracting(Department::getCode).containsExactly("CSE");
+        assertThat(studentCodeResult.items()).extracting(Department::getCode).containsExactly("100");
         assertThat(studentAllResult.items()).extracting(Department::getCode)
-                .containsExactly("CSE", "FREE", "KOR");
-        assertThat(adminInactiveResult.items()).extracting(Department::getCode).containsExactly("MEC");
+                .containsExactly("100", "103", "105");
+        assertThat(adminInactiveResult.items()).extracting(Department::getCode).containsExactly("102");
     }
 
     @Test
     void searchSortsByCodeAndSupportsStablePagingWithoutNPlusOne() {
         departmentRepository.saveAllAndFlush(List.of(
-                Department.create("ZOO", engineering, "동물공학과", true),
-                Department.create("AIC", engineering, "인공지능학과", true),
-                Department.create("CSE", engineering, "컴퓨터공학과", true)
+                Department.create("106", engineering, "동물공학과", true),
+                Department.create("101", engineering, "인공지능학과", true),
+                Department.create("100", engineering, "컴퓨터공학과", true)
         ));
         entityManager.clear();
 
@@ -130,7 +130,7 @@ class DepartmentRepositoryTest extends MySqlIntegrationTest {
         );
         PersistenceUnitUtil persistenceUnitUtil = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
 
-        assertThat(firstPage.items()).extracting(Department::getCode).containsExactly("AIC", "CSE");
+        assertThat(firstPage.items()).extracting(Department::getCode).containsExactly("100", "101");
         assertThat(firstPage.totalCount()).isEqualTo(3);
         assertThat(firstPage.items()).allMatch(item -> persistenceUnitUtil.isLoaded(item, "college"));
     }

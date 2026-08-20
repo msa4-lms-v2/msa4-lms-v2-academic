@@ -32,7 +32,7 @@ class StudentEnrollmentQueryRepositoryIntegrationTest extends MySqlIntegrationTe
     void setUp() {
         jdbcTemplate.update("INSERT INTO colleges (id, code, name, active) VALUES (92001, 'CLASS-COL', '강의조회대학', 1)");
         jdbcTemplate.update("INSERT INTO departments (id, code, college_id, name, active) "
-                + "VALUES (92001, 'CLASS-DEPT', 92001, '강의조회학과', 1)");
+                + "VALUES (92001, '222', 92001, '강의조회학과', 1)");
         jdbcTemplate.update("INSERT INTO users (id, name, role, status) VALUES (?, '조회학생', 'STUDENT', 'ACTIVE')",
                 STUDENT_USER_ID);
         jdbcTemplate.update("INSERT INTO users (id, name, role, status) VALUES (92002, '조회교수', 'PROFESSOR', 'ACTIVE')");

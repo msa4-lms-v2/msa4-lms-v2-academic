@@ -36,7 +36,7 @@ public class Department {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false, length = 20, updatable = false)
+    @Column(nullable = false, length = 3, updatable = false)
     private String code;
 
     @ManyToOne(fetch = FetchType.LAZY)

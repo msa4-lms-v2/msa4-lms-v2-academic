@@ -30,16 +30,16 @@ SET @engineering_college_id = (SELECT id FROM colleges WHERE code = 'ENG' LIMIT 
 SET @humanities_college_id = (SELECT id FROM colleges WHERE code = 'HUM' LIMIT 1);
 
 INSERT INTO departments (code, college_id, name, active) VALUES
-    ('CSE', @engineering_college_id, '컴퓨터공학과', TRUE),
-    ('ELEC', @engineering_college_id, '전자공학과', TRUE),
-    ('KOR', @humanities_college_id, '국어국문학과', FALSE),
-    ('OPEN', NULL, '자유전공학과', TRUE)
+    ('001', @engineering_college_id, '컴퓨터공학과', TRUE),
+    ('002', @engineering_college_id, '전자공학과', TRUE),
+    ('003', @humanities_college_id, '국어국문학과', FALSE),
+    ('004', NULL, '자유전공학과', TRUE)
 ON DUPLICATE KEY UPDATE
     college_id = VALUES(college_id),
     name = VALUES(name),
     active = VALUES(active);
 
-SET @cse_department_id = (SELECT id FROM departments WHERE code = 'CSE' LIMIT 1);
+SET @cse_department_id = (SELECT id FROM departments WHERE code = '001' LIMIT 1);
 
 INSERT INTO majors (department_id, code, name, active) VALUES
     (@cse_department_id, 'CSE-SW', '소프트웨어전공', TRUE),

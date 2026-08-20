@@ -29,7 +29,7 @@ class AcademicCommonEntityPersistenceTest extends MySqlIntegrationTest {
     @Test
     void persistsNullableProfileFieldsAndJpaAuditingValues() {
         College college = College.create("ENG-PERSIST", "공과대학", true);
-        Department department = Department.create("CSE-PERSIST", college, "컴퓨터공학과", true);
+        Department department = Department.create("203", college, "컴퓨터공학과", true);
         User professorUser = User.synchronize(
                 10001L, "교수", null, null, null, UserRole.PROFESSOR, UserStatus.ACTIVE
         );
@@ -55,8 +55,8 @@ class AcademicCommonEntityPersistenceTest extends MySqlIntegrationTest {
 
     @Test
     void rejectsSamePrimaryAndDoubleMajorAtDatabaseBoundary() {
-        College college = College.create("BUS-PERSIST", "경영대학", true);
-        Department department = Department.create("BUS-PERSIST", college, "경영학과", true);
+        College college = College.create("204", "경영대학", true);
+        Department department = Department.create("204", college, "경영학과", true);
         Major major = Major.create(department, "BUS-MAJOR", "경영학", true);
         User studentUser = User.synchronize(
                 10003L, "복수전공학생", null, null, null, UserRole.STUDENT, UserStatus.ACTIVE

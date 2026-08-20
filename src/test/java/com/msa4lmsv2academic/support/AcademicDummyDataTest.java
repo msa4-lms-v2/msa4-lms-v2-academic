@@ -45,7 +45,7 @@ class AcademicDummyDataTest {
     void loadsReusableSampleDataForImplementedAcademicFeatures() {
         assertThat(count("SELECT COUNT(*) FROM users WHERE id IN (1, 2, 3)"))
                 .isEqualTo(3);
-        assertThat(count("SELECT COUNT(*) FROM departments WHERE code IN ('CSE', 'ELEC', 'KOR', 'OPEN')"))
+        assertThat(count("SELECT COUNT(*) FROM departments WHERE code IN ('001', '002', '003', '004')"))
                 .isEqualTo(4);
         assertThat(count("SELECT COUNT(*) FROM semesters WHERE is_current = TRUE"))
                 .isEqualTo(1);

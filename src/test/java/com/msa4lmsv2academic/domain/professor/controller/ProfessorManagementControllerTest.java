@@ -60,10 +60,10 @@ class ProfessorManagementControllerTest extends MySqlIntegrationTest {
         departmentRepository.deleteAllInBatch();
 
         currentDepartment = departmentRepository.save(
-                Department.create("CSE-CTRL", null, "컴퓨터공학과", true)
+                Department.create("209", null, "컴퓨터공학과", true)
         );
         targetDepartment = departmentRepository.save(
-                Department.create("AIC-CTRL", null, "인공지능학과", true)
+                Department.create("210", null, "인공지능학과", true)
         );
 
         entityManager.persist(User.synchronize(

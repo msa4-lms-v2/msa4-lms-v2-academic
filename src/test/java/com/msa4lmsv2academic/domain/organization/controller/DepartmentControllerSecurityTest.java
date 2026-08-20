@@ -45,9 +45,9 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
         collegeRepository.deleteAllInBatch();
 
         engineering = collegeRepository.save(College.create("ENG", "공과대학", true));
-        departmentRepository.save(Department.create("CSE", engineering, "컴퓨터공학과", true));
+        departmentRepository.save(Department.create("100", engineering, "컴퓨터공학과", true));
         inactiveDepartmentId = departmentRepository.saveAndFlush(
-                Department.create("MEC", engineering, "기계공학과", false)
+                Department.create("102", engineering, "기계공학과", false)
         ).getId();
     }
 
@@ -66,7 +66,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     @ValueSource(strings = {"STUDENT", "PROFESSOR"})
     void nonAdminCannotCreateOrUpdate(String role) throws Exception {
         String createBody = """
-                {"code":"AIC","name":"인공지능학과","collegeId":%d}
+                {"code":"101","name":"인공지능학과","collegeId":%d}
                 """.formatted(engineering.getId());
 
         mockMvc.perform(post("/api/academic/catalog/departments")
@@ -138,9 +138,9 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void adminCreateAllowsDocumentedCodeAndMissingCollege() throws Exception {
+    void adminCreateAllowsThreeDigitCodeAndMissingCollege() throws Exception {
         String body = """
-                {"code":"aic_01","name":"인공지능학과","active":false}
+                {"code":"101","name":"인공지능학과","active":false}
                 """;
 
         mockMvc.perform(post("/api/academic/catalog/departments")
@@ -149,7 +149,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("00"))
-                .andExpect(jsonPath("$.data.code").value("aic_01"))
+                .andExpect(jsonPath("$.data.code").value("101"))
                 .andExpect(jsonPath("$.data.college").doesNotExist())
                 .andExpect(jsonPath("$.data.active").value(false));
     }
@@ -162,7 +162,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                         .content("{\"name\":\"기계시스템공학과\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("00"))
-                .andExpect(jsonPath("$.data.code").value("MEC"))
+                .andExpect(jsonPath("$.data.code").value("102"))
                 .andExpect(jsonPath("$.data.name").value("기계시스템공학과"));
 
         mockMvc.perform(patch("/api/academic/catalog/departments/{id}", inactiveDepartmentId)
@@ -188,11 +188,11 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void adminCreateRejectsCodeLongerThanTwentyCharacters() throws Exception {
+    void adminCreateRejectsCodeThatIsNotThreeDigits() throws Exception {
         mockMvc.perform(post("/api/academic/catalog/departments")
                         .headers(gatewayHeaders(1L, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"123456789012345678901\",\"name\":\"컴퓨터공학과\"}"))
+                        .content("{\"code\":\"1234\",\"name\":\"컴퓨터공학과\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("E21"));
     }
@@ -206,7 +206,7 @@ class DepartmentControllerSecurityTest extends MySqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.size").value(100))
                 .andExpect(jsonPath("$.data.totalCount").value(1))
-                .andExpect(jsonPath("$.data.items[0].code").value("CSE"));
+                .andExpect(jsonPath("$.data.items[0].code").value("100"));
     }
 
     private HttpHeaders gatewayHeaders(Long userId, String role) {

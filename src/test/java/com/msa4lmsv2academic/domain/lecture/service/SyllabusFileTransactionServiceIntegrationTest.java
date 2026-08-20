@@ -62,7 +62,7 @@ class SyllabusFileTransactionServiceIntegrationTest extends MySqlIntegrationTest
         User otherProfessorUser = user(OTHER_PROFESSOR_USER_ID, "다른 교수", UserRole.PROFESSOR);
         User adminUser = user(ADMIN_USER_ID, "강의계획서 관리자", UserRole.ADMIN);
         College college = College.create("SYF-COL", "강의계획서대학", true);
-        Department department = Department.create("SYF-DEPT", college, "강의계획서학과", true);
+        Department department = Department.create("213", college, "강의계획서학과", true);
         Professor professor = Professor.create(professorUser, (short) 2020, department);
         Professor otherProfessor = Professor.create(otherProfessorUser, (short) 2021, department);
         Semester semester = Semester.create(
