@@ -25,10 +25,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
 @Table(
-        name = "student_info_change_request_files",
-        indexes = @Index(name = "idx_student_info_change_request_files_request_id", columnList = "request_id")
+        name = "professor_info_change_request_files",
+        indexes = @Index(name = "idx_professor_info_change_request_files_request_id", columnList = "request_id")
 )
-public class StudentInfoChangeRequestFile {
+public class ProfessorInfoChangeRequestFile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +37,7 @@ public class StudentInfoChangeRequestFile {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "request_id", nullable = false)
-    private StudentInfoChangeRequest request;
+    private ProfessorInfoChangeRequest request;
 
     @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
@@ -55,8 +55,8 @@ public class StudentInfoChangeRequestFile {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    private StudentInfoChangeRequestFile(
-            StudentInfoChangeRequest request,
+    private ProfessorInfoChangeRequestFile(
+            ProfessorInfoChangeRequest request,
             String fileName,
             String objectKey,
             String contentType,
@@ -69,13 +69,13 @@ public class StudentInfoChangeRequestFile {
         this.fileSize = fileSize;
     }
 
-    public static StudentInfoChangeRequestFile create(
-            StudentInfoChangeRequest request,
+    public static ProfessorInfoChangeRequestFile create(
+            ProfessorInfoChangeRequest request,
             String fileName,
             String objectKey,
             String contentType,
             long fileSize
     ) {
-        return new StudentInfoChangeRequestFile(request, fileName, objectKey, contentType, fileSize);
+        return new ProfessorInfoChangeRequestFile(request, fileName, objectKey, contentType, fileSize);
     }
 }

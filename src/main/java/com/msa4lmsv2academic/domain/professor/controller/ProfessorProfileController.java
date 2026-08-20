@@ -1,7 +1,7 @@
-package com.msa4lmsv2academic.domain.student.controller;
+package com.msa4lmsv2academic.domain.professor.controller;
 
-import com.msa4lmsv2academic.domain.student.response.StudentProfileResponseDTO;
-import com.msa4lmsv2academic.domain.student.service.StudentService;
+import com.msa4lmsv2academic.domain.professor.response.ProfessorProfileResponseDTO;
+import com.msa4lmsv2academic.domain.professor.service.ProfessorProfileService;
 import com.msa4lmsv2academic.global.response.GlobalRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,18 +20,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Students", description = "학생 본인 정보 API")
+@Tag(name = "Professor Profiles", description = "교수 본인 프로필 API")
 @RestController
-@RequestMapping("/api/academic/students")
+@RequestMapping("/api/academic/professors")
 @RequiredArgsConstructor
-public class StudentController {
+public class ProfessorProfileController {
 
-    private final StudentService studentService;
+    private final ProfessorProfileService professorProfileService;
 
     @Operation(
-            operationId = "getMyStudentProfile",
-            summary = "학생 본인 프로필 조회",
-            description = "STUDENT가 본인의 연락처·주소·소속·학적 상태와 프로필 이미지를 조회합니다. "
+            operationId = "getMyProfessorProfile",
+            summary = "교수 본인 프로필 조회",
+            description = "PROFESSOR가 본인의 연락처·주소·소속·임용 연도와 프로필 이미지를 조회합니다. "
                     + "다른 사용자의 프로필은 조회할 수 없습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -39,16 +39,16 @@ public class StudentController {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "STUDENT 권한 필요",
+            @ApiResponse(responseCode = "403", description = "PROFESSOR 권한 필요",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "학생 프로필 없음",
+            @ApiResponse(responseCode = "404", description = "교수 프로필 없음",
                     content = @Content(schema = @Schema(implementation = GlobalRes.class)))
     })
     @GetMapping("/me")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<StudentProfileResponseDTO>> getMyProfile(
+    @PreAuthorize("hasRole('PROFESSOR')")
+    public ResponseEntity<GlobalRes<ProfessorProfileResponseDTO>> getMyProfile(
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(studentService.getMyProfile(currentUser)));
+        return ResponseEntity.ok(GlobalRes.success(professorProfileService.getMyProfile(currentUser)));
     }
 }

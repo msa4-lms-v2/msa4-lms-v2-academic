@@ -7,9 +7,9 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
-@Schema(description = "학적 정보 변경 신청(multipart/form-data)")
-public record StudentInfoChangeRequestCreateDTO(
-        @Schema(description = "변경할 이름", example = "김학생", nullable = true)
+@Schema(description = "교수 프로필 변경 신청(multipart/form-data)")
+public record ProfessorInfoChangeRequestCreateDTO(
+        @Schema(description = "변경할 이름", example = "김교수", nullable = true)
         @Size(max = 50)
         String newName,
 
@@ -17,7 +17,7 @@ public record StudentInfoChangeRequestCreateDTO(
         @Size(max = 20)
         String newPhoneNumber,
 
-        @Schema(description = "변경할 이메일", example = "student@example.com", nullable = true)
+        @Schema(description = "변경할 이메일", example = "professor@example.com", nullable = true)
         @Email
         @Size(max = 100)
         String newEmail,

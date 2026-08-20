@@ -2,20 +2,20 @@ package com.msa4lmsv2academic.domain.infochange.service;
 
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.infochange.entity.InfoChangeRequestStatus;
-import com.msa4lmsv2academic.domain.infochange.entity.StudentInfoChangeRequest;
-import com.msa4lmsv2academic.domain.infochange.entity.StudentInfoChangeRequestFile;
+import com.msa4lmsv2academic.domain.infochange.entity.ProfessorInfoChangeRequest;
+import com.msa4lmsv2academic.domain.infochange.entity.ProfessorInfoChangeRequestFile;
 import com.msa4lmsv2academic.domain.infochange.repository.InfoChangeRequestSearchCondition;
-import com.msa4lmsv2academic.domain.infochange.repository.StudentInfoChangeRequestFileRepository;
-import com.msa4lmsv2academic.domain.infochange.repository.StudentInfoChangeRequestQueryRepository;
-import com.msa4lmsv2academic.domain.infochange.repository.StudentInfoChangeRequestRepository;
-import com.msa4lmsv2academic.domain.infochange.repository.StudentInfoChangeRequestSearchResult;
+import com.msa4lmsv2academic.domain.infochange.repository.ProfessorInfoChangeRequestFileRepository;
+import com.msa4lmsv2academic.domain.infochange.repository.ProfessorInfoChangeRequestQueryRepository;
+import com.msa4lmsv2academic.domain.infochange.repository.ProfessorInfoChangeRequestRepository;
+import com.msa4lmsv2academic.domain.infochange.repository.ProfessorInfoChangeRequestSearchResult;
 import com.msa4lmsv2academic.domain.infochange.request.InfoChangeRequestRejectRequestDTO;
 import com.msa4lmsv2academic.domain.infochange.request.InfoChangeRequestSearchRequestDTO;
-import com.msa4lmsv2academic.domain.infochange.request.StudentInfoChangeRequestCreateDTO;
-import com.msa4lmsv2academic.domain.infochange.response.StudentInfoChangeRequestFileResponseDTO;
-import com.msa4lmsv2academic.domain.infochange.response.StudentInfoChangeRequestResponseDTO;
-import com.msa4lmsv2academic.domain.student.entity.Student;
-import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
+import com.msa4lmsv2academic.domain.infochange.request.ProfessorInfoChangeRequestCreateDTO;
+import com.msa4lmsv2academic.domain.infochange.response.ProfessorInfoChangeRequestFileResponseDTO;
+import com.msa4lmsv2academic.domain.infochange.response.ProfessorInfoChangeRequestResponseDTO;
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
+import com.msa4lmsv2academic.domain.professor.repository.ProfessorRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.repository.UserRepository;
 import com.msa4lmsv2academic.global.error.DuplicateInfoChangeRequestException;
@@ -24,7 +24,7 @@ import com.msa4lmsv2academic.global.error.InfoChangeRequestAccessDeniedException
 import com.msa4lmsv2academic.global.error.InfoChangeRequestNotFoundException;
 import com.msa4lmsv2academic.global.error.InfoChangeRequestStateConflictException;
 import com.msa4lmsv2academic.global.error.InvalidInfoChangeRequestException;
-import com.msa4lmsv2academic.global.error.StudentNotFoundException;
+import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.response.PageRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -42,34 +42,34 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class StudentInfoChangeRequestService {
+public class ProfessorInfoChangeRequestService {
 
-    private static final String PROFILE_IMAGE_PATH_PREFIX = "student-info-change/profile-images";
-    private static final String ATTACHMENT_PATH_PREFIX = "student-info-change/attachments";
-    private static final String TARGET_TYPE = "STUDENT_PROFILE_CHANGE_REQUEST";
+    private static final String PROFILE_IMAGE_PATH_PREFIX = "professor-info-change/profile-images";
+    private static final String ATTACHMENT_PATH_PREFIX = "professor-info-change/attachments";
+    private static final String TARGET_TYPE = "PROFESSOR_PROFILE_CHANGE_REQUEST";
 
-    private final StudentInfoChangeRequestRepository requestRepository;
-    private final StudentInfoChangeRequestQueryRepository requestQueryRepository;
-    private final StudentInfoChangeRequestFileRepository fileRepository;
-    private final StudentRepository studentRepository;
+    private final ProfessorInfoChangeRequestRepository requestRepository;
+    private final ProfessorInfoChangeRequestQueryRepository requestQueryRepository;
+    private final ProfessorInfoChangeRequestFileRepository fileRepository;
+    private final ProfessorRepository professorRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final ProfileFileValidator profileFileValidator;
     private final ProfileChangeValidator profileChangeValidator;
     private final AuditLogService auditLogService;
 
-    public PageRes<StudentInfoChangeRequestResponseDTO> search(
+    public PageRes<ProfessorInfoChangeRequestResponseDTO> search(
             InfoChangeRequestSearchRequestDTO request,
             CurrentUser currentUser
     ) {
         Long requesterUserId = switch (currentUser.role()) {
-            case "STUDENT" -> currentUser.id();
+            case "PROFESSOR" -> currentUser.id();
             case "ADMIN" -> null;
-            default -> throw new InfoChangeRequestAccessDeniedException("학생 프로필 변경 신청 조회 권한이 없습니다.");
+            default -> throw new InfoChangeRequestAccessDeniedException("교수 프로필 변경 신청 조회 권한이 없습니다.");
         };
         int page = request.resolvedPage();
         int size = request.resolvedSize();
-        StudentInfoChangeRequestSearchResult result = requestQueryRepository.search(
+        ProfessorInfoChangeRequestSearchResult result = requestQueryRepository.search(
                 new InfoChangeRequestSearchCondition(
                         request.normalizedKeyword(),
                         request.status(),
@@ -80,49 +80,49 @@ public class StudentInfoChangeRequestService {
                         size
                 )
         );
-        List<StudentInfoChangeRequestResponseDTO> items = result.items().stream()
-                .map(StudentInfoChangeRequestResponseDTO::summary)
+        List<ProfessorInfoChangeRequestResponseDTO> items = result.items().stream()
+                .map(ProfessorInfoChangeRequestResponseDTO::summary)
                 .toList();
         boolean hasNext = (page - 1L) * size + items.size() < result.totalCount();
         return new PageRes<>(items, result.totalCount(), page, size, hasNext);
     }
 
-    public StudentInfoChangeRequestResponseDTO get(Long requestId, CurrentUser currentUser) {
-        StudentInfoChangeRequest request = requestRepository.findDetailById(requestId)
+    public ProfessorInfoChangeRequestResponseDTO get(Long requestId, CurrentUser currentUser) {
+        ProfessorInfoChangeRequest request = requestRepository.findDetailById(requestId)
                 .orElseThrow(InfoChangeRequestNotFoundException::new);
         validateReadable(request, currentUser);
         return toDetail(request);
     }
 
     @Transactional
-    public StudentInfoChangeRequestResponseDTO create(
-            StudentInfoChangeRequestCreateDTO createDTO,
+    public ProfessorInfoChangeRequestResponseDTO create(
+            ProfessorInfoChangeRequestCreateDTO createDTO,
             CurrentUser currentUser,
             String requestId,
             String ipAddress
     ) {
-        validateRole(currentUser, "STUDENT");
+        validateRole(currentUser, "PROFESSOR");
         profileFileValidator.validate(createDTO.profileImage(), createDTO.attachments());
 
-        Student student = studentRepository.findByUserId(currentUser.id())
-                .orElseThrow(StudentNotFoundException::new);
+        Professor professor = professorRepository.findByUserId(currentUser.id())
+                .orElseThrow(ProfessorNotFoundException::new);
         ProfileChangeValues values = profileChangeValidator.resolve(
-                student.getUser(),
+                professor.getUser(),
                 createDTO.newName(),
                 createDTO.newPhoneNumber(),
                 createDTO.newEmail(),
                 createDTO.newAddress(),
                 createDTO.profileImage()
         );
-        if (requestRepository.existsByStudentIdAndStatus(student.getId(), InfoChangeRequestStatus.REQUESTED)) {
+        if (requestRepository.existsByProfessorIdAndStatus(professor.getId(), InfoChangeRequestStatus.REQUESTED)) {
             throw new DuplicateInfoChangeRequestException();
         }
 
         String newProfileImageKey = values.profileImageChanged()
                 ? fileStorageService.upload(PROFILE_IMAGE_PATH_PREFIX, createDTO.profileImage())
                 : null;
-        StudentInfoChangeRequest request = requestRepository.saveAndFlush(StudentInfoChangeRequest.create(
-                student,
+        ProfessorInfoChangeRequest request = requestRepository.saveAndFlush(ProfessorInfoChangeRequest.create(
+                professor,
                 values.name(),
                 values.phoneNumber(),
                 values.email(),
@@ -133,7 +133,7 @@ public class StudentInfoChangeRequestService {
         saveAttachments(request, createDTO.attachments());
         recordAudit(
                 currentUser.id(),
-                "STUDENT_PROFILE_CHANGE_REQUESTED",
+                "PROFESSOR_PROFILE_CHANGE_REQUESTED",
                 request,
                 null,
                 InfoChangeRequestStatus.REQUESTED,
@@ -144,30 +144,30 @@ public class StudentInfoChangeRequestService {
     }
 
     @Transactional
-    public StudentInfoChangeRequestResponseDTO approve(
+    public ProfessorInfoChangeRequestResponseDTO approve(
             Long requestId,
             CurrentUser currentUser,
             String traceRequestId,
             String ipAddress
     ) {
         validateRole(currentUser, "ADMIN");
-        StudentInfoChangeRequest request = getForUpdate(requestId);
+        ProfessorInfoChangeRequest request = getForUpdate(requestId);
         User reviewer = findReviewer(currentUser.id());
-        profileChangeValidator.validateEmailAvailable(request.getStudent().getUser(), request.getNewEmail());
+        profileChangeValidator.validateEmailAvailable(request.getProfessor().getUser(), request.getNewEmail());
 
         try {
             request.approve(reviewer, LocalDateTime.now());
-            request.getStudent().getUser().applyProfileChange(
+            request.getProfessor().getUser().applyProfileChange(
                     request.getNewName(),
                     request.getNewPhoneNumber(),
                     request.getNewEmail(),
                     request.getNewAddress(),
                     request.getNewProfileImageKey()
             );
-            StudentInfoChangeRequest saved = requestRepository.saveAndFlush(request);
+            ProfessorInfoChangeRequest saved = requestRepository.saveAndFlush(request);
             recordAudit(
                     currentUser.id(),
-                    "STUDENT_PROFILE_CHANGE_APPROVED",
+                    "PROFESSOR_PROFILE_CHANGE_APPROVED",
                     saved,
                     InfoChangeRequestStatus.REQUESTED,
                     InfoChangeRequestStatus.APPROVED,
@@ -186,7 +186,7 @@ public class StudentInfoChangeRequestService {
     }
 
     @Transactional
-    public StudentInfoChangeRequestResponseDTO reject(
+    public ProfessorInfoChangeRequestResponseDTO reject(
             Long requestId,
             InfoChangeRequestRejectRequestDTO rejectDTO,
             CurrentUser currentUser,
@@ -194,17 +194,17 @@ public class StudentInfoChangeRequestService {
             String ipAddress
     ) {
         validateRole(currentUser, "ADMIN");
-        StudentInfoChangeRequest request = getForUpdate(requestId);
+        ProfessorInfoChangeRequest request = getForUpdate(requestId);
         User reviewer = findReviewer(currentUser.id());
         try {
             request.reject(reviewer, rejectDTO.rejectReason().trim(), LocalDateTime.now());
         } catch (IllegalStateException exception) {
             throw new InfoChangeRequestStateConflictException("처리 대기 상태인 신청만 반려할 수 있습니다.");
         }
-        StudentInfoChangeRequest saved = requestRepository.saveAndFlush(request);
+        ProfessorInfoChangeRequest saved = requestRepository.saveAndFlush(request);
         recordAudit(
                 currentUser.id(),
-                "STUDENT_PROFILE_CHANGE_REJECTED",
+                "PROFESSOR_PROFILE_CHANGE_REJECTED",
                 saved,
                 InfoChangeRequestStatus.REQUESTED,
                 InfoChangeRequestStatus.REJECTED,
@@ -215,15 +215,15 @@ public class StudentInfoChangeRequestService {
     }
 
     @Transactional
-    public StudentInfoChangeRequestResponseDTO cancel(
+    public ProfessorInfoChangeRequestResponseDTO cancel(
             Long requestId,
             CurrentUser currentUser,
             String traceRequestId,
             String ipAddress
     ) {
-        validateRole(currentUser, "STUDENT");
-        StudentInfoChangeRequest request = getForUpdate(requestId);
-        if (!request.getStudent().getUser().getId().equals(currentUser.id())) {
+        validateRole(currentUser, "PROFESSOR");
+        ProfessorInfoChangeRequest request = getForUpdate(requestId);
+        if (!request.getProfessor().getUser().getId().equals(currentUser.id())) {
             throw new InfoChangeRequestAccessDeniedException("본인의 프로필 변경 신청만 취소할 수 있습니다.");
         }
         try {
@@ -231,10 +231,10 @@ public class StudentInfoChangeRequestService {
         } catch (IllegalStateException exception) {
             throw new InfoChangeRequestStateConflictException("처리 대기 상태인 신청만 취소할 수 있습니다.");
         }
-        StudentInfoChangeRequest saved = requestRepository.saveAndFlush(request);
+        ProfessorInfoChangeRequest saved = requestRepository.saveAndFlush(request);
         recordAudit(
                 currentUser.id(),
-                "STUDENT_PROFILE_CHANGE_CANCELLED",
+                "PROFESSOR_PROFILE_CHANGE_CANCELLED",
                 saved,
                 InfoChangeRequestStatus.REQUESTED,
                 InfoChangeRequestStatus.CANCELLED,
@@ -244,7 +244,7 @@ public class StudentInfoChangeRequestService {
         return toDetail(saved);
     }
 
-    private void saveAttachments(StudentInfoChangeRequest request, List<MultipartFile> attachments) {
+    private void saveAttachments(ProfessorInfoChangeRequest request, List<MultipartFile> attachments) {
         if (attachments == null) {
             return;
         }
@@ -253,7 +253,7 @@ public class StudentInfoChangeRequestService {
                 continue;
             }
             String objectKey = fileStorageService.upload(ATTACHMENT_PATH_PREFIX, attachment);
-            fileRepository.save(StudentInfoChangeRequestFile.create(
+            fileRepository.save(ProfessorInfoChangeRequestFile.create(
                     request,
                     attachment.getOriginalFilename(),
                     objectKey,
@@ -263,7 +263,7 @@ public class StudentInfoChangeRequestService {
         }
     }
 
-    private StudentInfoChangeRequest getForUpdate(Long requestId) {
+    private ProfessorInfoChangeRequest getForUpdate(Long requestId) {
         return requestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(InfoChangeRequestNotFoundException::new);
     }
@@ -273,40 +273,40 @@ public class StudentInfoChangeRequestService {
                 .orElseThrow(() -> new InvalidInfoChangeRequestException("검토자 정보를 찾을 수 없습니다."));
     }
 
-    private StudentInfoChangeRequestResponseDTO toDetail(StudentInfoChangeRequest request) {
+    private ProfessorInfoChangeRequestResponseDTO toDetail(ProfessorInfoChangeRequest request) {
         String newProfileImageUrl = request.getNewProfileImageKey() == null
                 ? null
                 : fileStorageService.presignedDownloadUrl(request.getNewProfileImageKey());
-        List<StudentInfoChangeRequestFileResponseDTO> files = fileRepository
+        List<ProfessorInfoChangeRequestFileResponseDTO> files = fileRepository
                 .findByRequestIdOrderByIdAsc(request.getId()).stream()
-                .map(file -> StudentInfoChangeRequestFileResponseDTO.from(
+                .map(file -> ProfessorInfoChangeRequestFileResponseDTO.from(
                         file, fileStorageService.presignedDownloadUrl(file.getObjectKey())
                 ))
                 .toList();
-        return StudentInfoChangeRequestResponseDTO.detail(request, newProfileImageUrl, files);
+        return ProfessorInfoChangeRequestResponseDTO.detail(request, newProfileImageUrl, files);
     }
 
-    private void validateReadable(StudentInfoChangeRequest request, CurrentUser currentUser) {
+    private void validateReadable(ProfessorInfoChangeRequest request, CurrentUser currentUser) {
         boolean readable = switch (currentUser.role()) {
-            case "STUDENT" -> request.getStudent().getUser().getId().equals(currentUser.id());
+            case "PROFESSOR" -> request.getProfessor().getUser().getId().equals(currentUser.id());
             case "ADMIN" -> true;
             default -> false;
         };
         if (!readable) {
-            throw new InfoChangeRequestAccessDeniedException("학생 프로필 변경 신청 조회 권한이 없습니다.");
+            throw new InfoChangeRequestAccessDeniedException("교수 프로필 변경 신청 조회 권한이 없습니다.");
         }
     }
 
     private void validateRole(CurrentUser currentUser, String role) {
         if (currentUser == null || currentUser.id() == null || !role.equals(currentUser.role())) {
-            throw new InfoChangeRequestAccessDeniedException("학생 프로필 변경 신청 처리 권한이 없습니다.");
+            throw new InfoChangeRequestAccessDeniedException("교수 프로필 변경 신청 처리 권한이 없습니다.");
         }
     }
 
     private void recordAudit(
             Long actorId,
             String action,
-            StudentInfoChangeRequest request,
+            ProfessorInfoChangeRequest request,
             InfoChangeRequestStatus beforeStatus,
             InfoChangeRequestStatus afterStatus,
             String requestId,
@@ -327,7 +327,7 @@ public class StudentInfoChangeRequestService {
 
     private Map<String, Object> auditSnapshot(
             InfoChangeRequestStatus status,
-            StudentInfoChangeRequest request
+            ProfessorInfoChangeRequest request
     ) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("status", status.name());
@@ -335,7 +335,7 @@ public class StudentInfoChangeRequestService {
         return snapshot;
     }
 
-    private List<String> changedFields(StudentInfoChangeRequest request) {
+    private List<String> changedFields(ProfessorInfoChangeRequest request) {
         List<String> fields = new ArrayList<>();
         if (request.getNewName() != null) fields.add("NAME");
         if (request.getNewPhoneNumber() != null) fields.add("PHONE_NUMBER");

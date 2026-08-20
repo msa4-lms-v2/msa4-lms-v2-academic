@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
@@ -81,6 +82,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GlobalRes<Void>> handleDataAccess(DataAccessException exception) {
         log.error("[{}] {}", CustomResponseCode.DATABASE_ERROR.getCode(), exception.getMessage(), exception);
         return fail(CustomResponseCode.DATABASE_ERROR);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<GlobalRes<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+        log.warn("[{}] {}", CustomResponseCode.FILE_SIZE_EXCEEDED.getCode(), exception.getMessage());
+        return fail(CustomResponseCode.FILE_SIZE_EXCEEDED);
     }
 
     @ExceptionHandler(Exception.class)

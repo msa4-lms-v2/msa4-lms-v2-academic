@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StudentInfoChangeRequestFileRepository extends JpaRepository<StudentInfoChangeRequestFile, Long> {
 
-    List<StudentInfoChangeRequestFile> findByRequestId(Long requestId);
+    List<StudentInfoChangeRequestFile> findByRequestIdOrderByIdAsc(Long requestId);
 }
