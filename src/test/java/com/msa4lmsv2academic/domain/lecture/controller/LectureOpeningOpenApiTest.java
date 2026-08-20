@@ -23,12 +23,14 @@ class LectureOpeningOpenApiTest extends MySqlIntegrationTest {
     @Test
     void generatedOpenApiContainsLectureOpeningContracts() throws Exception {
         String requestsPath = "$['paths']['/api/academic/classes/opening-requests']";
+        String requestDetailPath = "$['paths']['/api/academic/classes/opening-requests/{requestId}']";
         String approvalsPath = "$['paths']['/api/academic/classes/opening-approvals']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(requestsPath + "['get']").exists())
                 .andExpect(jsonPath(requestsPath + "['post']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']").exists())
                 .andExpect(jsonPath(approvalsPath + "['patch']").exists())
                 .andExpect(jsonPath(requestsPath + "['post']['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(requestsPath + "['post']['responses']['201']").exists())
@@ -37,6 +39,13 @@ class LectureOpeningOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(requestsPath + "['post']['responses']['403']").exists())
                 .andExpect(jsonPath(requestsPath + "['post']['responses']['404']").exists())
                 .andExpect(jsonPath(requestsPath + "['post']['responses']['409']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['200']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['400']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['401']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['403']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['404']").exists())
+                .andExpect(jsonPath(requestDetailPath + "['patch']['responses']['409']").exists())
                 .andExpect(jsonPath(approvalsPath + "['patch']['responses']['409']").exists())
                 .andExpect(jsonPath(requestsPath + "['post']['operationId']")
                         .value(not(containsString("SCRUM"))))

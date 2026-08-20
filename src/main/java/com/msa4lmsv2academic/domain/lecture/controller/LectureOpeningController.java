@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.lecture.controller;
 
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningCreateRequestDTO;
+import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningCorrectionRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningReviewRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningSearchRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.response.LectureOpeningResponseDTO;
@@ -138,6 +139,36 @@ public class LectureOpeningController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GlobalRes.success(lectureOpeningService.create(request, currentUser)));
+    }
+
+    @Operation(
+            summary = "교수 강의 개설 신청 보완",
+            description = "교수가 본인의 처리 대기 강의 개설 신청 내용을 보완합니다. 승인 또는 반려된 신청은 변경할 수 없습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "보완 성공"),
+            @ApiResponse(responseCode = "400", description = "필수값 또는 업무 규칙 오류",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "403", description = "교수 권한 또는 신청 소유권 위반",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "404", description = "신청·교과목·학기 정보 없음",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "409", description = "이미 처리된 신청·중복 신청·기존 강의·시간 충돌",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+    })
+    @PatchMapping("/opening-requests/{requestId}")
+    @PreAuthorize("hasRole('PROFESSOR')")
+    public ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> update(
+            @Positive(message = "requestId는 양수여야 합니다.") @PathVariable Long requestId,
+            @Valid @RequestBody LectureOpeningCorrectionRequestDTO request,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalRes.success(
+                lectureOpeningService.update(requestId, request, currentUser)
+        ));
     }
 
     @Operation(

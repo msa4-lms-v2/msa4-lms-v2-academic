@@ -142,6 +142,32 @@ class LectureOpeningServiceIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void professorUpdatesOwnPendingRequestAndAuditKeepsBeforeAndAfterValues() {
+        LectureOpeningResponseDTO created = lectureOpeningService.create(createRequest(), PROFESSOR);
+
+        LectureOpeningResponseDTO updated = lectureOpeningService.update(
+                created.openingRequestId(),
+                correctionRequest(),
+                PROFESSOR
+        );
+
+        assertThat(updated.status()).isEqualTo(LectureOpeningRequestStatus.PENDING);
+        assertThat(updated.sectionNo()).isEqualTo("02");
+        assertThat(updated.requestedCapacity()).isEqualTo(45);
+        assertThat(updated.classroom()).isEqualTo("공학관 401호");
+        assertThat(updated.schedules()).hasSize(1);
+        assertThat(updated.schedules().getFirst().dayOfWeek()).isEqualTo(LectureDayOfWeek.TUE);
+        assertThat(auditLogRepository.findAll()).filteredOn(
+                audit -> "LECTURE_OPENING_UPDATED".equals(audit.getAction())
+        ).singleElement().satisfies(audit -> {
+            assertThat(audit.getBeforeValue()).containsEntry("sectionNo", "01");
+            assertThat(audit.getAfterValue()).containsEntry("sectionNo", "02");
+            assertThat(audit.getBeforeValue().get("schedules").toString()).contains("MON");
+            assertThat(audit.getAfterValue().get("schedules").toString()).contains("TUE");
+        });
+    }
+
+    @Test
     void adminCorrectionAndApprovalCreateLectureAndSchedulesOnce() {
         LectureOpeningResponseDTO created = lectureOpeningService.create(createRequest(), PROFESSOR);
         LectureOpeningCorrectionRequestDTO correction = new LectureOpeningCorrectionRequestDTO(
@@ -180,6 +206,11 @@ class LectureOpeningServiceIntegrationTest extends MySqlIntegrationTest {
         assertThatThrownBy(() -> lectureOpeningService.review(
                 new LectureOpeningReviewRequestDTO(created.openingRequestId(), true, null, null),
                 ADMIN
+        )).isInstanceOf(DuplicateLectureOpeningRequestException.class);
+        assertThatThrownBy(() -> lectureOpeningService.update(
+                created.openingRequestId(),
+                correctionRequest(),
+                PROFESSOR
         )).isInstanceOf(DuplicateLectureOpeningRequestException.class);
     }
 
@@ -232,6 +263,26 @@ class LectureOpeningServiceIntegrationTest extends MySqlIntegrationTest {
                         LectureDayOfWeek.MON,
                         (byte) 1,
                         (byte) 2
+                ))
+        );
+    }
+
+    private LectureOpeningCorrectionRequestDTO correctionRequest() {
+        return new LectureOpeningCorrectionRequestDTO(
+                course.getId(),
+                semester.getId(),
+                "02",
+                45,
+                "공학관 401호",
+                20,
+                40,
+                30,
+                10,
+                "교수가 보완한 강의계획서",
+                List.of(new LectureOpeningScheduleRequestDTO(
+                        LectureDayOfWeek.TUE,
+                        (byte) 3,
+                        (byte) 4
                 ))
         );
     }

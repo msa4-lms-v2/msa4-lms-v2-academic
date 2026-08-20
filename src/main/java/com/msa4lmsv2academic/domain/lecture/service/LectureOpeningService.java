@@ -135,6 +135,74 @@ public class LectureOpeningService {
     }
 
     @Transactional
+    public LectureOpeningResponseDTO update(
+            Long requestId,
+            LectureOpeningCorrectionRequestDTO updateRequest,
+            CurrentUser currentUser
+    ) {
+        validateRole(currentUser, "PROFESSOR");
+        LectureOpeningRequest request = openingRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(LectureOpeningRequestNotFoundException::new);
+        validateProfessorOwner(request, currentUser.id());
+        Map<String, Object> beforeValue = auditSnapshot(request, null);
+
+        Course course = referenceQueryRepository.findCourseById(updateRequest.courseId())
+                .orElseThrow(() -> new LectureOpeningReferenceNotFoundException("보완할 교과목을 찾을 수 없습니다."));
+        Semester semester = referenceQueryRepository.findSemesterById(updateRequest.semesterId())
+                .orElseThrow(() -> new LectureOpeningReferenceNotFoundException("보완할 학기를 찾을 수 없습니다."));
+        if (!course.getDepartment().getId().equals(request.getProfessor().getDepartment().getId())) {
+            throw new LectureOpeningAccessDeniedException("소속 학과의 교과목으로만 강의 개설 신청을 보완할 수 있습니다.");
+        }
+
+        try {
+            request.correct(
+                    course,
+                    semester,
+                    updateRequest.sectionNo().trim(),
+                    updateRequest.requestedCapacity(),
+                    updateRequest.classroom().trim(),
+                    updateRequest.midtermRatio(),
+                    updateRequest.finalRatio(),
+                    updateRequest.assignmentRatio(),
+                    updateRequest.attendanceRatio(),
+                    updateRequest.syllabus().trim()
+            );
+            request.clearSchedules();
+            addSchedules(request, updateRequest.schedules());
+            validateNoOtherPendingRequest(request);
+            referenceQueryRepository.lockProfessor(request.getProfessor().getId())
+                    .orElseThrow(() -> new LectureOpeningReferenceNotFoundException("교수 정보를 찾을 수 없습니다."));
+            validateNoExistingLecture(
+                    request.getSemester().getId(),
+                    request.getCourse().getId(),
+                    request.getSectionNo()
+            );
+            validateScheduleConflicts(
+                    request.getProfessor().getId(),
+                    request.getSemester().getId(),
+                    updateRequest.schedules()
+            );
+            openingRequestRepository.saveAndFlush(request);
+            auditLogService.record(
+                    currentUser.id(),
+                    "LECTURE_OPENING_UPDATED",
+                    AUDIT_TARGET_TYPE,
+                    request.getId(),
+                    beforeValue,
+                    auditSnapshot(request, null),
+                    null,
+                    null,
+                    null
+            );
+            return LectureOpeningResponseDTO.from(request);
+        } catch (IllegalStateException exception) {
+            throw new DuplicateLectureOpeningRequestException("처리 대기 상태인 강의 개설 신청만 보완할 수 있습니다.");
+        } catch (DataIntegrityViolationException exception) {
+            throw new DuplicateLectureOpeningRequestException("보완한 강의 개설 신청 정보가 이미 존재합니다.");
+        }
+    }
+
+    @Transactional
     public LectureOpeningResponseDTO review(
             LectureOpeningReviewRequestDTO reviewRequest,
             CurrentUser currentUser
@@ -298,6 +366,12 @@ public class LectureOpeningService {
         }
     }
 
+    private void validateProfessorOwner(LectureOpeningRequest request, Long professorUserId) {
+        if (!request.getProfessor().getUser().getId().equals(professorUserId)) {
+            throw new LectureOpeningAccessDeniedException("본인의 강의 개설 신청만 보완할 수 있습니다.");
+        }
+    }
+
     private void validateAuthenticated(CurrentUser currentUser) {
         if (currentUser == null || currentUser.id() == null || currentUser.role() == null) {
             throw new LectureOpeningAccessDeniedException("인증된 사용자만 강의 개설 신청을 조회할 수 있습니다.");
@@ -351,6 +425,15 @@ public class LectureOpeningService {
         snapshot.put("assignmentRatio", request.getAssignmentRatio());
         snapshot.put("attendanceRatio", request.getAttendanceRatio());
         snapshot.put("syllabus", request.getSyllabus());
+        snapshot.put("schedules", request.getSchedules().stream()
+                .map(schedule -> {
+                    Map<String, Object> value = new LinkedHashMap<>();
+                    value.put("dayOfWeek", schedule.getDayOfWeek().name());
+                    value.put("startPeriod", schedule.getStartPeriod());
+                    value.put("endPeriod", schedule.getEndPeriod());
+                    return value;
+                })
+                .toList());
         snapshot.put("lectureId", lectureId);
         return snapshot;
     }
