@@ -16,13 +16,13 @@ public interface StudentInfoChangeRequestRepository extends JpaRepository<Studen
 
     boolean existsByStudentIdAndStatus(Long studentId, InfoChangeRequestStatus status);
 
-    @EntityGraph(attributePaths = {"student", "student.user", "reviewedBy"})
+    @EntityGraph(attributePaths = {"student", "student.user", "student.department", "reviewedBy"})
     Page<StudentInfoChangeRequest> findByStudentUserId(Long userId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"student", "student.user", "reviewedBy"})
+    @EntityGraph(attributePaths = {"student", "student.user", "student.department", "reviewedBy"})
     Page<StudentInfoChangeRequest> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"student", "student.user", "reviewedBy"})
+    @EntityGraph(attributePaths = {"student", "student.user", "student.department", "reviewedBy"})
     Optional<StudentInfoChangeRequest> findDetailById(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

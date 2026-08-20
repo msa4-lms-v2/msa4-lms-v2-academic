@@ -1,6 +1,6 @@
 package com.msa4lmsv2academic.domain.infochange.entity;
 
-import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,13 +30,13 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
 @Table(
-        name = "student_info_change_requests",
+        name = "professor_info_change_requests",
         indexes = {
-                @Index(name = "idx_student_info_change_requests_student_status", columnList = "student_id, status"),
-                @Index(name = "idx_student_info_change_requests_status_created", columnList = "status, created_at")
+                @Index(name = "idx_professor_info_change_requests_professor_status", columnList = "professor_id, status"),
+                @Index(name = "idx_professor_info_change_requests_status_created", columnList = "status, created_at")
         }
 )
-public class StudentInfoChangeRequest {
+public class ProfessorInfoChangeRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,8 +44,8 @@ public class StudentInfoChangeRequest {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "student_id", nullable = false)
-    private Student student;
+    @JoinColumn(name = "professor_id", nullable = false)
+    private Professor professor;
 
     @Column(name = "new_name", length = 50)
     private String newName;
@@ -90,8 +90,8 @@ public class StudentInfoChangeRequest {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private StudentInfoChangeRequest(
-            Student student,
+    private ProfessorInfoChangeRequest(
+            Professor professor,
             String newName,
             String newPhoneNumber,
             String newEmail,
@@ -99,7 +99,7 @@ public class StudentInfoChangeRequest {
             String newProfileImageKey,
             String reason
     ) {
-        this.student = student;
+        this.professor = professor;
         this.newName = newName;
         this.newPhoneNumber = newPhoneNumber;
         this.newEmail = newEmail;
@@ -109,8 +109,8 @@ public class StudentInfoChangeRequest {
         this.status = InfoChangeRequestStatus.REQUESTED;
     }
 
-    public static StudentInfoChangeRequest create(
-            Student student,
+    public static ProfessorInfoChangeRequest create(
+            Professor professor,
             String newName,
             String newPhoneNumber,
             String newEmail,
@@ -118,13 +118,13 @@ public class StudentInfoChangeRequest {
             String newProfileImageKey,
             String reason
     ) {
-        return new StudentInfoChangeRequest(
-                student, newName, newPhoneNumber, newEmail, newAddress, newProfileImageKey, reason
+        return new ProfessorInfoChangeRequest(
+                professor, newName, newPhoneNumber, newEmail, newAddress, newProfileImageKey, reason
         );
     }
 
     public void approve(User reviewer, LocalDateTime reviewedAt) {
-        requireStatus(InfoChangeRequestStatus.REQUESTED);
+        requireRequested();
         this.status = InfoChangeRequestStatus.APPROVED;
         this.reviewedBy = reviewer;
         this.reviewedAt = reviewedAt;
@@ -132,7 +132,7 @@ public class StudentInfoChangeRequest {
     }
 
     public void reject(User reviewer, String rejectReason, LocalDateTime reviewedAt) {
-        requireStatus(InfoChangeRequestStatus.REQUESTED);
+        requireRequested();
         this.status = InfoChangeRequestStatus.REJECTED;
         this.reviewedBy = reviewer;
         this.reviewedAt = reviewedAt;
@@ -140,14 +140,14 @@ public class StudentInfoChangeRequest {
     }
 
     public void cancel(LocalDateTime cancelledAt) {
-        requireStatus(InfoChangeRequestStatus.REQUESTED);
+        requireRequested();
         this.status = InfoChangeRequestStatus.CANCELLED;
         this.cancelledAt = cancelledAt;
     }
 
-    private void requireStatus(InfoChangeRequestStatus expected) {
-        if (status != expected) {
-            throw new IllegalStateException("허용되지 않은 학적 정보 변경 신청 상태 전이입니다.");
+    private void requireRequested() {
+        if (status != InfoChangeRequestStatus.REQUESTED) {
+            throw new IllegalStateException("처리 대기 상태인 교수 프로필 변경 신청만 처리할 수 있습니다.");
         }
     }
 }

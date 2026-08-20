@@ -67,7 +67,22 @@ public class StudentController {
         ));
     }
 
-    @Operation(summary = "본인 학적 조회", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(
+            operationId = "getMyStudentProfile",
+            summary = "학생 본인 프로필 조회",
+            description = "STUDENT가 본인의 연락처·주소·소속·학적 상태와 프로필 이미지를 조회합니다. "
+                    + "다른 사용자의 프로필은 조회할 수 없습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "403", description = "STUDENT 권한 필요",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "404", description = "학생 프로필 없음",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+    })
     @GetMapping("/me")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<GlobalRes<StudentProfileResponseDTO>> getMyProfile(

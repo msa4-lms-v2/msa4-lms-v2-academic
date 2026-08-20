@@ -1,16 +1,16 @@
 package com.msa4lmsv2academic.domain.infochange.response;
 
 import com.msa4lmsv2academic.domain.infochange.entity.InfoChangeRequestStatus;
-import com.msa4lmsv2academic.domain.infochange.entity.StudentInfoChangeRequest;
+import com.msa4lmsv2academic.domain.infochange.entity.ProfessorInfoChangeRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Schema(description = "학생 프로필 변경 신청")
-public record StudentInfoChangeRequestResponseDTO(
+@Schema(description = "교수 프로필 변경 신청")
+public record ProfessorInfoChangeRequestResponseDTO(
         @Schema(description = "신청 ID", example = "1") Long id,
-        @Schema(description = "Student 엔티티 ID", example = "7") Long studentId,
-        @Schema(description = "신청자 이름", example = "김학생") String studentName,
+        @Schema(description = "Professor 엔티티 ID", example = "10") Long professorId,
+        @Schema(description = "신청자 이름", example = "김교수") String professorName,
         @Schema(description = "신청자 학과 ID", example = "3") Long departmentId,
         @Schema(description = "신청자 학과명", example = "컴퓨터공학과") String departmentName,
         @Schema(description = "변경할 이름", nullable = true) String newName,
@@ -28,31 +28,31 @@ public record StudentInfoChangeRequestResponseDTO(
         @Schema(description = "생성 시각") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각") LocalDateTime updatedAt,
         @Schema(description = "증빙 PDF 목록. 목록 응답에서는 null", nullable = true)
-        List<StudentInfoChangeRequestFileResponseDTO> files
+        List<ProfessorInfoChangeRequestFileResponseDTO> files
 ) {
-    public static StudentInfoChangeRequestResponseDTO summary(StudentInfoChangeRequest request) {
+    public static ProfessorInfoChangeRequestResponseDTO summary(ProfessorInfoChangeRequest request) {
         return from(request, null, null);
     }
 
-    public static StudentInfoChangeRequestResponseDTO detail(
-            StudentInfoChangeRequest request,
+    public static ProfessorInfoChangeRequestResponseDTO detail(
+            ProfessorInfoChangeRequest request,
             String newProfileImageUrl,
-            List<StudentInfoChangeRequestFileResponseDTO> files
+            List<ProfessorInfoChangeRequestFileResponseDTO> files
     ) {
         return from(request, newProfileImageUrl, files);
     }
 
-    private static StudentInfoChangeRequestResponseDTO from(
-            StudentInfoChangeRequest request,
+    private static ProfessorInfoChangeRequestResponseDTO from(
+            ProfessorInfoChangeRequest request,
             String newProfileImageUrl,
-            List<StudentInfoChangeRequestFileResponseDTO> files
+            List<ProfessorInfoChangeRequestFileResponseDTO> files
     ) {
-        return new StudentInfoChangeRequestResponseDTO(
+        return new ProfessorInfoChangeRequestResponseDTO(
                 request.getId(),
-                request.getStudent().getId(),
-                request.getStudent().getUser().getName(),
-                request.getStudent().getDepartment().getId(),
-                request.getStudent().getDepartment().getName(),
+                request.getProfessor().getId(),
+                request.getProfessor().getUser().getName(),
+                request.getProfessor().getDepartment().getId(),
+                request.getProfessor().getDepartment().getName(),
                 request.getNewName(),
                 request.getNewPhoneNumber(),
                 request.getNewEmail(),
