@@ -1,5 +1,6 @@
 package com.msa4lmsv2academic.domain.counseling.service;
 
+import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointment;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointmentStatus;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselorAvailability;
@@ -16,6 +17,7 @@ import com.msa4lmsv2academic.global.error.CounselingAccessDeniedException;
 import com.msa4lmsv2academic.global.error.CounselingAppointmentNotFoundException;
 import com.msa4lmsv2academic.global.error.CounselingParticipantNotFoundException;
 import com.msa4lmsv2academic.global.error.CounselingScheduleConflictException;
+import com.msa4lmsv2academic.global.error.CounselingStatusConflictException;
 import com.msa4lmsv2academic.global.error.InvalidCounselingRequestException;
 import com.msa4lmsv2academic.global.response.PageRes;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -23,7 +25,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,10 +45,12 @@ public class CounselingAppointmentService {
     private static final Duration APPOINTMENT_DURATION = Duration.ofMinutes(30);
     private static final int MAX_TOPIC_LENGTH = 255;
     private static final int MAX_NOTE_LENGTH = 5000;
+    private static final String AUDIT_TARGET_TYPE = "COUNSELING_APPOINTMENT";
 
     private final CounselingAppointmentRepository appointmentRepository;
     private final CounselorAvailabilityRepository availabilityRepository;
     private final CounselingParticipantQueryRepository participantQueryRepository;
+    private final AuditLogService auditLogService;
 
     public PageRes<CounselingAppointmentResponseDTO> search(
             CounselingAppointmentSearchRequestDTO request,
@@ -137,17 +143,30 @@ public class CounselingAppointmentService {
         if ("STUDENT".equals(currentUser.role())) {
             validateStudentStatusChange(appointment, request.status(), note, currentUser.id());
         } else if ("PROFESSOR".equals(currentUser.role())) {
-            validateProfessorStatusChange(appointment, currentUser.id());
+            validateProfessorStatusChange(appointment, request.status(), note, currentUser.id());
         } else {
             throw new CounselingAccessDeniedException("상담 참여자만 예약 상태를 변경할 수 있습니다.");
         }
+        Map<String, Object> beforeValue = auditSnapshot(appointment);
 
         try {
             appointment.changeStatus(request.status(), note);
         } catch (IllegalStateException exception) {
-            throw new InvalidCounselingRequestException("현재 상태에서 요청한 상담 상태로 변경할 수 없습니다.");
+            throw new CounselingStatusConflictException("현재 상태에서 요청한 상담 상태로 변경할 수 없습니다.");
         }
-        return CounselingAppointmentResponseDTO.from(appointmentRepository.saveAndFlush(appointment));
+        CounselingAppointment saved = appointmentRepository.saveAndFlush(appointment);
+        auditLogService.record(
+                currentUser.id(),
+                auditAction(request.status()),
+                AUDIT_TARGET_TYPE,
+                saved.getId(),
+                beforeValue,
+                auditSnapshot(saved),
+                auditReason(request.status(), note),
+                null,
+                null
+        );
+        return CounselingAppointmentResponseDTO.from(saved);
     }
 
     private CounselingAppointment getAppointment(Long appointmentId) {
@@ -202,10 +221,61 @@ public class CounselingAppointmentService {
         }
     }
 
-    private void validateProfessorStatusChange(CounselingAppointment appointment, Long professorUserId) {
+    private void validateProfessorStatusChange(
+            CounselingAppointment appointment,
+            CounselingAppointmentStatus requestedStatus,
+            String professorNote,
+            Long professorUserId
+    ) {
         if (!appointment.getProfessor().getUser().getId().equals(professorUserId)) {
             throw new CounselingAccessDeniedException("본인에게 예약된 상담만 변경할 수 있습니다.");
         }
+        if (requestedStatus == CounselingAppointmentStatus.CANCELLED) {
+            throw new CounselingAccessDeniedException("상담 예약 취소는 신청 학생만 할 수 있습니다.");
+        }
+        if (!(requestedStatus == CounselingAppointmentStatus.CONFIRMED
+                || requestedStatus == CounselingAppointmentStatus.REJECTED
+                || requestedStatus == CounselingAppointmentStatus.COMPLETED)) {
+            throw new CounselingAccessDeniedException("교수는 상담 승인·반려·완료만 처리할 수 있습니다.");
+        }
+        if (requestedStatus == CounselingAppointmentStatus.CONFIRMED && professorNote == null) {
+            throw new InvalidCounselingRequestException("상담 승인 사유는 필수입니다.");
+        }
+        if (requestedStatus == CounselingAppointmentStatus.REJECTED && professorNote == null) {
+            throw new InvalidCounselingRequestException("상담 반려 사유는 필수입니다.");
+        }
+        if (requestedStatus == CounselingAppointmentStatus.COMPLETED && professorNote == null) {
+            throw new InvalidCounselingRequestException("온라인 상담 완료 시 교수 답변은 필수입니다.");
+        }
+    }
+
+    private String auditAction(CounselingAppointmentStatus status) {
+        return switch (status) {
+            case CONFIRMED -> "COUNSELING_APPOINTMENT_CONFIRMED";
+            case REJECTED -> "COUNSELING_APPOINTMENT_REJECTED";
+            case CANCELLED -> "COUNSELING_APPOINTMENT_CANCELLED";
+            case COMPLETED -> "COUNSELING_APPOINTMENT_COMPLETED";
+            case PENDING -> throw new InvalidCounselingRequestException("대기 상태로 되돌릴 수 없습니다.");
+        };
+    }
+
+    private String auditReason(CounselingAppointmentStatus status, String professorNote) {
+        return status == CounselingAppointmentStatus.CONFIRMED
+                || status == CounselingAppointmentStatus.REJECTED
+                || status == CounselingAppointmentStatus.COMPLETED
+                ? professorNote
+                : null;
+    }
+
+    private Map<String, Object> auditSnapshot(CounselingAppointment appointment) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("status", appointment.getStatus().name());
+        snapshot.put("studentId", appointment.getStudent().getId());
+        snapshot.put("professorId", appointment.getProfessor().getId());
+        snapshot.put("appointmentAt", appointment.getAppointmentAt().toString());
+        snapshot.put("topic", appointment.getTopic());
+        snapshot.put("professorNote", appointment.getProfessorNote());
+        return snapshot;
     }
 
     private String normalizeNullable(String value, int maxLength, String fieldName) {

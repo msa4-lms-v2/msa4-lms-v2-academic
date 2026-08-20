@@ -3,10 +3,14 @@ package com.msa4lmsv2academic.domain.counseling.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointment;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointmentStatus;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselorAvailability;
@@ -20,6 +24,7 @@ import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.global.error.CounselingAccessDeniedException;
 import com.msa4lmsv2academic.global.error.CounselingScheduleConflictException;
+import com.msa4lmsv2academic.global.error.InvalidCounselingRequestException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -31,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class CounselingAppointmentServiceTest {
@@ -44,12 +50,15 @@ class CounselingAppointmentServiceTest {
     @Mock
     private CounselingParticipantQueryRepository participantQueryRepository;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     private CounselingAppointmentService service;
 
     @BeforeEach
     void setUp() {
         service = new CounselingAppointmentService(
-                appointmentRepository, availabilityRepository, participantQueryRepository
+                appointmentRepository, availabilityRepository, participantQueryRepository, auditLogService
         );
     }
 
@@ -105,11 +114,7 @@ class CounselingAppointmentServiceTest {
 
     @Test
     void onlyAssignedProfessorCanCompleteAppointment() {
-        Student student = student(41L, 21L, "학생");
-        Professor professor = professor(31L, 11L, "교수");
-        CounselingAppointment appointment = CounselingAppointment.create(
-                student, professor, nextMondayAtNineThirty(), null
-        );
+        CounselingAppointment appointment = appointment();
         when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> service.changeStatus(
@@ -119,12 +124,148 @@ class CounselingAppointmentServiceTest {
         )).isInstanceOf(CounselingAccessDeniedException.class);
     }
 
+    @Test
+    void assignedProfessorConfirmsAppointmentAndRecordsAudit() {
+        CounselingAppointment appointment = appointment();
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
+
+        var result = service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(
+                        CounselingAppointmentStatus.CONFIRMED,
+                        "요청한 시간에 온라인 상담을 진행하겠습니다."
+                ),
+                new CurrentUser(11L, "PROFESSOR")
+        );
+
+        assertThat(result.status()).isEqualTo(CounselingAppointmentStatus.CONFIRMED);
+        verify(auditLogService).record(
+                eq(11L),
+                eq("COUNSELING_APPOINTMENT_CONFIRMED"),
+                eq("COUNSELING_APPOINTMENT"),
+                eq(51L),
+                any(),
+                any(),
+                eq("요청한 시간에 온라인 상담을 진행하겠습니다."),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    void professorMustProvideReasonWhenConfirmingAppointment() {
+        CounselingAppointment appointment = appointment();
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(CounselingAppointmentStatus.CONFIRMED, null),
+                new CurrentUser(11L, "PROFESSOR")
+        )).isInstanceOf(InvalidCounselingRequestException.class)
+                .hasMessage("상담 승인 사유는 필수입니다.");
+    }
+
+    @Test
+    void professorMustProvideReasonWhenRejectingAppointment() {
+        CounselingAppointment appointment = appointment();
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(CounselingAppointmentStatus.REJECTED, null),
+                new CurrentUser(11L, "PROFESSOR")
+        )).isInstanceOf(InvalidCounselingRequestException.class)
+                .hasMessage("상담 반려 사유는 필수입니다.");
+    }
+
+    @Test
+    void professorCannotCancelStudentAppointment() {
+        CounselingAppointment appointment = appointment();
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+
+        assertThatThrownBy(() -> service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(CounselingAppointmentStatus.CANCELLED, null),
+                new CurrentUser(11L, "PROFESSOR")
+        )).isInstanceOf(CounselingAccessDeniedException.class)
+                .hasMessage("상담 예약 취소는 신청 학생만 할 수 있습니다.");
+    }
+
+    @Test
+    void studentCancelsOwnAppointmentAndRecordsAudit() {
+        CounselingAppointment appointment = appointment();
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
+
+        var result = service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(CounselingAppointmentStatus.CANCELLED, null),
+                new CurrentUser(21L, "STUDENT")
+        );
+
+        assertThat(result.status()).isEqualTo(CounselingAppointmentStatus.CANCELLED);
+        verify(auditLogService).record(
+                eq(21L),
+                eq("COUNSELING_APPOINTMENT_CANCELLED"),
+                eq("COUNSELING_APPOINTMENT"),
+                eq(51L),
+                any(),
+                any(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    void professorCompletesConfirmedAppointmentWithOnlineAnswer() {
+        CounselingAppointment appointment = appointment();
+        appointment.changeStatus(CounselingAppointmentStatus.CONFIRMED, null);
+        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
+
+        var result = service.changeStatus(
+                51L,
+                new CounselingAppointmentStatusRequestDTO(
+                        CounselingAppointmentStatus.COMPLETED,
+                        "수강 계획을 확인한 뒤 전공필수 과목부터 신청하세요."
+                ),
+                new CurrentUser(11L, "PROFESSOR")
+        );
+
+        assertThat(result.status()).isEqualTo(CounselingAppointmentStatus.COMPLETED);
+        assertThat(result.professorNote()).contains("전공필수 과목부터");
+        verify(auditLogService).record(
+                eq(11L),
+                eq("COUNSELING_APPOINTMENT_COMPLETED"),
+                eq("COUNSELING_APPOINTMENT"),
+                eq(51L),
+                any(),
+                any(),
+                eq("수강 계획을 확인한 뒤 전공필수 과목부터 신청하세요."),
+                isNull(),
+                isNull()
+        );
+    }
+
     private LocalDateTime nextMondayAtNineThirty() {
         LocalDate date = LocalDate.now().plusWeeks(2);
         while (date.getDayOfWeek() != DayOfWeek.MONDAY) {
             date = date.plusDays(1);
         }
         return date.atTime(9, 30);
+    }
+
+    private CounselingAppointment appointment() {
+        CounselingAppointment appointment = CounselingAppointment.create(
+                student(41L, 21L, "학생"),
+                professor(31L, 11L, "교수"),
+                nextMondayAtNineThirty(),
+                "수강 계획 상담"
+        );
+        ReflectionTestUtils.setField(appointment, "id", 51L);
+        return appointment;
     }
 
     private Student student(Long studentId, Long userId, String name) {

@@ -145,6 +145,19 @@ public class CounselingController {
             description = "학생은 본인 예약을 취소하고, 교수는 예약 승인·반려·완료와 교수 메모를 관리합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상태 변경 성공"),
+            @ApiResponse(responseCode = "400", description = "상태 또는 교수 답변 입력 오류",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "403", description = "상담 참여자 권한 또는 소유권 위반",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "404", description = "상담 예약 없음",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+            @ApiResponse(responseCode = "409", description = "현재 상태에서 변경할 수 없음",
+                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+    })
     @PatchMapping("/appointments/{appointmentId}/status")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
     public ResponseEntity<GlobalRes<CounselingAppointmentResponseDTO>> changeAppointmentStatus(
