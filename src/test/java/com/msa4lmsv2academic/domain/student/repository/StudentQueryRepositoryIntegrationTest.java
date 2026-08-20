@@ -46,8 +46,8 @@ class StudentQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
     @BeforeEach
     void setUp() {
         College college = College.create("COL-STUDENT-DIR", "통합대학", true);
-        professorDepartment = Department.create("CSE-STUDENT-DIR", college, "컴퓨터공학과", true);
-        otherDepartment = Department.create("BUS-STUDENT-DIR", college, "경영학과", true);
+        professorDepartment = Department.create("200", college, "컴퓨터공학과", true);
+        otherDepartment = Department.create("201", college, "경영학과", true);
         entityManager.persist(college);
         entityManager.persist(professorDepartment);
         entityManager.persist(otherDepartment);

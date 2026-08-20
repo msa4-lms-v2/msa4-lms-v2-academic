@@ -23,14 +23,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DepartmentService {
 
-    private static final int MAX_CODE_LENGTH = 20;
     private static final int MAX_NAME_LENGTH = 100;
+    private static final Pattern CODE_PATTERN = Pattern.compile("^\\d{3}$");
 
     private final DepartmentRepository departmentRepository;
     private final DepartmentQueryRepository departmentQueryRepository;
@@ -136,8 +137,8 @@ public class DepartmentService {
     }
 
     private String validateCode(String rawCode) {
-        if (rawCode == null || rawCode.isBlank() || rawCode.length() > MAX_CODE_LENGTH) {
-            throw new InvalidDepartmentRequestException("code는 공백이 아닌 20자 이하의 값이어야 합니다.");
+        if (rawCode == null || !CODE_PATTERN.matcher(rawCode).matches()) {
+            throw new InvalidDepartmentRequestException("code는 숫자 3자리여야 합니다.");
         }
         return rawCode;
     }

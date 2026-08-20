@@ -40,7 +40,7 @@ class AcademicCommonEntityTest {
     @Test
     void confirmedErdRelationshipsAreConnected() {
         College college = College.create("ENG", "공과대학", true);
-        Department department = Department.create("CSE", college, "컴퓨터공학과", true);
+        Department department = Department.create("100", college, "컴퓨터공학과", true);
         Major major = Major.create(department, "CSE", "컴퓨터공학", true);
         User professorUser = User.synchronize(10L, "교수", "professor@test.com", null, null,
                 UserRole.PROFESSOR, UserStatus.ACTIVE);
@@ -80,7 +80,7 @@ class AcademicCommonEntityTest {
     void nullableErdFieldsAndAccountSynchronizationAreSupported() {
         User user = User.provision(30L, "관리자", null, null, null, null);
         College college = College.create("ETC", "기타대학", true);
-        Department department = Department.create("FREE", college, "자유전공학부", true);
+        Department department = Department.create("105", college, "자유전공학부", true);
         GraduationRequirement requirement = GraduationRequirement.create(
                 department, (short) 2026, 30, 30, 120, null
         );

@@ -77,7 +77,7 @@ class LectureSyllabusServiceIntegrationTest extends MySqlIntegrationTest {
                 UserStatus.ACTIVE
         );
         College college = College.create("SYL-COL", "강의계획대학", true);
-        Department department = Department.create("SYL-DEPT", college, "강의계획학과", true);
+        Department department = Department.create("211", college, "강의계획학과", true);
         Professor professor = Professor.create(professorUser, (short) 2020, department);
         Semester semester = Semester.create(
                 (short) 2026,

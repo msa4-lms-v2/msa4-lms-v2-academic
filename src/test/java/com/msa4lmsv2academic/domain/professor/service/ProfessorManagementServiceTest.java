@@ -62,13 +62,13 @@ class ProfessorManagementServiceTest extends MySqlIntegrationTest {
         departmentRepository.deleteAllInBatch();
 
         computerScience = departmentRepository.save(
-                Department.create("CSE-PROF", null, "컴퓨터공학과", true)
+                Department.create("205", null, "컴퓨터공학과", true)
         );
         artificialIntelligence = departmentRepository.save(
-                Department.create("AIC-PROF", null, "인공지능학과", true)
+                Department.create("206", null, "인공지능학과", true)
         );
         inactiveDepartment = departmentRepository.save(
-                Department.create("OLD-PROF", null, "폐지학과", false)
+                Department.create("207", null, "폐지학과", false)
         );
 
         entityManager.persist(User.synchronize(

@@ -52,7 +52,7 @@ class CounselingAppointmentConcurrencyIntegrationTest extends MySqlIntegrationTe
         jdbcTemplate.update("INSERT INTO colleges (id, code, name, active) "
                 + "VALUES (?, 'COUNSEL-CONC-COL', '상담동시성대학', 1)", COLLEGE_ID);
         jdbcTemplate.update("INSERT INTO departments (id, code, college_id, name, active) "
-                + "VALUES (?, 'COUNSEL-CONC-DEPT', ?, '상담동시성학과', 1)", DEPARTMENT_ID, COLLEGE_ID);
+                + "VALUES (?, '220', ?, '상담동시성학과', 1)", DEPARTMENT_ID, COLLEGE_ID);
         insertUser(PROFESSOR_USER_ID, "첫 번째 교수", "PROFESSOR");
         insertUser(FIRST_STUDENT_USER_ID, "첫 번째 학생", "STUDENT");
         insertUser(SECOND_STUDENT_USER_ID, "두 번째 학생", "STUDENT");

@@ -138,7 +138,7 @@ class LectureSyllabusServiceTest {
     }
 
     private Lecture lecture(LectureStatus status, String syllabus, String sectionNo, Long lectureId) {
-        Department department = Department.create("SYL-DEPT", null, "컴퓨터공학과", true);
+        Department department = Department.create("212", null, "컴퓨터공학과", true);
         ReflectionTestUtils.setField(department, "id", 11L);
         User professorUser = User.synchronize(
                 PROFESSOR_USER_ID,

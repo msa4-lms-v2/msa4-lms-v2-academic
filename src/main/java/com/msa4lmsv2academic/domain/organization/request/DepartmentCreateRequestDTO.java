@@ -2,14 +2,15 @@ package com.msa4lmsv2academic.domain.organization.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "학과 등록 요청")
 public record DepartmentCreateRequestDTO(
-        @Schema(description = "학과 고유 코드", example = "CSE", maxLength = 20)
+        @Schema(description = "학과 고유 코드(숫자 3자리, 학번/교번 생성 규칙에 쓰임)", example = "001")
         @NotBlank(message = "code는 필수입니다.")
-        @Size(max = 20, message = "code는 20자 이하여야 합니다.")
+        @Pattern(regexp = "^\\d{3}$", message = "code는 숫자 3자리여야 합니다.")
         String code,
 
         @Schema(description = "학과명", example = "컴퓨터공학과", maxLength = 100)

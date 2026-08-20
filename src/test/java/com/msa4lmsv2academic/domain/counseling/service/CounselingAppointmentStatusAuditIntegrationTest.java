@@ -50,7 +50,7 @@ class CounselingAppointmentStatusAuditIntegrationTest extends MySqlIntegrationTe
         );
         jdbcTemplate.update(
                 "INSERT INTO departments (id, code, college_id, name, active) "
-                        + "VALUES (?, 'COUNSEL-AUDIT-DEPT', ?, '상담감사학과', 1)",
+                        + "VALUES (?, '223', ?, '상담감사학과', 1)",
                 DEPARTMENT_ID,
                 COLLEGE_ID
         );

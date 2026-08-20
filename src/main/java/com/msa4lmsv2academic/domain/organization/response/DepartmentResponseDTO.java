@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record DepartmentResponseDTO(
         @Schema(description = "학과 ID", example = "1")
         Long id,
-        @Schema(description = "학과 고유 코드", example = "CSE", maxLength = 20)
+        @Schema(description = "학과 고유 코드(숫자 3자리)", example = "001")
         String code,
         @Schema(description = "학과명", example = "컴퓨터공학과", maxLength = 100)
         String name,

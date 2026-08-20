@@ -91,7 +91,7 @@ class LectureOpeningServiceIntegrationTest extends MySqlIntegrationTest {
                 UserStatus.ACTIVE
         );
         College college = College.create("OPEN-COL", "개설신청대학", true);
-        Department department = Department.create("OPEN-DEPT", college, "개설신청학과", true);
+        Department department = Department.create("208", college, "개설신청학과", true);
         Professor professor = Professor.create(professorUser, (short) 2020, department);
         semester = Semester.create(
                 (short) 2026,

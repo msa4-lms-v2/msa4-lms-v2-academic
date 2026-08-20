@@ -30,7 +30,7 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
     void setUp() {
         jdbcTemplate.update("INSERT INTO colleges (id, code, name, active) VALUES (91001, 'GRAD-COL', '졸업진단대학', 1)");
         jdbcTemplate.update("INSERT INTO departments (id, code, college_id, name, active) "
-                + "VALUES (91001, 'GRAD-DEPT', 91001, '졸업진단학과', 1)");
+                + "VALUES (91001, '221', 91001, '졸업진단학과', 1)");
         jdbcTemplate.update("INSERT INTO users (id, name, role, status) VALUES (?, '진단학생', 'STUDENT', 'ACTIVE')",
                 STUDENT_USER_ID);
         jdbcTemplate.update("INSERT INTO users (id, name, role, status) VALUES (?, '지도교수', 'PROFESSOR', 'ACTIVE')",

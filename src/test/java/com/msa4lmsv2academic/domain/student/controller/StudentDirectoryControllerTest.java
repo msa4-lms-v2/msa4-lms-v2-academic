@@ -35,7 +35,7 @@ class StudentDirectoryControllerTest extends MySqlIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Department department = Department.create("CSE-STUDENT-HTTP", null, "컴퓨터공학과", true);
+        Department department = Department.create("202", null, "컴퓨터공학과", true);
         User professorUser = User.synchronize(
                 PROFESSOR_USER_ID,
                 "김교수",

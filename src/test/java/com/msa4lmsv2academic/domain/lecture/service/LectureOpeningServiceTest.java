@@ -72,7 +72,7 @@ class LectureOpeningServiceTest {
                 auditLogService
         );
 
-        department = Department.create("CSE", null, "컴퓨터공학과", true);
+        department = Department.create("100", null, "컴퓨터공학과", true);
         ReflectionTestUtils.setField(department, "id", 11L);
         User professorUser = User.synchronize(
                 9001L, "담당교수", null, null, null, UserRole.PROFESSOR, UserStatus.ACTIVE
