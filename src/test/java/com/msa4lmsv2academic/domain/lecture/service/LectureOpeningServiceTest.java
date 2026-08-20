@@ -20,6 +20,7 @@ import com.msa4lmsv2academic.domain.lecture.repository.LectureOpeningReferenceQu
 import com.msa4lmsv2academic.domain.lecture.repository.LectureOpeningRequestRepository;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureRepository;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureScheduleRepository;
+import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningCorrectionRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningCreateRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningReviewRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningScheduleRequestDTO;
@@ -32,6 +33,7 @@ import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.global.error.DuplicateLectureOpeningRequestException;
+import com.msa4lmsv2academic.global.error.LectureOpeningAccessDeniedException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -163,6 +165,52 @@ class LectureOpeningServiceTest {
     }
 
     @Test
+    void professorUpdatesOwnPendingRequestAndRecordsAudit() {
+        LectureOpeningRequest request = pendingRequest();
+        when(openingRequestRepository.findByIdForUpdate(101L)).thenReturn(Optional.of(request));
+        when(referenceQueryRepository.findCourseById(31L)).thenReturn(Optional.of(course));
+        when(referenceQueryRepository.findSemesterById(41L)).thenReturn(Optional.of(semester));
+        when(referenceQueryRepository.lockProfessor(21L)).thenReturn(Optional.of(professor));
+        when(openingRequestRepository.saveAndFlush(request)).thenReturn(request);
+
+        LectureOpeningResponseDTO response = service.update(
+                101L,
+                updateRequest(),
+                new CurrentUser(9001L, "PROFESSOR")
+        );
+
+        assertThat(response.status()).isEqualTo(LectureOpeningRequestStatus.PENDING);
+        assertThat(response.sectionNo()).isEqualTo("02");
+        assertThat(response.requestedCapacity()).isEqualTo(45);
+        assertThat(response.classroom()).isEqualTo("공학관 401호");
+        assertThat(response.schedules()).hasSize(1);
+        assertThat(response.schedules().getFirst().dayOfWeek()).isEqualTo(LectureDayOfWeek.TUE);
+        verify(auditLogService).record(
+                eq(9001L),
+                eq("LECTURE_OPENING_UPDATED"),
+                eq("LECTURE_OPENING_REQUEST"),
+                eq(101L),
+                any(),
+                any(),
+                isNull(),
+                isNull(),
+                isNull()
+        );
+    }
+
+    @Test
+    void professorCannotUpdateAnotherProfessorsRequest() {
+        LectureOpeningRequest request = pendingRequest();
+        when(openingRequestRepository.findByIdForUpdate(101L)).thenReturn(Optional.of(request));
+
+        assertThatThrownBy(() -> service.update(
+                101L,
+                updateRequest(),
+                new CurrentUser(9999L, "PROFESSOR")
+        )).isInstanceOf(LectureOpeningAccessDeniedException.class);
+    }
+
+    @Test
     void rejectsAlreadyProcessedRequest() {
         LectureOpeningRequest request = pendingRequest();
         request.reject(admin, "시간표 재검토", LocalDateTime.now());
@@ -202,6 +250,26 @@ class LectureOpeningServiceTest {
                         LectureDayOfWeek.MON,
                         (byte) 1,
                         (byte) 2
+                ))
+        );
+    }
+
+    private LectureOpeningCorrectionRequestDTO updateRequest() {
+        return new LectureOpeningCorrectionRequestDTO(
+                31L,
+                41L,
+                "02",
+                45,
+                "공학관 401호",
+                20,
+                40,
+                30,
+                10,
+                "보완된 운영체제 강의계획서",
+                List.of(new LectureOpeningScheduleRequestDTO(
+                        LectureDayOfWeek.TUE,
+                        (byte) 3,
+                        (byte) 4
                 ))
         );
     }

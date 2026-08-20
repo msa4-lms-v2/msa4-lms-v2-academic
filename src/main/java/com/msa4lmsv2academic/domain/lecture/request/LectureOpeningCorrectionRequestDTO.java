@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@Schema(description = "관리자 승인 전 강의 개설 정보 보정")
+@Schema(description = "처리 대기 강의 개설 신청 정보 보완")
 public record LectureOpeningCorrectionRequestDTO(
         @Schema(description = "보정할 교과목 ID", example = "31")
         @NotNull(message = "보정할 교과목 ID는 필수입니다.")
