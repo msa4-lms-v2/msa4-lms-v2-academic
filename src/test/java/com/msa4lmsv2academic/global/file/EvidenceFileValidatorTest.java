@@ -3,6 +3,8 @@ package com.msa4lmsv2academic.global.file;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.msa4lmsv2academic.global.error.FileSizeExceededException;
+import com.msa4lmsv2academic.global.error.InvalidFileException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 

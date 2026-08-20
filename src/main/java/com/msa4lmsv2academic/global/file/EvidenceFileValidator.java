@@ -1,5 +1,7 @@
 package com.msa4lmsv2academic.global.file;
 
+import com.msa4lmsv2academic.global.error.FileSizeExceededException;
+import com.msa4lmsv2academic.global.error.InvalidFileException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;

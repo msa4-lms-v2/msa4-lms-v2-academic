@@ -91,12 +91,6 @@ public class GlobalExceptionHandler {
         return fail(CustomResponseCode.DATABASE_ERROR);
     }
 
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<GlobalRes<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
-        log.warn("[{}] {}", CustomResponseCode.FILE_SIZE_EXCEEDED.getCode(), exception.getMessage());
-        return fail(CustomResponseCode.FILE_SIZE_EXCEEDED);
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GlobalRes<Void>> handleException(Exception exception) {
         log.error("[{}] {}", CustomResponseCode.SYSTEM_ERROR.getCode(), exception.getMessage(), exception);
