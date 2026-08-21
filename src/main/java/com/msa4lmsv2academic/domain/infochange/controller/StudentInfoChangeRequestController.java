@@ -5,8 +5,8 @@ import com.msa4lmsv2academic.domain.infochange.request.InfoChangeRequestSearchRe
 import com.msa4lmsv2academic.domain.infochange.request.StudentInfoChangeRequestCreateDTO;
 import com.msa4lmsv2academic.domain.infochange.response.StudentInfoChangeRequestResponseDTO;
 import com.msa4lmsv2academic.domain.infochange.service.StudentInfoChangeRequestService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -55,19 +55,19 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "검색 조건 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "STUDENT 또는 ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<StudentInfoChangeRequestResponseDTO>>> search(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<StudentInfoChangeRequestResponseDTO>>> search(
             @ParameterObject @Valid @ModelAttribute InfoChangeRequestSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(infoChangeRequestService.search(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(infoChangeRequestService.search(request, currentUser)));
     }
 
     @Operation(
@@ -79,22 +79,22 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "신청 ID 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "본인 신청 또는 ADMIN 범위가 아님",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{requestId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
-    public ResponseEntity<GlobalRes<StudentInfoChangeRequestResponseDTO>> get(
+    public ResponseEntity<GlobalResponseDTO<StudentInfoChangeRequestResponseDTO>> get(
             @Parameter(description = "신청 ID", example = "1", required = true)
             @Positive @PathVariable Long requestId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(infoChangeRequestService.get(requestId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(infoChangeRequestService.get(requestId, currentUser)));
     }
 
     @Operation(
@@ -108,28 +108,28 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "신청 생성 성공"),
             @ApiResponse(responseCode = "400", description = "변경 항목·파일 형식·입력값 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "STUDENT 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "학생 프로필 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "처리 대기 신청 또는 이메일 중복",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "413", description = "파일 또는 전체 요청 크기 초과",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<StudentInfoChangeRequestResponseDTO>> create(
+    public ResponseEntity<GlobalResponseDTO<StudentInfoChangeRequestResponseDTO>> create(
             @Valid @ModelAttribute StudentInfoChangeRequestCreateDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @Parameter(description = "분산 추적 및 감사 로그 요청 ID")
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(
                 infoChangeRequestService.create(
                         request, currentUser, requestId, httpServletRequest.getRemoteAddr()
                 )
@@ -146,25 +146,25 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "승인 성공"),
             @ApiResponse(responseCode = "400", description = "신청 ID 또는 상태 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 또는 관리자 프로필 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "이메일 중복 또는 처리 상태 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{requestId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<StudentInfoChangeRequestResponseDTO>> approve(
+    public ResponseEntity<GlobalResponseDTO<StudentInfoChangeRequestResponseDTO>> approve(
             @Positive @PathVariable Long requestId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @RequestHeader(value = "X-Request-Id", required = false) String traceRequestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(infoChangeRequestService.approve(
+        return ResponseEntity.ok(GlobalResponseDTO.success(infoChangeRequestService.approve(
                 requestId, currentUser, traceRequestId, httpServletRequest.getRemoteAddr()
         )));
     }
@@ -178,26 +178,26 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "반려 성공"),
             @ApiResponse(responseCode = "400", description = "신청 상태 또는 반려 사유 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 또는 관리자 프로필 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "처리 상태 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{requestId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<StudentInfoChangeRequestResponseDTO>> reject(
+    public ResponseEntity<GlobalResponseDTO<StudentInfoChangeRequestResponseDTO>> reject(
             @Positive @PathVariable Long requestId,
             @Valid @RequestBody InfoChangeRequestRejectRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @RequestHeader(value = "X-Request-Id", required = false) String traceRequestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(infoChangeRequestService.reject(
+        return ResponseEntity.ok(GlobalResponseDTO.success(infoChangeRequestService.reject(
                 requestId, request, currentUser, traceRequestId, httpServletRequest.getRemoteAddr()
         )));
     }
@@ -212,25 +212,25 @@ public class StudentInfoChangeRequestController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "취소 성공"),
             @ApiResponse(responseCode = "400", description = "신청 ID 또는 상태 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "본인 신청이 아니거나 STUDENT 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "처리 상태 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{requestId}/cancel")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<StudentInfoChangeRequestResponseDTO>> cancel(
+    public ResponseEntity<GlobalResponseDTO<StudentInfoChangeRequestResponseDTO>> cancel(
             @Positive @PathVariable Long requestId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @RequestHeader(value = "X-Request-Id", required = false) String traceRequestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(infoChangeRequestService.cancel(
+        return ResponseEntity.ok(GlobalResponseDTO.success(infoChangeRequestService.cancel(
                 requestId, currentUser, traceRequestId, httpServletRequest.getRemoteAddr()
         )));
     }

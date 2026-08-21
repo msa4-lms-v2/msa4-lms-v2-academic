@@ -4,8 +4,8 @@ import com.msa4lmsv2academic.domain.semester.request.SemesterCreateRequestDTO;
 import com.msa4lmsv2academic.domain.semester.request.SemesterSearchRequestDTO;
 import com.msa4lmsv2academic.domain.semester.response.SemesterResponseDTO;
 import com.msa4lmsv2academic.domain.semester.service.SemesterService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -49,18 +49,18 @@ public class SemesterController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 검색 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "허용되지 않은 역할",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<SemesterResponseDTO>>> searchSemesters(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<SemesterResponseDTO>>> searchSemesters(
             @ParameterObject @Valid @ModelAttribute SemesterSearchRequestDTO request
     ) {
-        return ResponseEntity.ok(GlobalRes.success(semesterService.searchSemesters(request)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(semesterService.searchSemesters(request)));
     }
 
     @Operation(
@@ -72,17 +72,17 @@ public class SemesterController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "등록 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 누락 또는 기간 순서 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "동일 학년도·학기 중복",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<SemesterResponseDTO>> createSemester(
+    public ResponseEntity<GlobalResponseDTO<SemesterResponseDTO>> createSemester(
             @Valid @RequestBody SemesterCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @Parameter(description = "분산 추적 및 감사 로그 요청 ID", example = "01JABCDEF1234567890")
@@ -95,6 +95,6 @@ public class SemesterController {
                 requestId,
                 httpServletRequest.getRemoteAddr()
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }
 }

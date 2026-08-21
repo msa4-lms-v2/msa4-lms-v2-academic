@@ -17,7 +17,7 @@ import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.global.error.DuplicateSemesterException;
 import com.msa4lmsv2academic.global.error.InvalidSemesterRequestException;
 import com.msa4lmsv2academic.global.error.SemesterAccessDeniedException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
@@ -168,7 +168,7 @@ class SemesterServiceTest extends MySqlIntegrationTest {
                 request((short) 2026, SemesterTerm.SECOND, true), ADMIN, null, null
         );
 
-        PageRes<SemesterResponseDTO> result = semesterService.searchSemesters(
+        PageResponseDTO<SemesterResponseDTO> result = semesterService.searchSemesters(
                 new SemesterSearchRequestDTO(1, 1, (short) 2026, null, null)
         );
 
@@ -179,7 +179,7 @@ class SemesterServiceTest extends MySqlIntegrationTest {
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.hasNext()).isTrue();
 
-        PageRes<SemesterResponseDTO> currentOnly = semesterService.searchSemesters(
+        PageResponseDTO<SemesterResponseDTO> currentOnly = semesterService.searchSemesters(
                 new SemesterSearchRequestDTO(1, 20, null, null, true)
         );
         assertThat(currentOnly.items())

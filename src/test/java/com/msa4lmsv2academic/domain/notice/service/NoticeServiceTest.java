@@ -20,11 +20,10 @@ import com.msa4lmsv2academic.global.error.InvalidNoticeRequestException;
 import com.msa4lmsv2academic.global.error.NoticeAccessDeniedException;
 import com.msa4lmsv2academic.global.error.NoticeNotFoundException;
 import com.msa4lmsv2academic.global.error.NoticeStateConflictException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,7 +133,7 @@ class NoticeServiceTest extends MySqlIntegrationTest {
         create("교수 공지", "교수 내용", NoticeTargetRole.PROFESSOR);
         noticeService.deleteNotice(studentNotice.id(), ADMIN, null, null);
 
-        PageRes<NoticeSummaryResponseDTO> studentResult = noticeService.searchNotices(
+        PageResponseDTO<NoticeSummaryResponseDTO> studentResult = noticeService.searchNotices(
                 search(null, null),
                 STUDENT
         );
@@ -142,7 +141,7 @@ class NoticeServiceTest extends MySqlIntegrationTest {
                 .extracting(NoticeSummaryResponseDTO::title)
                 .containsExactly("전체 공지");
 
-        PageRes<NoticeSummaryResponseDTO> professorResult = noticeService.searchNotices(
+        PageResponseDTO<NoticeSummaryResponseDTO> professorResult = noticeService.searchNotices(
                 search(NoticeTargetRole.PROFESSOR, false),
                 PROFESSOR
         );
@@ -150,7 +149,7 @@ class NoticeServiceTest extends MySqlIntegrationTest {
                 .extracting(NoticeSummaryResponseDTO::title)
                 .containsExactly("교수 공지");
 
-        PageRes<NoticeSummaryResponseDTO> adminResult = noticeService.searchNotices(search(null, null), ADMIN);
+        PageResponseDTO<NoticeSummaryResponseDTO> adminResult = noticeService.searchNotices(search(null, null), ADMIN);
         assertThat(adminResult.totalCount()).isEqualTo(3);
         assertThat(adminResult.items()).extracting(NoticeSummaryResponseDTO::isActive)
                 .containsExactly(true, false, true);

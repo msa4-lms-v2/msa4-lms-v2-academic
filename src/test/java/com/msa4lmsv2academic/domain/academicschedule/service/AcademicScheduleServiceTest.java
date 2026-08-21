@@ -20,7 +20,7 @@ import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.global.error.AcademicScheduleAccessDeniedException;
 import com.msa4lmsv2academic.global.error.DuplicateAcademicScheduleException;
 import com.msa4lmsv2academic.global.error.InvalidAcademicScheduleRequestException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
@@ -169,21 +169,21 @@ class AcademicScheduleServiceTest extends MySqlIntegrationTest {
                 studentSchedule.id(), new AcademicScheduleStatusRequestDTO(false, "비활성 처리"), ADMIN, null, null
         );
 
-        PageRes<AcademicScheduleSummaryResponseDTO> studentResult = academicScheduleService.search(
+        PageResponseDTO<AcademicScheduleSummaryResponseDTO> studentResult = academicScheduleService.search(
                 search(null, null), STUDENT
         );
         assertThat(studentResult.items())
                 .extracting(AcademicScheduleSummaryResponseDTO::title)
                 .containsExactly("전체 대상 일정");
 
-        PageRes<AcademicScheduleSummaryResponseDTO> professorResult = academicScheduleService.search(
+        PageResponseDTO<AcademicScheduleSummaryResponseDTO> professorResult = academicScheduleService.search(
                 search(AcademicScheduleTargetRole.PROFESSOR, null), PROFESSOR
         );
         assertThat(professorResult.items())
                 .extracting(AcademicScheduleSummaryResponseDTO::title)
                 .containsExactly("교수 대상 일정");
 
-        PageRes<AcademicScheduleSummaryResponseDTO> adminResult = academicScheduleService.search(
+        PageResponseDTO<AcademicScheduleSummaryResponseDTO> adminResult = academicScheduleService.search(
                 search(null, null), ADMIN
         );
         assertThat(adminResult.totalCount()).isEqualTo(3);

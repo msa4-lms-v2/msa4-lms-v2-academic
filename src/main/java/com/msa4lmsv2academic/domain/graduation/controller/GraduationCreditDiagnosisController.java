@@ -2,7 +2,7 @@ package com.msa4lmsv2academic.domain.graduation.controller;
 
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
 import com.msa4lmsv2academic.domain.graduation.service.GraduationCreditDiagnosisService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,14 +39,14 @@ public class GraduationCreditDiagnosisController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "진단 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 학생 ID", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "학생 접근 권한 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "학생 또는 졸업요건 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "잘못된 학생 ID", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "학생 접근 권한 없음", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "학생 또는 졸업요건 없음", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/credit-requirement-diagnosis")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<CreditDiagnosisResponseDTO>> diagnose(
+    public ResponseEntity<GlobalResponseDTO<CreditDiagnosisResponseDTO>> diagnose(
             @RequestParam
             @Positive(message = "studentId는 양수여야 합니다.")
             @Parameter(description = "진단 대상 학생 ID", example = "1001")
@@ -54,6 +54,6 @@ public class GraduationCreditDiagnosisController {
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
         CreditDiagnosisResponseDTO response = graduationCreditDiagnosisService.diagnose(studentId, currentUser);
-        return ResponseEntity.ok(GlobalRes.success(response));
+        return ResponseEntity.ok(GlobalResponseDTO.success(response));
     }
 }

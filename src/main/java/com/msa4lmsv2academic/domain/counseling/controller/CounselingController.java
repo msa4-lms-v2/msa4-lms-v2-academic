@@ -8,8 +8,8 @@ import com.msa4lmsv2academic.domain.counseling.response.CounselingAppointmentRes
 import com.msa4lmsv2academic.domain.counseling.response.CounselorAvailabilityResponseDTO;
 import com.msa4lmsv2academic.domain.counseling.service.CounselingAppointmentService;
 import com.msa4lmsv2academic.domain.counseling.service.CounselorAvailabilityService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -57,16 +57,16 @@ public class CounselingController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "권한 없음", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/availability")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<List<CounselorAvailabilityResponseDTO>>> getAvailabilities(
+    public ResponseEntity<GlobalResponseDTO<List<CounselorAvailabilityResponseDTO>>> getAvailabilities(
             @RequestParam(required = false) @Positive Long professorId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 availabilityService.getAvailabilities(professorId, currentUser)
         ));
     }
@@ -78,16 +78,16 @@ public class CounselingController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "교체 성공"),
-            @ApiResponse(responseCode = "400", description = "시간 형식 또는 중복 구간 오류", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "교수 권한 필요", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "시간 형식 또는 중복 구간 오류", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "교수 권한 필요", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PutMapping("/availability")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<List<CounselorAvailabilityResponseDTO>>> replaceAvailabilities(
+    public ResponseEntity<GlobalResponseDTO<List<CounselorAvailabilityResponseDTO>>> replaceAvailabilities(
             @Valid @RequestBody CounselorAvailabilityReplaceRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 availabilityService.replaceAvailabilities(request, currentUser)
         ));
     }
@@ -99,11 +99,11 @@ public class CounselingController {
     )
     @GetMapping("/appointments")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<CounselingAppointmentResponseDTO>>> searchAppointments(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<CounselingAppointmentResponseDTO>>> searchAppointments(
             @ParameterObject @Valid @ModelAttribute CounselingAppointmentSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(appointmentService.search(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(appointmentService.search(request, currentUser)));
     }
 
     @Operation(
@@ -113,11 +113,11 @@ public class CounselingController {
     )
     @GetMapping("/appointments/{appointmentId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<CounselingAppointmentResponseDTO>> getAppointment(
+    public ResponseEntity<GlobalResponseDTO<CounselingAppointmentResponseDTO>> getAppointment(
             @PathVariable @Positive Long appointmentId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(appointmentService.get(appointmentId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(appointmentService.get(appointmentId, currentUser)));
     }
 
     @Operation(
@@ -127,17 +127,17 @@ public class CounselingController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "예약 성공"),
-            @ApiResponse(responseCode = "400", description = "가용 시간 밖 또는 잘못된 예약 시각", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "교수 또는 학생 일정 중복", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "가용 시간 밖 또는 잘못된 예약 시각", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "409", description = "교수 또는 학생 일정 중복", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping("/appointments")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<CounselingAppointmentResponseDTO>> createAppointment(
+    public ResponseEntity<GlobalResponseDTO<CounselingAppointmentResponseDTO>> createAppointment(
             @Valid @RequestBody CounselingAppointmentCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GlobalRes.success(appointmentService.create(request, currentUser)));
+                .body(GlobalResponseDTO.success(appointmentService.create(request, currentUser)));
     }
 
     @Operation(
@@ -148,24 +148,24 @@ public class CounselingController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "상태 변경 성공"),
             @ApiResponse(responseCode = "400", description = "상태 또는 교수 답변 입력 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "상담 참여자 권한 또는 소유권 위반",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "상담 예약 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "현재 상태에서 변경할 수 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/appointments/{appointmentId}/status")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
-    public ResponseEntity<GlobalRes<CounselingAppointmentResponseDTO>> changeAppointmentStatus(
+    public ResponseEntity<GlobalResponseDTO<CounselingAppointmentResponseDTO>> changeAppointmentStatus(
             @PathVariable @Positive Long appointmentId,
             @Valid @RequestBody CounselingAppointmentStatusRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 appointmentService.changeStatus(appointmentId, request, currentUser)
         ));
     }

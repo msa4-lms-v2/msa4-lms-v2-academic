@@ -1,7 +1,7 @@
 package com.msa4lmsv2academic.global.security;
 
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -27,6 +27,6 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write(
-                objectMapper.writeValueAsString(GlobalRes.fail(code, null)));
+                objectMapper.writeValueAsString(GlobalResponseDTO.fail(code, null)));
     }
 }

@@ -5,8 +5,8 @@ import com.msa4lmsv2academic.domain.professor.request.ProfessorUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.professor.response.ProfessorDetailResponseDTO;
 import com.msa4lmsv2academic.domain.professor.response.ProfessorSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.professor.service.ProfessorManagementService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,19 +53,19 @@ public class ProfessorManagementController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 페이지·검색 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<ProfessorSummaryResponseDTO>>> searchProfessors(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<ProfessorSummaryResponseDTO>>> searchProfessors(
             @ParameterObject @Valid @ModelAttribute ProfessorSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 professorManagementService.searchProfessors(request, currentUser)
         ));
     }
@@ -79,22 +79,22 @@ public class ProfessorManagementController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 교수 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "교수 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{professorId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<ProfessorDetailResponseDTO>> getProfessor(
+    public ResponseEntity<GlobalResponseDTO<ProfessorDetailResponseDTO>> getProfessor(
             @Parameter(description = "Professor 엔티티 ID", example = "10", required = true)
             @PathVariable @Positive(message = "professorId는 양수여야 합니다.") Long professorId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 professorManagementService.getProfessor(professorId, currentUser)
         ));
     }
@@ -109,17 +109,17 @@ public class ProfessorManagementController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청"),
             @ApiResponse(responseCode = "400", description = "빈 PATCH, 비활성 학과, 잘못된 임용 연도 또는 사유",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "교수 또는 변경할 학과 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{professorId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<ProfessorDetailResponseDTO>> updateProfessor(
+    public ResponseEntity<GlobalResponseDTO<ProfessorDetailResponseDTO>> updateProfessor(
             @Parameter(description = "Professor 엔티티 ID", example = "10", required = true)
             @PathVariable @Positive(message = "professorId는 양수여야 합니다.") Long professorId,
             @Valid @RequestBody ProfessorUpdateRequestDTO request,
@@ -128,7 +128,7 @@ public class ProfessorManagementController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(professorManagementService.updateProfessor(
+        return ResponseEntity.ok(GlobalResponseDTO.success(professorManagementService.updateProfessor(
                 professorId,
                 request,
                 currentUser,

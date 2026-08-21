@@ -9,7 +9,7 @@ import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningCreateRequestD
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningScheduleRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.response.LectureOpeningResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.LectureOpeningService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class LectureOpeningControllerTest {
         CurrentUser professor = new CurrentUser(9001L, "PROFESSOR");
         when(service.create(request, professor)).thenReturn(null);
 
-        ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> response = controller.create(request, professor);
+        ResponseEntity<GlobalResponseDTO<LectureOpeningResponseDTO>> response = controller.create(request, professor);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();

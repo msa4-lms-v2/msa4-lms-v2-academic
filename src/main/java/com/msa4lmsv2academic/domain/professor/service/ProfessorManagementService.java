@@ -16,7 +16,7 @@ import com.msa4lmsv2academic.global.error.InvalidProfessorRequestException;
 import com.msa4lmsv2academic.global.error.ProfessorAccessDeniedException;
 import com.msa4lmsv2academic.global.error.ProfessorDepartmentNotFoundException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.Year;
 import java.util.LinkedHashMap;
@@ -41,8 +41,8 @@ public class ProfessorManagementService {
     private final DepartmentRepository departmentRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<ProfessorSummaryResponseDTO> searchProfessors(ProfessorSearchRequestDTO request,
-                                                                 CurrentUser currentUser) {
+    public PageResponseDTO<ProfessorSummaryResponseDTO> searchProfessors(ProfessorSearchRequestDTO request,
+                                                                         CurrentUser currentUser) {
         validateAdmin(currentUser);
         validateHireYear(request.hireYear());
 
@@ -63,7 +63,7 @@ public class ProfessorManagementService {
                 .map(ProfessorSummaryResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public ProfessorDetailResponseDTO getProfessor(Long professorId, CurrentUser currentUser) {

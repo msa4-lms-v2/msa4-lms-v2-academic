@@ -7,8 +7,8 @@ import com.msa4lmsv2academic.domain.academicschedule.request.AcademicScheduleUpd
 import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleDetailResponseDTO;
 import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.academicschedule.service.AcademicScheduleService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -59,19 +59,19 @@ public class AcademicScheduleController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 페이지·기간·검색 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "일반 사용자가 다른 역할 범위를 요청함",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<AcademicScheduleSummaryResponseDTO>>> search(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<AcademicScheduleSummaryResponseDTO>>> search(
             @ParameterObject @Valid @ModelAttribute AcademicScheduleSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(academicScheduleService.search(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(academicScheduleService.search(request, currentUser)));
     }
 
     @Operation(
@@ -84,22 +84,22 @@ public class AcademicScheduleController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 학사일정 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "공개 대상 역할 불일치",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "일정 없음 또는 일반 사용자에게 숨겨진 비활성 일정",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{scheduleId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<AcademicScheduleDetailResponseDTO>> get(
+    public ResponseEntity<GlobalResponseDTO<AcademicScheduleDetailResponseDTO>> get(
             @Parameter(description = "학사일정 ID", example = "1", required = true)
             @PathVariable @Positive(message = "scheduleId는 양수여야 합니다.") Long scheduleId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(academicScheduleService.get(scheduleId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(academicScheduleService.get(scheduleId, currentUser)));
     }
 
     @Operation(
@@ -112,19 +112,19 @@ public class AcademicScheduleController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "등록 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 누락, 길이 또는 기간 순서 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "동일한 활성 일정 중복",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AcademicScheduleDetailResponseDTO>> create(
+    public ResponseEntity<GlobalResponseDTO<AcademicScheduleDetailResponseDTO>> create(
             @Valid @RequestBody AcademicScheduleCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @Parameter(description = "분산 추적 및 감사 로그 요청 ID", example = "01JABCDEF1234567890")
@@ -134,7 +134,7 @@ public class AcademicScheduleController {
         AcademicScheduleDetailResponseDTO response = academicScheduleService.create(
                 request, currentUser, requestId, httpServletRequest.getRemoteAddr()
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }
 
     @Operation(
@@ -147,19 +147,19 @@ public class AcademicScheduleController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청"),
             @ApiResponse(responseCode = "400", description = "필수값 누락, 길이 또는 기간 순서 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "학사일정 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "수정 결과가 다른 활성 일정과 중복",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PutMapping("/{scheduleId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AcademicScheduleDetailResponseDTO>> update(
+    public ResponseEntity<GlobalResponseDTO<AcademicScheduleDetailResponseDTO>> update(
             @Parameter(description = "학사일정 ID", example = "1", required = true)
             @PathVariable @Positive(message = "scheduleId는 양수여야 합니다.") Long scheduleId,
             @Valid @RequestBody AcademicScheduleUpdateRequestDTO request,
@@ -168,7 +168,7 @@ public class AcademicScheduleController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(academicScheduleService.update(
+        return ResponseEntity.ok(GlobalResponseDTO.success(academicScheduleService.update(
                 scheduleId, request, currentUser, requestId, httpServletRequest.getRemoteAddr()
         )));
     }
@@ -183,19 +183,19 @@ public class AcademicScheduleController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청"),
             @ApiResponse(responseCode = "400", description = "active 또는 변경 사유 누락",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "학사일정 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "재활성화 결과가 다른 활성 일정과 중복",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{scheduleId}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AcademicScheduleDetailResponseDTO>> changeStatus(
+    public ResponseEntity<GlobalResponseDTO<AcademicScheduleDetailResponseDTO>> changeStatus(
             @Parameter(description = "학사일정 ID", example = "1", required = true)
             @PathVariable @Positive(message = "scheduleId는 양수여야 합니다.") Long scheduleId,
             @Valid @RequestBody AcademicScheduleStatusRequestDTO request,
@@ -204,7 +204,7 @@ public class AcademicScheduleController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(academicScheduleService.changeStatus(
+        return ResponseEntity.ok(GlobalResponseDTO.success(academicScheduleService.changeStatus(
                 scheduleId, request, currentUser, requestId, httpServletRequest.getRemoteAddr()
         )));
     }

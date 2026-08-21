@@ -15,7 +15,7 @@ import com.msa4lmsv2academic.global.error.CollegeNotFoundException;
 import com.msa4lmsv2academic.global.error.DepartmentNotFoundException;
 import com.msa4lmsv2academic.global.error.DuplicateDepartmentException;
 import com.msa4lmsv2academic.global.error.InvalidDepartmentRequestException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,7 +37,7 @@ public class DepartmentService {
     private final DepartmentQueryRepository departmentQueryRepository;
     private final CollegeRepository collegeRepository;
 
-    public PageRes<DepartmentResponseDTO> searchDepartments(
+    public PageResponseDTO<DepartmentResponseDTO> searchDepartments(
             DepartmentSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -59,7 +59,7 @@ public class DepartmentService {
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
 
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public DepartmentResponseDTO getDepartment(Long departmentId, CurrentUser currentUser) {

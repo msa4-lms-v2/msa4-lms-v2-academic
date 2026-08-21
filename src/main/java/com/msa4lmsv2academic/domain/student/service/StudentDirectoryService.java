@@ -10,7 +10,7 @@ import com.msa4lmsv2academic.domain.student.response.StudentSummaryResponseDTO;
 import com.msa4lmsv2academic.global.error.InvalidStudentSearchRequestException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.error.StudentDirectoryAccessDeniedException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import java.util.Set;
@@ -29,8 +29,8 @@ public class StudentDirectoryService {
 
     private final StudentQueryRepository studentQueryRepository;
 
-    public PageRes<StudentSummaryResponseDTO> searchStudents(StudentSearchRequestDTO request,
-                                                              CurrentUser currentUser) {
+    public PageResponseDTO<StudentSummaryResponseDTO> searchStudents(StudentSearchRequestDTO request,
+                                                                     CurrentUser currentUser) {
         validateRequest(request);
         boolean admin = validateRole(currentUser);
         ProfessorStudentScope professorScope = admin ? null : resolveProfessorScope(currentUser.id());
@@ -57,7 +57,7 @@ public class StudentDirectoryService {
                 .map(StudentSummaryResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     private void validateRequest(StudentSearchRequestDTO request) {

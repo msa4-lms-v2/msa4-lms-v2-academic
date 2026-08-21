@@ -2,7 +2,7 @@ package com.msa4lmsv2academic.domain.professor.controller;
 
 import com.msa4lmsv2academic.domain.professor.response.ProfessorProfileResponseDTO;
 import com.msa4lmsv2academic.domain.professor.service.ProfessorProfileService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,17 +38,17 @@ public class ProfessorProfileController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "PROFESSOR 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "교수 프로필 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/me")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<ProfessorProfileResponseDTO>> getMyProfile(
+    public ResponseEntity<GlobalResponseDTO<ProfessorProfileResponseDTO>> getMyProfile(
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(professorProfileService.getMyProfile(currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(professorProfileService.getMyProfile(currentUser)));
     }
 }

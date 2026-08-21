@@ -17,7 +17,7 @@ import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
 import com.msa4lmsv2academic.global.error.InvalidProfessorRequestException;
 import com.msa4lmsv2academic.global.error.ProfessorAccessDeniedException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
@@ -88,11 +88,11 @@ class ProfessorManagementServiceTest extends MySqlIntegrationTest {
 
     @Test
     void searchFiltersNameOrEmailIgnoringCaseAndReturnsStatus() {
-        PageRes<?> byName = professorManagementService.searchProfessors(
+        PageResponseDTO<?> byName = professorManagementService.searchProfessors(
                 new ProfessorSearchRequestDTO(1, 20, null, null, UserStatus.ACTIVE, "  김교수  "),
                 ADMIN
         );
-        PageRes<?> byEmail = professorManagementService.searchProfessors(
+        PageResponseDTO<?> byEmail = professorManagementService.searchProfessors(
                 new ProfessorSearchRequestDTO(1, 20, null, 2020, null, "KIM.PROFESSOR"),
                 ADMIN
         );

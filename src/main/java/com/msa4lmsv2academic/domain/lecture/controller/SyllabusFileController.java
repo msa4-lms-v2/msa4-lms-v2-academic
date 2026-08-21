@@ -3,7 +3,7 @@ package com.msa4lmsv2academic.domain.lecture.controller;
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileDownloadResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.SyllabusFileService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,21 +53,21 @@ public class SyllabusFileController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "업로드 성공"),
             @ApiResponse(responseCode = "400", description = "PDF 형식·무결성 검증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "담당 교수 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "강의 또는 업로드 사용자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "중복 파일 또는 수정할 수 없는 강의 상태",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "413", description = "10MB 용량 초과",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<SyllabusFileResponseDTO>> upload(
+    public ResponseEntity<GlobalResponseDTO<SyllabusFileResponseDTO>> upload(
             @Parameter(description = "강의 ID", example = "101", required = true)
             @RequestPart("classId") @Positive(message = "classId는 양수여야 합니다.") Long classId,
             @Parameter(description = "PDF 강의계획서 파일", required = true)
@@ -77,7 +77,7 @@ public class SyllabusFileController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(syllabusFileService.upload(
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(syllabusFileService.upload(
                 classId,
                 file,
                 currentUser,
@@ -94,22 +94,22 @@ public class SyllabusFileController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 강의 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "조회 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "강의 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<List<SyllabusFileResponseDTO>>> list(
+    public ResponseEntity<GlobalResponseDTO<List<SyllabusFileResponseDTO>>> list(
             @Parameter(description = "강의 ID", example = "101", required = true)
             @RequestParam @Positive(message = "classId는 양수여야 합니다.") Long classId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(syllabusFileService.list(classId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(syllabusFileService.list(classId, currentUser)));
     }
 
     @Operation(
@@ -127,13 +127,13 @@ public class SyllabusFileController {
                     )
             ),
             @ApiResponse(responseCode = "400", description = "잘못된 파일 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "다운로드 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "파일 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{fileId}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
