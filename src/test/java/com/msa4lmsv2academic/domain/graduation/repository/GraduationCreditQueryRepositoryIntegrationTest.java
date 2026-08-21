@@ -2,6 +2,7 @@ package com.msa4lmsv2academic.domain.graduation.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.msa4lmsv2academic.domain.student.repository.ProfessorStudentScope;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,8 +92,14 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
     void checksStudentOwnershipAndAdvisorRelationshipFromPersistedData() {
         assertThat(graduationCreditQueryRepository.isStudentOwnedByUser(STUDENT_ID, STUDENT_USER_ID)).isTrue();
         assertThat(graduationCreditQueryRepository.isStudentOwnedByUser(STUDENT_ID, 99999L)).isFalse();
-        assertThat(graduationCreditQueryRepository.isStudentAdvisedByUser(STUDENT_ID, PROFESSOR_USER_ID)).isTrue();
-        assertThat(graduationCreditQueryRepository.isStudentAdvisedByUser(STUDENT_ID, 99999L)).isFalse();
+        assertThat(graduationCreditQueryRepository.isStudentInProfessorScope(
+                STUDENT_ID,
+                new ProfessorStudentScope(PROFESSOR_ID, 91001L)
+        )).isTrue();
+        assertThat(graduationCreditQueryRepository.isStudentInProfessorScope(
+                STUDENT_ID,
+                new ProfessorStudentScope(99999L, 99999L)
+        )).isFalse();
     }
 
     private void insertCourse(long id, String code, String name, int credits, String completionType) {

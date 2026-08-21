@@ -8,8 +8,8 @@ import com.msa4lmsv2academic.domain.lecture.request.ProfessorLectureSearchReques
 import com.msa4lmsv2academic.domain.lecture.response.ProfessorLectureResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.ProfessorLectureQueryService;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -27,12 +27,13 @@ class ProfessorLectureControllerTest {
                 null
         );
         CurrentUser currentUser = new CurrentUser(3001L, "PROFESSOR");
-        PageRes<ProfessorLectureResponseDTO> page = new PageRes<>(List.of(), 0L, 1, 20, false);
+        PageResponseDTO<ProfessorLectureResponseDTO> page =
+                new PageResponseDTO<>(List.of(), 0L, 1, 20, false);
         ProfessorLectureQueryService service = mock(ProfessorLectureQueryService.class);
         when(service.getMyLectures(request, currentUser)).thenReturn(page);
         ProfessorLectureController controller = new ProfessorLectureController(service);
 
-        ResponseEntity<GlobalRes<PageRes<ProfessorLectureResponseDTO>>> response =
+        ResponseEntity<GlobalResponseDTO<PageResponseDTO<ProfessorLectureResponseDTO>>> response =
                 controller.getMyLectures(request, currentUser);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
