@@ -17,7 +17,7 @@ import com.msa4lmsv2academic.domain.lecture.request.ProfessorLectureSearchReques
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.global.error.ProfessorLectureAccessDeniedException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class ProfessorLectureQueryServiceTest {
         )).thenReturn(new ProfessorLectureSearchResult(List.of(queryResult), 1L));
         ProfessorLectureQueryService service = new ProfessorLectureQueryService(repository);
 
-        PageRes<?> response = service.getMyLectures(
+        PageResponseDTO<?> response = service.getMyLectures(
                 new ProfessorLectureSearchRequestDTO(
                         1,
                         20,
@@ -73,7 +73,7 @@ class ProfessorLectureQueryServiceTest {
                 .thenReturn(new ProfessorLectureSearchResult(List.of(), 0L));
         ProfessorLectureQueryService service = new ProfessorLectureQueryService(repository);
 
-        PageRes<?> response = service.getMyLectures(
+        PageResponseDTO<?> response = service.getMyLectures(
                 new ProfessorLectureSearchRequestDTO(1, 500, null, null, null),
                 new CurrentUser(3001L, "PROFESSOR")
         );

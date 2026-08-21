@@ -6,7 +6,7 @@ import com.msa4lmsv2academic.domain.lecture.request.ProfessorLectureSearchReques
 import com.msa4lmsv2academic.domain.lecture.response.ProfessorLectureResponseDTO;
 import com.msa4lmsv2academic.global.error.ProfessorLectureAccessDeniedException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class ProfessorLectureQueryService {
 
     private final ProfessorLectureQueryRepository professorLectureQueryRepository;
 
-    public PageRes<ProfessorLectureResponseDTO> getMyLectures(
+    public PageResponseDTO<ProfessorLectureResponseDTO> getMyLectures(
             ProfessorLectureSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -47,7 +47,7 @@ public class ProfessorLectureQueryService {
                 .map(ProfessorLectureResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     private void validateProfessor(CurrentUser currentUser) {

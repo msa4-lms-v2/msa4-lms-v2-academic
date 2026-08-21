@@ -450,10 +450,11 @@ CREATE TABLE IF NOT EXISTS graduation_requirements (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    CONSTRAINT uk_graduation_requirements_department_year
+        UNIQUE (department_id, admission_year),
     CONSTRAINT fk_graduation_requirements_department
         FOREIGN KEY (department_id) REFERENCES departments (id)
-        ON DELETE RESTRICT,
-    INDEX idx_graduation_requirements_department_year (department_id, admission_year)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- 2026-08-17: 학생 본인 학적 정보(연락처/주소/사진) 변경 신청 + 관리자 승인 워크플로우
