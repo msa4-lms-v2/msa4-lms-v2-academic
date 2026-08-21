@@ -3,7 +3,7 @@ package com.msa4lmsv2academic.domain.lecture.controller;
 import com.msa4lmsv2academic.domain.lecture.request.LectureSyllabusUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.response.LectureSyllabusResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.LectureSyllabusService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -46,22 +46,22 @@ public class LectureSyllabusController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 강의 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "조회 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "강의 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{classId}/syllabus")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<LectureSyllabusResponseDTO>> get(
+    public ResponseEntity<GlobalResponseDTO<LectureSyllabusResponseDTO>> get(
             @Parameter(description = "강의 ID", example = "101", required = true)
             @PathVariable @Positive(message = "classId는 양수여야 합니다.") Long classId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(lectureSyllabusService.get(classId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(lectureSyllabusService.get(classId, currentUser)));
     }
 
     @Operation(
@@ -72,19 +72,19 @@ public class LectureSyllabusController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "작성·수정 성공"),
             @ApiResponse(responseCode = "400", description = "입력값 검증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "담당 교수 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "강의 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "수정할 수 없는 강의 상태",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PutMapping("/{classId}/syllabus")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<LectureSyllabusResponseDTO>> update(
+    public ResponseEntity<GlobalResponseDTO<LectureSyllabusResponseDTO>> update(
             @Parameter(description = "강의 ID", example = "101", required = true)
             @PathVariable @Positive(message = "classId는 양수여야 합니다.") Long classId,
             @Valid @RequestBody LectureSyllabusUpdateRequestDTO request,
@@ -93,7 +93,7 @@ public class LectureSyllabusController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(lectureSyllabusService.update(
+        return ResponseEntity.ok(GlobalResponseDTO.success(lectureSyllabusService.update(
                 classId,
                 request,
                 currentUser,

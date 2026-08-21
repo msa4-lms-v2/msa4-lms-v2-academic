@@ -26,7 +26,7 @@ import com.msa4lmsv2academic.global.error.InfoChangeRequestStateConflictExceptio
 import com.msa4lmsv2academic.global.error.InvalidInfoChangeRequestException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.file.FileStorageService;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -58,7 +58,7 @@ public class ProfessorInfoChangeRequestService {
     private final ProfileChangeValidator profileChangeValidator;
     private final AuditLogService auditLogService;
 
-    public PageRes<ProfessorInfoChangeRequestResponseDTO> search(
+    public PageResponseDTO<ProfessorInfoChangeRequestResponseDTO> search(
             InfoChangeRequestSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -84,7 +84,7 @@ public class ProfessorInfoChangeRequestService {
                 .map(ProfessorInfoChangeRequestResponseDTO::summary)
                 .toList();
         boolean hasNext = (page - 1L) * size + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public ProfessorInfoChangeRequestResponseDTO get(Long requestId, CurrentUser currentUser) {

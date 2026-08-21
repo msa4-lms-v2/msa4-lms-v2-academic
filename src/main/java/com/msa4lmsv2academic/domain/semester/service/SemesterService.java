@@ -12,7 +12,7 @@ import com.msa4lmsv2academic.domain.semester.response.SemesterResponseDTO;
 import com.msa4lmsv2academic.global.error.DuplicateSemesterException;
 import com.msa4lmsv2academic.global.error.InvalidSemesterRequestException;
 import com.msa4lmsv2academic.global.error.SemesterAccessDeniedException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,7 +35,7 @@ public class SemesterService {
     private final SemesterQueryRepository semesterQueryRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<SemesterResponseDTO> searchSemesters(SemesterSearchRequestDTO request) {
+    public PageResponseDTO<SemesterResponseDTO> searchSemesters(SemesterSearchRequestDTO request) {
         int page = request.resolvedPage();
         int size = request.resolvedSize();
         long offset = (page - 1L) * size;
@@ -52,7 +52,7 @@ public class SemesterService {
                 .map(SemesterResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     @Transactional

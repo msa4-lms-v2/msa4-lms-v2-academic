@@ -19,7 +19,7 @@ import com.msa4lmsv2academic.global.error.CounselingParticipantNotFoundException
 import com.msa4lmsv2academic.global.error.CounselingScheduleConflictException;
 import com.msa4lmsv2academic.global.error.CounselingStatusConflictException;
 import com.msa4lmsv2academic.global.error.InvalidCounselingRequestException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -52,7 +52,7 @@ public class CounselingAppointmentService {
     private final CounselingParticipantQueryRepository participantQueryRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<CounselingAppointmentResponseDTO> search(
+    public PageResponseDTO<CounselingAppointmentResponseDTO> search(
             CounselingAppointmentSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -78,7 +78,7 @@ public class CounselingAppointmentService {
         List<CounselingAppointmentResponseDTO> items = result.getContent().stream()
                 .map(CounselingAppointmentResponseDTO::from)
                 .toList();
-        return new PageRes<>(items, result.getTotalElements(), page, size, result.hasNext());
+        return new PageResponseDTO<>(items, result.getTotalElements(), page, size, result.hasNext());
     }
 
     public CounselingAppointmentResponseDTO get(Long appointmentId, CurrentUser currentUser) {

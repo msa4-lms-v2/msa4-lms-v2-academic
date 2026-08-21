@@ -6,8 +6,8 @@ import com.msa4lmsv2academic.domain.notice.request.NoticeUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.notice.response.NoticeDetailResponseDTO;
 import com.msa4lmsv2academic.domain.notice.response.NoticeSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.notice.service.NoticeService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,19 +56,19 @@ public class NoticeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 페이지·검색 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "일반 사용자가 다른 역할 필터를 요청함",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<NoticeSummaryResponseDTO>>> searchNotices(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<NoticeSummaryResponseDTO>>> searchNotices(
             @ParameterObject @Valid @ModelAttribute NoticeSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(noticeService.searchNotices(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(noticeService.searchNotices(request, currentUser)));
     }
 
     @Operation(
@@ -80,22 +80,22 @@ public class NoticeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 공지사항 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "공지 대상 역할 불일치",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "공지사항 없음 또는 일반 사용자에게 숨겨진 비활성 공지",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{noticeId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<NoticeDetailResponseDTO>> getNotice(
+    public ResponseEntity<GlobalResponseDTO<NoticeDetailResponseDTO>> getNotice(
             @Parameter(description = "공지사항 ID", example = "1", required = true)
             @PathVariable @Positive(message = "noticeId는 양수여야 합니다.") Long noticeId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(noticeService.getNotice(noticeId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(noticeService.getNotice(noticeId, currentUser)));
     }
 
     @Operation(
@@ -107,17 +107,17 @@ public class NoticeController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "등록 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 누락 또는 입력값 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<NoticeDetailResponseDTO>> createNotice(
+    public ResponseEntity<GlobalResponseDTO<NoticeDetailResponseDTO>> createNotice(
             @Valid @RequestBody NoticeCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @Parameter(description = "분산 추적 및 감사 로그 요청 ID", example = "01JABCDEF1234567890")
@@ -130,7 +130,7 @@ public class NoticeController {
                 requestId,
                 httpServletRequest.getRemoteAddr()
         );
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }
 
     @Operation(
@@ -142,19 +142,19 @@ public class NoticeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "수정 성공 또는 상태 외 동일 값 요청"),
             @ApiResponse(responseCode = "400", description = "빈 PATCH 또는 입력값 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "공지사항 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "같은 활성 상태 요청",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{noticeId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<NoticeDetailResponseDTO>> updateNotice(
+    public ResponseEntity<GlobalResponseDTO<NoticeDetailResponseDTO>> updateNotice(
             @Parameter(description = "공지사항 ID", example = "1", required = true)
             @PathVariable @Positive(message = "noticeId는 양수여야 합니다.") Long noticeId,
             @Valid @RequestBody NoticeUpdateRequestDTO request,
@@ -163,7 +163,7 @@ public class NoticeController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(noticeService.updateNotice(
+        return ResponseEntity.ok(GlobalResponseDTO.success(noticeService.updateNotice(
                 noticeId,
                 request,
                 currentUser,
@@ -181,19 +181,19 @@ public class NoticeController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "비활성화 성공. data는 null입니다."),
             @ApiResponse(responseCode = "400", description = "잘못된 공지사항 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "공지사항 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "이미 비활성 상태인 공지",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{noticeId}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<Void>> deactivateNotice(
+    public ResponseEntity<GlobalResponseDTO<Void>> deactivateNotice(
             @Parameter(description = "공지사항 ID", example = "1", required = true)
             @PathVariable @Positive(message = "noticeId는 양수여야 합니다.") Long noticeId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
@@ -207,6 +207,6 @@ public class NoticeController {
                 requestId,
                 httpServletRequest.getRemoteAddr()
         );
-        return ResponseEntity.ok(GlobalRes.success());
+        return ResponseEntity.ok(GlobalResponseDTO.success());
     }
 }

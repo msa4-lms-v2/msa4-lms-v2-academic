@@ -20,7 +20,7 @@ import com.msa4lmsv2academic.global.error.AcademicScheduleAuthorNotFoundExceptio
 import com.msa4lmsv2academic.global.error.AcademicScheduleNotFoundException;
 import com.msa4lmsv2academic.global.error.DuplicateAcademicScheduleException;
 import com.msa4lmsv2academic.global.error.InvalidAcademicScheduleRequestException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -47,7 +47,7 @@ public class AcademicScheduleService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<AcademicScheduleSummaryResponseDTO> search(
+    public PageResponseDTO<AcademicScheduleSummaryResponseDTO> search(
             AcademicScheduleSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -75,7 +75,7 @@ public class AcademicScheduleService {
                 .map(AcademicScheduleSummaryResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public AcademicScheduleDetailResponseDTO get(Long scheduleId, CurrentUser currentUser) {

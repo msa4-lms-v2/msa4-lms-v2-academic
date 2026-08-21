@@ -7,8 +7,8 @@ import com.msa4lmsv2academic.domain.admission.request.AdmissionCandidateUpdateRe
 import com.msa4lmsv2academic.domain.admission.response.AdmissionCandidateDetailResponseDTO;
 import com.msa4lmsv2academic.domain.admission.response.AdmissionCandidateSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.admission.service.AdmissionCandidateService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -58,19 +58,19 @@ public class AdmissionCandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록"),
             @ApiResponse(responseCode = "400", description = "잘못된 검색·정렬·페이징 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<AdmissionCandidateSummaryResponseDTO>>> searchCandidates(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<AdmissionCandidateSummaryResponseDTO>>> searchCandidates(
             @ParameterObject @Valid @ModelAttribute AdmissionCandidateSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 admissionCandidateService.searchCandidates(request, currentUser)
         ));
     }
@@ -85,22 +85,22 @@ public class AdmissionCandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "잘못된 입학 예정자 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{candidateId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AdmissionCandidateDetailResponseDTO>> getCandidate(
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> getCandidate(
             @Parameter(description = "입학 예정자 ID", example = "15", required = true)
             @PathVariable @Positive(message = "candidateId는 양수여야 합니다.") Long candidateId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 admissionCandidateService.getCandidate(candidateId, currentUser)
         ));
     }
@@ -116,26 +116,26 @@ public class AdmissionCandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "등록 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 누락, 잘못된 연도·생년월일·연락처 또는 비활성 학과",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "수험번호 중복 또는 기존 사용자 이메일 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AdmissionCandidateDetailResponseDTO>> createCandidate(
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> createCandidate(
             @Valid @RequestBody AdmissionCandidateCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
             @Parameter(description = "분산 추적 및 감사 로그 요청 ID", example = "01JABCDEF1234567890")
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(
                 admissionCandidateService.createCandidate(
                         request, currentUser, requestId, httpServletRequest.getRemoteAddr()
                 )
@@ -153,19 +153,19 @@ public class AdmissionCandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청"),
             @ApiResponse(responseCode = "400", description = "빈 PATCH, 잘못된 값·연도 또는 비활성 학과",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "REGISTERED가 아닌 상태, 이메일 충돌 또는 동시 수정 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{candidateId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AdmissionCandidateDetailResponseDTO>> updateCandidate(
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> updateCandidate(
             @Parameter(description = "입학 예정자 ID", example = "15", required = true)
             @PathVariable @Positive(message = "candidateId는 양수여야 합니다.") Long candidateId,
             @Valid @RequestBody AdmissionCandidateUpdateRequestDTO request,
@@ -174,7 +174,7 @@ public class AdmissionCandidateController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 admissionCandidateService.updateCandidate(
                         candidateId, request, currentUser, requestId, httpServletRequest.getRemoteAddr()
                 )
@@ -192,19 +192,19 @@ public class AdmissionCandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청"),
             @ApiResponse(responseCode = "400", description = "상태 또는 사유 누락·형식 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "허용되지 않은 상태 전이 또는 프로비저닝 사전 검증 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{candidateId}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<AdmissionCandidateDetailResponseDTO>> changeStatus(
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> changeStatus(
             @Parameter(description = "입학 예정자 ID", example = "15", required = true)
             @PathVariable @Positive(message = "candidateId는 양수여야 합니다.") Long candidateId,
             @Valid @RequestBody AdmissionCandidateStatusRequestDTO request,
@@ -213,7 +213,7 @@ public class AdmissionCandidateController {
             @RequestHeader(value = "X-Request-Id", required = false) String requestId,
             @Parameter(hidden = true) HttpServletRequest httpServletRequest
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 admissionCandidateService.changeStatus(
                         candidateId, request, currentUser, requestId, httpServletRequest.getRemoteAddr()
                 )

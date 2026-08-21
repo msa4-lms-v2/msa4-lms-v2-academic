@@ -19,7 +19,7 @@ import com.msa4lmsv2academic.global.error.DuplicateWithdrawalRequestException;
 import com.msa4lmsv2academic.global.error.InvalidWithdrawalRequestException;
 import com.msa4lmsv2academic.global.error.WithdrawalAccessDeniedException;
 import com.msa4lmsv2academic.global.error.WithdrawalNotFoundException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,7 +49,7 @@ public class WithdrawalService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
 
-    public PageRes<WithdrawalResponseDTO> search(
+    public PageResponseDTO<WithdrawalResponseDTO> search(
             WithdrawalSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -66,7 +66,7 @@ public class WithdrawalService {
         List<WithdrawalResponseDTO> items = result.getContent().stream()
                 .map(this::toResponse)
                 .toList();
-        return new PageRes<>(items, result.getTotalElements(), page, size, result.hasNext());
+        return new PageResponseDTO<>(items, result.getTotalElements(), page, size, result.hasNext());
     }
 
     public WithdrawalResponseDTO get(Long withdrawalId, CurrentUser currentUser) {

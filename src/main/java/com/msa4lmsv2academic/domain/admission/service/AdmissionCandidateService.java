@@ -23,7 +23,7 @@ import com.msa4lmsv2academic.global.error.AdmissionCandidateNotFoundException;
 import com.msa4lmsv2academic.global.error.AdmissionCandidateStateConflictException;
 import com.msa4lmsv2academic.global.error.DuplicateAdmissionCandidateException;
 import com.msa4lmsv2academic.global.error.InvalidAdmissionCandidateRequestException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -55,7 +55,7 @@ public class AdmissionCandidateService {
     private final UserQueryService userQueryService;
     private final AuditLogService auditLogService;
 
-    public PageRes<AdmissionCandidateSummaryResponseDTO> searchCandidates(
+    public PageResponseDTO<AdmissionCandidateSummaryResponseDTO> searchCandidates(
             AdmissionCandidateSearchRequestDTO request,
             CurrentUser currentUser
     ) {
@@ -81,7 +81,7 @@ public class AdmissionCandidateService {
                 .map(AdmissionCandidateSummaryResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public AdmissionCandidateDetailResponseDTO getCandidate(Long candidateId, CurrentUser currentUser) {

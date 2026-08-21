@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
 import com.msa4lmsv2academic.domain.graduation.service.GraduationCreditDiagnosisService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +23,7 @@ class GraduationCreditDiagnosisControllerTest {
         when(service.diagnose(1001L, currentUser)).thenReturn(diagnosis);
         GraduationCreditDiagnosisController controller = new GraduationCreditDiagnosisController(service);
 
-        ResponseEntity<GlobalRes<CreditDiagnosisResponseDTO>> response =
+        ResponseEntity<GlobalResponseDTO<CreditDiagnosisResponseDTO>> response =
                 controller.diagnose(1001L, currentUser);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();

@@ -8,7 +8,7 @@ import com.msa4lmsv2academic.domain.enrollment.request.StudentEnrollmentSearchRe
 import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.service.StudentEnrollmentQueryService;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ class StudentEnrollmentControllerTest {
         when(service.getMyEnrollments(request, currentUser)).thenReturn(List.of());
         StudentEnrollmentController controller = new StudentEnrollmentController(service);
 
-        ResponseEntity<GlobalRes<List<StudentEnrollmentResponseDTO>>> response =
+        ResponseEntity<GlobalResponseDTO<List<StudentEnrollmentResponseDTO>>> response =
                 controller.getMyEnrollments(request, currentUser);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();

@@ -8,7 +8,7 @@ import com.msa4lmsv2academic.domain.lecture.entity.LectureStatus;
 import com.msa4lmsv2academic.domain.lecture.request.LectureSyllabusUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.response.LectureSyllabusResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.LectureSyllabusService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -30,7 +30,7 @@ class LectureSyllabusControllerTest {
         when(service.update(101L, request, professor, "request-1", "127.0.0.1"))
                 .thenReturn(result);
 
-        ResponseEntity<GlobalRes<LectureSyllabusResponseDTO>> response = controller.update(
+        ResponseEntity<GlobalResponseDTO<LectureSyllabusResponseDTO>> response = controller.update(
                 101L, request, professor, "request-1", servletRequest
         );
 

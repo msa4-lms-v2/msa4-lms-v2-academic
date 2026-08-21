@@ -5,8 +5,8 @@ import com.msa4lmsv2academic.domain.organization.request.DepartmentSearchRequest
 import com.msa4lmsv2academic.domain.organization.request.DepartmentUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.organization.response.DepartmentResponseDTO;
 import com.msa4lmsv2academic.domain.organization.service.DepartmentService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,17 +50,17 @@ public class DepartmentController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 검색 조건", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "권한 부족", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "잘못된 검색 조건", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "권한 부족", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<DepartmentResponseDTO>>> searchDepartments(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<DepartmentResponseDTO>>> searchDepartments(
             @ParameterObject @Valid @ModelAttribute DepartmentSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(departmentService.searchDepartments(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(departmentService.searchDepartments(request, currentUser)));
     }
 
     @Operation(
@@ -70,18 +70,18 @@ public class DepartmentController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 학과 ID", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "권한 부족", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "학과 없음 또는 일반 사용자에게 숨겨진 비활성 조직", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "잘못된 학과 ID", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "권한 부족", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "학과 없음 또는 일반 사용자에게 숨겨진 비활성 조직", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/{departmentId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<DepartmentResponseDTO>> getDepartment(
+    public ResponseEntity<GlobalResponseDTO<DepartmentResponseDTO>> getDepartment(
             @PathVariable @Positive(message = "departmentId는 양수여야 합니다.") Long departmentId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(departmentService.getDepartment(departmentId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(departmentService.getDepartment(departmentId, currentUser)));
     }
 
     @Operation(
@@ -91,19 +91,19 @@ public class DepartmentController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "등록 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "단과대 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "409", description = "학과 코드 중복", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "잘못된 요청", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "단과대 없음", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "409", description = "학과 코드 중복", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<DepartmentResponseDTO>> createDepartment(
+    public ResponseEntity<GlobalResponseDTO<DepartmentResponseDTO>> createDepartment(
             @Valid @RequestBody DepartmentCreateRequestDTO request
     ) {
         DepartmentResponseDTO response = departmentService.createDepartment(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalRes.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }
 
     @Operation(
@@ -113,17 +113,17 @@ public class DepartmentController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "수정 성공"),
-            @ApiResponse(responseCode = "400", description = "빈 PATCH 또는 잘못된 요청", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalRes.class))),
-            @ApiResponse(responseCode = "404", description = "학과 없음", content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+            @ApiResponse(responseCode = "400", description = "빈 PATCH 또는 잘못된 요청", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "학과 없음", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/{departmentId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<DepartmentResponseDTO>> updateDepartment(
+    public ResponseEntity<GlobalResponseDTO<DepartmentResponseDTO>> updateDepartment(
             @PathVariable @Positive(message = "departmentId는 양수여야 합니다.") Long departmentId,
             @Valid @RequestBody DepartmentUpdateRequestDTO request
     ) {
-        return ResponseEntity.ok(GlobalRes.success(departmentService.updateDepartment(departmentId, request)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(departmentService.updateDepartment(departmentId, request)));
     }
 }
