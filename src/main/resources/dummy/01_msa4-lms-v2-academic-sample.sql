@@ -144,6 +144,20 @@ SET @general_elective_course_id = (SELECT id FROM courses WHERE code = 'GEN2001'
 SET @failed_course_id = (SELECT id FROM courses WHERE code = 'CSE3001' LIMIT 1);
 SET @draft_course_id = (SELECT id FROM courses WHERE code = 'CSE3002' LIMIT 1);
 
+INSERT INTO course_prerequisites (
+    course_id,
+    prerequisite_course_id,
+    is_active,
+    created_at,
+    updated_at
+) VALUES
+    (@major_elective_course_id, @major_required_course_id, TRUE, NOW(), NOW()),
+    (@failed_course_id, @major_elective_course_id, TRUE, NOW(), NOW()),
+    (@draft_course_id, @major_elective_course_id, TRUE, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+    is_active = VALUES(is_active),
+    updated_at = NOW();
+
 INSERT INTO lectures (
     semester_id, course_id, professor_id, section_no, capacity, classroom, status,
     midterm_ratio, final_ratio, assignment_ratio, attendance_ratio, syllabus
