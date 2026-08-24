@@ -11,6 +11,7 @@ import static com.msa4lmsv2academic.domain.student.entity.QStudent.student;
 import com.msa4lmsv2academic.domain.course.entity.CompletionType;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.enrollment.entity.GradeStatus;
+import com.msa4lmsv2academic.domain.graduation.entity.GraduationCreditGradePolicy;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.repository.ProfessorStudentScope;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
@@ -132,8 +133,7 @@ public class GraduationCreditQueryRepository {
                         student.id.in(studentIds),
                         enrollment.status.eq(EnrollmentStatus.ACTIVE),
                         enrollment.gradeStatus.eq(GradeStatus.OPENED),
-                        enrollment.letterGrade.isNotNull(),
-                        enrollment.letterGrade.ne("F")
+                        enrollment.letterGrade.in(GraduationCreditGradePolicy.passingGrades())
                 )
                 .groupBy(student.id, course.id, course.credits, course.completionType)
                 .fetch();
@@ -155,6 +155,31 @@ public class GraduationCreditQueryRepository {
         return Map.copyOf(result);
     }
 
+    public List<GraduationCreditRecordQueryResult> findCreditRecordsByStudentId(Long studentId) {
+        return jpaQueryFactory
+                .select(Projections.constructor(
+                        GraduationCreditRecordQueryResult.class,
+                        enrollment.id,
+                        course.id,
+                        course.code,
+                        course.name,
+                        course.credits,
+                        course.completionType,
+                        semester.academicYear,
+                        semester.term,
+                        enrollment.status,
+                        enrollment.gradeStatus,
+                        enrollment.letterGrade
+                ))
+                .from(enrollment)
+                .join(enrollment.student, student)
+                .join(enrollment.lecture, lecture)
+                .join(lecture.course, course)
+                .join(lecture.semester, semester)
+                .where(student.id.eq(studentId))
+                .fetch();
+    }
+
     public int sumTotalCreditsByStudentId(Long studentId) {
         return findEarnedCreditsByStudentIds(List.of(studentId))
                 .getOrDefault(studentId, EarnedCreditTotals.empty())
@@ -166,6 +191,14 @@ public class GraduationCreditQueryRepository {
                 .selectOne()
                 .from(student)
                 .where(student.id.eq(studentId), student.user.id.eq(userId))
+                .fetchFirst() != null;
+    }
+
+    public boolean existsStudentById(Long studentId) {
+        return jpaQueryFactory
+                .selectOne()
+                .from(student)
+                .where(student.id.eq(studentId))
                 .fetchFirst() != null;
     }
 
