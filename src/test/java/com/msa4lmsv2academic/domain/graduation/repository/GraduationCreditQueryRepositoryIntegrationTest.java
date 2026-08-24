@@ -55,6 +55,7 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
         insertCourse(91003L, "GRAD-GR", "교양필수", 2, "GENERAL_REQUIRED");
         insertCourse(91004L, "GRAD-GE-CANCEL", "취소교양선택", 2, "GENERAL_ELECTIVE");
         insertCourse(91005L, "GRAD-GE-DRAFT", "미공개교양선택", 1, "GENERAL_ELECTIVE");
+        insertCourse(91006L, "GRAD-INVALID", "비정상성적교과", 3, "MAJOR_ELECTIVE");
 
         insertLecture(91001L, 91001L, "01");
         insertLecture(91002L, 91001L, "02");
@@ -62,6 +63,7 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
         insertLecture(91004L, 91003L, "01");
         insertLecture(91005L, 91004L, "01");
         insertLecture(91006L, 91005L, "01");
+        insertLecture(91007L, 91006L, "01");
 
         insertEnrollment(91001L, 91001L, "ACTIVE", "OPENED", "A+");
         insertEnrollment(91002L, 91002L, "ACTIVE", "OPENED", "B+");
@@ -69,6 +71,7 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
         insertEnrollment(91004L, 91004L, "ACTIVE", "OPENED", "A");
         insertEnrollment(91005L, 91005L, "CANCELLED", "OPENED", "A");
         insertEnrollment(91006L, 91006L, "ACTIVE", "DRAFT", "A");
+        insertEnrollment(91007L, 91007L, "ACTIVE", "OPENED", "P");
     }
 
     @Test
@@ -100,6 +103,22 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
                 STUDENT_ID,
                 new ProfessorStudentScope(99999L, 99999L)
         )).isFalse();
+    }
+
+    @Test
+    void loadsAllCourseRecordsIncludingExcludedGradeCandidates() {
+        var records = graduationCreditQueryRepository.findCreditRecordsByStudentId(STUDENT_ID);
+
+        assertThat(records).hasSize(7);
+        assertThat(records).anySatisfy(record -> {
+            assertThat(record.enrollmentId()).isEqualTo(91007L);
+            assertThat(record.courseCode()).isEqualTo("GRAD-INVALID");
+            assertThat(record.letterGrade()).isEqualTo("P");
+        });
+        assertThat(records).anySatisfy(record -> {
+            assertThat(record.enrollmentId()).isEqualTo(91005L);
+            assertThat(record.enrollmentStatus().name()).isEqualTo("CANCELLED");
+        });
     }
 
     private void insertCourse(long id, String code, String name, int credits, String completionType) {

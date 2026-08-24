@@ -28,6 +28,8 @@ class GraduationOpenApiTest extends MySqlIntegrationTest {
         String requirementsPath = "$['paths']['/api/academic/catalog/graduation-requirements']";
         String requirementPath =
                 "$['paths']['/api/academic/catalog/graduation-requirements/{requirementId}']";
+        String creditRecordsPath =
+                "$['paths']['/api/academic/students/{studentId}/graduation-credit-records']['get']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
@@ -43,16 +45,30 @@ class GraduationOpenApiTest extends MySqlIntegrationTest {
                         .value("getGraduationRequirement"))
                 .andExpect(jsonPath(requirementPath + "['patch']['operationId']")
                         .value("updateGraduationRequirement"))
+                .andExpect(jsonPath(creditRecordsPath + "['operationId']")
+                        .value("searchGraduationCreditRecords"))
                 .andExpect(jsonPath(diagnosisPath + "['operationId']")
+                        .value(not(containsString("SCRUM"))))
+                .andExpect(jsonPath(creditRecordsPath + "['operationId']")
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath(requirementsPath + "['post']['operationId']")
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath(diagnosisPath + "['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(requirementsPath + "['post']['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(creditRecordsPath + "['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(diagnosisPath + "['parameters'][*]['name']").value(hasItems(
                         "page", "size", "keyword", "departmentId", "admissionYear",
                         "academicStatus", "diagnosisStatus", "sortBy", "sortDirection"
                 )))
+                .andExpect(jsonPath(creditRecordsPath + "['parameters'][*]['name']").value(hasItems(
+                        "studentId", "page", "size", "academicYear", "term",
+                        "completionType", "result", "sortDirection"
+                )))
+                .andExpect(jsonPath(creditRecordsPath + "['responses']['200']").exists())
+                .andExpect(jsonPath(creditRecordsPath + "['responses']['400']").exists())
+                .andExpect(jsonPath(creditRecordsPath + "['responses']['401']").exists())
+                .andExpect(jsonPath(creditRecordsPath + "['responses']['403']").exists())
+                .andExpect(jsonPath(creditRecordsPath + "['responses']['404']").exists())
                 .andExpect(jsonPath(requirementsPath + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(requirementsPath + "['post']['responses']['409']").exists())
                 .andExpect(jsonPath(requirementPath + "['patch']['responses']['404']").exists())
@@ -61,6 +77,8 @@ class GraduationOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['GraduationRequirementUpdateRequestDTO']")
                         .exists())
                 .andExpect(jsonPath("$['components']['schemas']['CreditDiagnosisSummaryResponseDTO']")
+                        .exists())
+                .andExpect(jsonPath("$['components']['schemas']['GraduationCreditRecordResponseDTO']")
                         .exists());
     }
 }
