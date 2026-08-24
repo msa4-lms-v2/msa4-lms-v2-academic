@@ -45,6 +45,18 @@ public class StudentQueryRepository {
         ));
     }
 
+    public boolean isStudentInProfessorScope(Long studentId, ProfessorStudentScope scope) {
+        return jpaQueryFactory
+                .selectOne()
+                .from(student)
+                .where(
+                        student.id.eq(studentId),
+                        student.academicStatus.in(AcademicStatus.ENROLLED, AcademicStatus.ON_LEAVE),
+                        professorScopePredicate(scope)
+                )
+                .fetchFirst() != null;
+    }
+
     public StudentSearchResult search(StudentSearchCondition condition) {
         BooleanBuilder predicates = searchPredicates(condition);
         QMajor primaryMajor = new QMajor("studentSearchPrimaryMajor");
