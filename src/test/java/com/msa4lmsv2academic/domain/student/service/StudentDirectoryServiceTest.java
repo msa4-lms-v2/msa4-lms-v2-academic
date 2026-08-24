@@ -15,7 +15,7 @@ import com.msa4lmsv2academic.domain.student.repository.StudentSearchResult;
 import com.msa4lmsv2academic.domain.student.request.StudentSearchRequestDTO;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.error.StudentDirectoryAccessDeniedException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +41,7 @@ class StudentDirectoryServiceTest {
         when(studentQueryRepository.findProfessorScopeByUserId(21L)).thenReturn(Optional.of(scope));
         when(studentQueryRepository.search(any())).thenReturn(new StudentSearchResult(List.of(), 0));
 
-        PageRes<?> response = studentDirectoryService.searchStudents(
+        PageResponseDTO<?> response = studentDirectoryService.searchStudents(
                 request(2, 500, "  김학생  ", 41L, (byte) 2, (short) 2025,
                         AcademicStatus.ON_LEAVE, "gradeLevel", "desc"),
                 new CurrentUser(21L, "PROFESSOR")

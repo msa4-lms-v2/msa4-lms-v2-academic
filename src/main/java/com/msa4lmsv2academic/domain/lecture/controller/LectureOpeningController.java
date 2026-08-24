@@ -6,8 +6,8 @@ import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningReviewRequestD
 import com.msa4lmsv2academic.domain.lecture.request.LectureOpeningSearchRequestDTO;
 import com.msa4lmsv2academic.domain.lecture.response.LectureOpeningResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.LectureOpeningService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -55,15 +55,15 @@ public class LectureOpeningController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "조회 조건 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "조회 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/opening-requests")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<LectureOpeningResponseDTO>>> search(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<LectureOpeningResponseDTO>>> search(
             @ParameterObject @Valid @ModelAttribute LectureOpeningSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
@@ -78,14 +78,14 @@ public class LectureOpeningController {
                 pageable,
                 currentUser
         );
-        PageRes<LectureOpeningResponseDTO> response = new PageRes<>(
+        PageResponseDTO<LectureOpeningResponseDTO> response = new PageResponseDTO<>(
                 result.getContent(),
                 result.getTotalElements(),
                 page,
                 size,
                 result.hasNext()
         );
-        return ResponseEntity.ok(GlobalRes.success(response));
+        return ResponseEntity.ok(GlobalResponseDTO.success(response));
     }
 
     @Operation(
@@ -96,21 +96,21 @@ public class LectureOpeningController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "신청 ID 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "조회 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/opening-requests/{requestId}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> get(
+    public ResponseEntity<GlobalResponseDTO<LectureOpeningResponseDTO>> get(
             @Positive(message = "requestId는 양수여야 합니다.") @PathVariable Long requestId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(lectureOpeningService.get(requestId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(lectureOpeningService.get(requestId, currentUser)));
     }
 
     @Operation(
@@ -121,24 +121,24 @@ public class LectureOpeningController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "신청 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 또는 업무 규칙 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "교수 권한 또는 소속 범위 위반",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "교수·교과목·학기 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "중복 신청·기존 강의·시간 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PostMapping("/opening-requests")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> create(
+    public ResponseEntity<GlobalResponseDTO<LectureOpeningResponseDTO>> create(
             @Valid @RequestBody LectureOpeningCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GlobalRes.success(lectureOpeningService.create(request, currentUser)));
+                .body(GlobalResponseDTO.success(lectureOpeningService.create(request, currentUser)));
     }
 
     @Operation(
@@ -149,24 +149,24 @@ public class LectureOpeningController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "보완 성공"),
             @ApiResponse(responseCode = "400", description = "필수값 또는 업무 규칙 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "교수 권한 또는 신청 소유권 위반",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청·교과목·학기 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "이미 처리된 신청·중복 신청·기존 강의·시간 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/opening-requests/{requestId}")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> update(
+    public ResponseEntity<GlobalResponseDTO<LectureOpeningResponseDTO>> update(
             @Positive(message = "requestId는 양수여야 합니다.") @PathVariable Long requestId,
             @Valid @RequestBody LectureOpeningCorrectionRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 lectureOpeningService.update(requestId, request, currentUser)
         ));
     }
@@ -180,22 +180,22 @@ public class LectureOpeningController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "처리 성공"),
             @ApiResponse(responseCode = "400", description = "검토 입력값 또는 업무 규칙 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "관리자 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "신청 또는 검토자 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "409", description = "이미 처리된 신청·강의 중복·시간 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @PatchMapping("/opening-approvals")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<LectureOpeningResponseDTO>> review(
+    public ResponseEntity<GlobalResponseDTO<LectureOpeningResponseDTO>> review(
             @Valid @RequestBody LectureOpeningReviewRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(lectureOpeningService.review(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(lectureOpeningService.review(request, currentUser)));
     }
 }

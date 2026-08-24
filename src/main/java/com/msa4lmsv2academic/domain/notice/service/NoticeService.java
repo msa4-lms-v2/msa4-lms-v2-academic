@@ -19,7 +19,7 @@ import com.msa4lmsv2academic.global.error.NoticeAccessDeniedException;
 import com.msa4lmsv2academic.global.error.NoticeAuthorNotFoundException;
 import com.msa4lmsv2academic.global.error.NoticeNotFoundException;
 import com.msa4lmsv2academic.global.error.NoticeStateConflictException;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,7 +45,7 @@ public class NoticeService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
-    public PageRes<NoticeSummaryResponseDTO> searchNotices(NoticeSearchRequestDTO request, CurrentUser currentUser) {
+    public PageResponseDTO<NoticeSummaryResponseDTO> searchNotices(NoticeSearchRequestDTO request, CurrentUser currentUser) {
         validateSearchRequest(request);
         NoticeTargetRole userRole = resolveUserRole(currentUser);
         boolean admin = currentUser.isAdmin();
@@ -73,7 +73,7 @@ public class NoticeService {
                 .map(NoticeSummaryResponseDTO::from)
                 .toList();
         boolean hasNext = offset + items.size() < result.totalCount();
-        return new PageRes<>(items, result.totalCount(), page, size, hasNext);
+        return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
     }
 
     public NoticeDetailResponseDTO getNotice(Long noticeId, CurrentUser currentUser) {

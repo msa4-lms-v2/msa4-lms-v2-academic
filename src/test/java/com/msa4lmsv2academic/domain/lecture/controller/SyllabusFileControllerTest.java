@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileDownloadResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.SyllabusFileService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -32,7 +32,7 @@ class SyllabusFileControllerTest {
         when(service.upload(101L, file, professor, "request-1", "127.0.0.1"))
                 .thenReturn(result);
 
-        ResponseEntity<GlobalRes<SyllabusFileResponseDTO>> response = controller.upload(
+        ResponseEntity<GlobalResponseDTO<SyllabusFileResponseDTO>> response = controller.upload(
                 101L, file, professor, "request-1", servletRequest
         );
 

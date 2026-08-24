@@ -1,7 +1,7 @@
 package com.msa4lmsv2academic.global.security;
 
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.filter.GatewayHeaderAuthenticationFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,6 +31,6 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(code.getHttpStatus().value());
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write(objectMapper.writeValueAsString(GlobalRes.fail(code, null)));
+        response.getWriter().write(objectMapper.writeValueAsString(GlobalResponseDTO.fail(code, null)));
     }
 }

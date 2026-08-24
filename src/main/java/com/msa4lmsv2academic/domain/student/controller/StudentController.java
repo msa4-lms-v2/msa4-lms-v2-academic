@@ -5,8 +5,8 @@ import com.msa4lmsv2academic.domain.student.response.StudentProfileResponseDTO;
 import com.msa4lmsv2academic.domain.student.response.StudentSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.student.service.StudentDirectoryService;
 import com.msa4lmsv2academic.domain.student.service.StudentService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,21 +48,21 @@ public class StudentController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items 반환"),
             @ApiResponse(responseCode = "400", description = "잘못된 페이지·필터·정렬 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "학생 역할이거나 교수가 종결 학적 상태를 요청함",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "인증 교수에 대응하는 Academic 교수 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<StudentSummaryResponseDTO>>> searchStudents(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<StudentSummaryResponseDTO>>> searchStudents(
             @ParameterObject @Valid @ModelAttribute StudentSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 studentDirectoryService.searchStudents(request, currentUser)
         ));
     }
@@ -77,17 +77,17 @@ public class StudentController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "STUDENT 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "학생 프로필 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping("/me")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<StudentProfileResponseDTO>> getMyProfile(
+    public ResponseEntity<GlobalResponseDTO<StudentProfileResponseDTO>> getMyProfile(
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(studentService.getMyProfile(currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(studentService.getMyProfile(currentUser)));
     }
 }

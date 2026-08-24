@@ -3,7 +3,7 @@ package com.msa4lmsv2academic.domain.enrollment.controller;
 import com.msa4lmsv2academic.domain.enrollment.request.StudentEnrollmentSearchRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.service.StudentEnrollmentQueryService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,21 +40,21 @@ public class StudentEnrollmentController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "조회 조건 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "학생 권한이 아님",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class))),
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "학생 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalRes.class)))
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
     })
     @GetMapping
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<List<StudentEnrollmentResponseDTO>>> getMyEnrollments(
+    public ResponseEntity<GlobalResponseDTO<List<StudentEnrollmentResponseDTO>>> getMyEnrollments(
             @Valid @ModelAttribute StudentEnrollmentSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 studentEnrollmentQueryService.getMyEnrollments(request, currentUser)
         ));
     }

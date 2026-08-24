@@ -1,7 +1,7 @@
 package com.msa4lmsv2academic.global.error;
 
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
-import com.msa4lmsv2academic.global.response.GlobalRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
@@ -25,7 +24,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<GlobalRes<Void>> handleBusinessException(BusinessException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleBusinessException(BusinessException exception) {
         CustomResponseCode code = exception.getCode();
         if (code.getHttpStatus().is5xxServerError()) {
             log.error("[{}] {}", code.getCode(), exception.getMessage(), exception);
@@ -36,7 +35,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<GlobalRes<Void>> handleMethodArgumentNotValid(MethodArgumentNotValidException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleMethodArgumentNotValid(MethodArgumentNotValidException exception) {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .distinct()
@@ -46,7 +45,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<GlobalRes<Void>> handleConstraintViolation(ConstraintViolationException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleConstraintViolation(ConstraintViolationException exception) {
         String message = exception.getConstraintViolations().stream()
                 .map(violation -> violation.getMessage())
                 .distinct()
@@ -60,25 +59,25 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class
     })
-    public ResponseEntity<GlobalRes<Void>> handleMalformedRequest(Exception exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleMalformedRequest(Exception exception) {
         log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), exception.getMessage());
         return fail(CustomResponseCode.INVALID_PARAMETER);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<GlobalRes<Void>> handleAccessDenied(AccessDeniedException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleAccessDenied(AccessDeniedException exception) {
         log.warn("[{}] {}", CustomResponseCode.ACCESS_DENIED.getCode(), exception.getMessage());
         return fail(CustomResponseCode.ACCESS_DENIED);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<GlobalRes<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException exception) {
         log.warn("[{}] {}", CustomResponseCode.FILE_SIZE_EXCEEDED.getCode(), exception.getMessage());
         return fail(CustomResponseCode.FILE_SIZE_EXCEEDED);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<GlobalRes<Void>> handleOptimisticLockingFailure(
+    public ResponseEntity<GlobalResponseDTO<Void>> handleOptimisticLockingFailure(
             ObjectOptimisticLockingFailureException exception
     ) {
         log.warn("[{}] {}", CustomResponseCode.DUPLICATE_DATA.getCode(), exception.getMessage());
@@ -86,19 +85,19 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<GlobalRes<Void>> handleDataAccess(DataAccessException exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleDataAccess(DataAccessException exception) {
         log.error("[{}] {}", CustomResponseCode.DATABASE_ERROR.getCode(), exception.getMessage(), exception);
         return fail(CustomResponseCode.DATABASE_ERROR);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<GlobalRes<Void>> handleException(Exception exception) {
+    public ResponseEntity<GlobalResponseDTO<Void>> handleException(Exception exception) {
         log.error("[{}] {}", CustomResponseCode.SYSTEM_ERROR.getCode(), exception.getMessage(), exception);
         return fail(CustomResponseCode.SYSTEM_ERROR);
     }
 
-    private ResponseEntity<GlobalRes<Void>> fail(CustomResponseCode code) {
+    private ResponseEntity<GlobalResponseDTO<Void>> fail(CustomResponseCode code) {
         return ResponseEntity.status(code.getHttpStatus())
-                .body(GlobalRes.fail(code, null));
+                .body(GlobalResponseDTO.fail(code, null));
     }
 }

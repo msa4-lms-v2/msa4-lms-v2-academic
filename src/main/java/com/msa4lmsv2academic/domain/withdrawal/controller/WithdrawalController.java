@@ -6,8 +6,8 @@ import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCreateRequestDT
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalSearchRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.response.WithdrawalResponseDTO;
 import com.msa4lmsv2academic.domain.withdrawal.service.WithdrawalService;
-import com.msa4lmsv2academic.global.response.GlobalRes;
-import com.msa4lmsv2academic.global.response.PageRes;
+import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -45,11 +45,11 @@ public class WithdrawalController {
     @Operation(summary = "자퇴 신청 목록 조회", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<PageRes<WithdrawalResponseDTO>>> search(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<WithdrawalResponseDTO>>> search(
             @ParameterObject @Valid @ModelAttribute WithdrawalSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(withdrawalService.search(request, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(withdrawalService.search(request, currentUser)));
     }
 
     @Operation(
@@ -64,34 +64,34 @@ public class WithdrawalController {
     })
     @GetMapping("/{withdrawalId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
-    public ResponseEntity<GlobalRes<WithdrawalResponseDTO>> get(
+    public ResponseEntity<GlobalResponseDTO<WithdrawalResponseDTO>> get(
             @Positive @PathVariable Long withdrawalId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(withdrawalService.get(withdrawalId, currentUser)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(withdrawalService.get(withdrawalId, currentUser)));
     }
 
     @Operation(summary = "자퇴 신청", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "201", description = "신청 성공")
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<GlobalRes<WithdrawalResponseDTO>> create(
+    public ResponseEntity<GlobalResponseDTO<WithdrawalResponseDTO>> create(
             @Valid @RequestBody WithdrawalCreateRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(GlobalRes.success(withdrawalService.create(request, currentUser)));
+                .body(GlobalResponseDTO.success(withdrawalService.create(request, currentUser)));
     }
 
     @Operation(summary = "지도교수 자퇴 신청 검토", security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/{withdrawalId}/advisor-review")
     @PreAuthorize("hasRole('PROFESSOR')")
-    public ResponseEntity<GlobalRes<WithdrawalResponseDTO>> reviewByAdvisor(
+    public ResponseEntity<GlobalResponseDTO<WithdrawalResponseDTO>> reviewByAdvisor(
             @Positive @PathVariable Long withdrawalId,
             @Valid @RequestBody AdvisorWithdrawalReviewRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 withdrawalService.reviewByAdvisor(withdrawalId, request, currentUser)
         ));
     }
@@ -99,12 +99,12 @@ public class WithdrawalController {
     @Operation(summary = "관리자 자퇴 신청 최종 검토", security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/{withdrawalId}/final-review")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalRes<WithdrawalResponseDTO>> reviewByAdmin(
+    public ResponseEntity<GlobalResponseDTO<WithdrawalResponseDTO>> reviewByAdmin(
             @Positive @PathVariable Long withdrawalId,
             @Valid @RequestBody FinalWithdrawalReviewRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
     ) {
-        return ResponseEntity.ok(GlobalRes.success(
+        return ResponseEntity.ok(GlobalResponseDTO.success(
                 withdrawalService.reviewByAdmin(withdrawalId, request, currentUser)
         ));
     }
