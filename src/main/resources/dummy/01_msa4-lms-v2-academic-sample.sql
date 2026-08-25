@@ -123,6 +123,28 @@ SET @completed_semester_id = (
     SELECT id FROM semesters WHERE academic_year = 2026 AND term = 'FIRST' LIMIT 1
 );
 
+SET @current_semester_id = (
+    SELECT id FROM semesters WHERE academic_year = 2026 AND term = 'SECOND' LIMIT 1
+);
+
+INSERT INTO enrollment_credit_limit_rules (
+    semester_id,
+    max_credits,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    @current_semester_id,
+    18,
+    TRUE,
+    NOW(),
+    NOW()
+)
+ON DUPLICATE KEY UPDATE
+    max_credits = VALUES(max_credits),
+    is_active = VALUES(is_active),
+    updated_at = NOW();
+
 INSERT INTO courses (department_id, code, name, credits, target_grade, completion_type) VALUES
     (@cse_department_id, 'CSE1001', '컴퓨터공학개론', 3, 1, 'MAJOR_REQUIRED'),
     (@cse_department_id, 'CSE2001', '자료구조', 3, 2, 'MAJOR_ELECTIVE'),
