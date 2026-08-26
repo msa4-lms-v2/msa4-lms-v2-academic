@@ -1,5 +1,6 @@
 package com.msa4lmsv2academic.global.error;
 
+import com.msa4lmsv2academic.domain.enrollment.response.EnrollmentApplicationErrorResponseDTO;
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import jakarta.validation.ConstraintViolationException;
@@ -22,6 +23,16 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(EnrollmentApplicationRejectedException.class)
+    public ResponseEntity<GlobalResponseDTO<EnrollmentApplicationErrorResponseDTO>> handleEnrollmentApplicationRejected(
+            EnrollmentApplicationRejectedException exception
+    ) {
+        CustomResponseCode code = exception.getCode();
+        log.warn("[{}] {}", code.getCode(), exception.getMessage());
+        return ResponseEntity.status(code.getHttpStatus()).body(GlobalResponseDTO.fail(code,
+                EnrollmentApplicationErrorResponseDTO.from(exception.getReasons())));
+    }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<GlobalResponseDTO<Void>> handleBusinessException(BusinessException exception) {

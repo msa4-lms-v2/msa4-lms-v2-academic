@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     deleted_at DATETIME NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_users_email UNIQUE (email)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_audit_logs_actor_id (actor_id),
     INDEX idx_audit_logs_target (target_type, target_id),
     INDEX idx_audit_logs_created_at (created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS notices (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS notices (
         FOREIGN KEY (author_id) REFERENCES users (id)
         ON DELETE RESTRICT,
     INDEX idx_notices_target_active_created (target_role, is_active, created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS academic_schedules (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS academic_schedules (
         ON DELETE RESTRICT,
     INDEX idx_academic_schedules_target_active_start (target_role, is_active, start_date),
     INDEX idx_academic_schedules_end_date (end_date)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS colleges (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS colleges (
     active TINYINT(1) NOT NULL DEFAULT 1,
     PRIMARY KEY (id),
     CONSTRAINT uk_colleges_code UNIQUE (code)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS departments (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS majors (
         FOREIGN KEY (department_id) REFERENCES departments (id)
         ON DELETE RESTRICT,
     INDEX idx_majors_department_id (department_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS professors (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS professors (
         FOREIGN KEY (department_id) REFERENCES departments (id)
         ON DELETE RESTRICT,
     INDEX idx_professors_department_id (department_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS students (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -155,7 +155,7 @@ CREATE TABLE IF NOT EXISTS students (
     INDEX idx_students_major_id (major_id),
     INDEX idx_students_double_major_id (double_major_id),
     INDEX idx_students_advisor_id (advisor_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS withdrawal_requests (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
     CONSTRAINT fk_withdrawal_requests_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
     INDEX idx_withdrawal_requests_student_status (student_id, status),
     INDEX idx_withdrawal_requests_status_created (status, created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS academic_status_histories (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS academic_status_histories (
     CONSTRAINT fk_academic_status_histories_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_status_histories_changed_by FOREIGN KEY (changed_by) REFERENCES users (id) ON DELETE RESTRICT,
     INDEX idx_academic_status_histories_student_created (student_id, created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS counselor_availabilities (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS counselor_availabilities (
         CHECK (valid_to IS NULL OR valid_to >= valid_from),
     INDEX idx_counselor_availabilities_professor_day (professor_id, day_of_week),
     INDEX idx_counselor_availabilities_validity (valid_from, valid_to)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS counseling_appointments (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS counseling_appointments (
     INDEX idx_counseling_appointments_student_status (student_id, status),
     INDEX idx_counseling_appointments_professor_status (professor_id, status),
     INDEX idx_counseling_appointments_at (appointment_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS semesters (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -264,7 +264,7 @@ CREATE TABLE IF NOT EXISTS semesters (
     PRIMARY KEY (id),
     CONSTRAINT uk_semesters_academic_year_term UNIQUE (academic_year, term),
     CONSTRAINT uk_semesters_single_current UNIQUE (current_semester_guard)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS enrollment_credit_limit_rules (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -282,7 +282,7 @@ CREATE TABLE IF NOT EXISTS enrollment_credit_limit_rules (
         FOREIGN KEY (semester_id) REFERENCES semesters (id)
         ON DELETE RESTRICT,
     INDEX idx_enrollment_credit_limit_rules_active_semester (is_active, semester_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS courses (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -298,7 +298,7 @@ CREATE TABLE IF NOT EXISTS courses (
         FOREIGN KEY (department_id) REFERENCES departments (id)
         ON DELETE RESTRICT,
     INDEX idx_courses_department_id (department_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS course_prerequisites (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -320,7 +320,7 @@ CREATE TABLE IF NOT EXISTS course_prerequisites (
         ON DELETE RESTRICT,
     INDEX idx_course_prerequisites_course_active (course_id, is_active),
     INDEX idx_course_prerequisites_prerequisite_active (prerequisite_course_id, is_active)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lecture_opening_requests (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -365,7 +365,7 @@ CREATE TABLE IF NOT EXISTS lecture_opening_requests (
         ON DELETE RESTRICT,
     INDEX idx_lecture_opening_requests_professor_status (professor_id, status),
     INDEX idx_lecture_opening_requests_status_created (status, created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lecture_opening_request_schedules (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -382,7 +382,7 @@ CREATE TABLE IF NOT EXISTS lecture_opening_request_schedules (
         FOREIGN KEY (request_id) REFERENCES lecture_opening_requests (id)
         ON DELETE CASCADE,
     INDEX idx_lecture_opening_request_schedules_request_id (request_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lectures (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -417,7 +417,7 @@ CREATE TABLE IF NOT EXISTS lectures (
     INDEX idx_lectures_semester_id (semester_id),
     INDEX idx_lectures_course_id (course_id),
     INDEX idx_lectures_professor_id (professor_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lecture_schedules (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -433,7 +433,7 @@ CREATE TABLE IF NOT EXISTS lecture_schedules (
         FOREIGN KEY (lecture_id) REFERENCES lectures (id)
         ON DELETE CASCADE,
     INDEX idx_lecture_schedules_lecture_id (lecture_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS syllabus_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -453,7 +453,7 @@ CREATE TABLE IF NOT EXISTS syllabus_files (
         ON DELETE RESTRICT,
     INDEX idx_syllabus_files_lecture_id (lecture_id),
     INDEX idx_syllabus_files_lecture_duplicate (lecture_id, original_name, size)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS enrollments (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -477,7 +477,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
         ON DELETE RESTRICT,
     INDEX idx_enrollments_student_id (student_id),
     INDEX idx_enrollments_lecture_id (lecture_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS graduation_requirements (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -495,7 +495,7 @@ CREATE TABLE IF NOT EXISTS graduation_requirements (
     CONSTRAINT fk_graduation_requirements_department
         FOREIGN KEY (department_id) REFERENCES departments (id)
         ON DELETE RESTRICT
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2026-08-17: 학생 본인 학적 정보(연락처/주소/사진) 변경 신청 + 관리자 승인 워크플로우
 CREATE TABLE IF NOT EXISTS student_info_change_requests (
@@ -523,7 +523,7 @@ CREATE TABLE IF NOT EXISTS student_info_change_requests (
     CONSTRAINT fk_student_info_change_requests_reviewer
         FOREIGN KEY (reviewed_by) REFERENCES users (id)
         ON DELETE RESTRICT
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS student_info_change_request_files (
     id          BIGINT NOT NULL AUTO_INCREMENT,
@@ -538,7 +538,7 @@ CREATE TABLE IF NOT EXISTS student_info_change_request_files (
     CONSTRAINT fk_student_info_change_request_files_request
         FOREIGN KEY (request_id) REFERENCES student_info_change_requests (id)
         ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2026-08-20: 교수 본인 프로필 변경 신청 + 관리자 승인·반려 + 본인 취소 워크플로우
 CREATE TABLE IF NOT EXISTS professor_info_change_requests (
@@ -566,7 +566,7 @@ CREATE TABLE IF NOT EXISTS professor_info_change_requests (
     CONSTRAINT fk_professor_info_change_requests_reviewer
         FOREIGN KEY (reviewed_by) REFERENCES users (id)
         ON DELETE RESTRICT
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS professor_info_change_request_files (
     id           BIGINT NOT NULL AUTO_INCREMENT,
@@ -581,7 +581,7 @@ CREATE TABLE IF NOT EXISTS professor_info_change_request_files (
     CONSTRAINT fk_professor_info_change_request_files_request
         FOREIGN KEY (request_id) REFERENCES professor_info_change_requests (id)
         ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
 -- 2026-08-21: 관리자 입학 예정자 등록·조회·수정 및 확정 상태 관리
@@ -621,4 +621,35 @@ CREATE TABLE IF NOT EXISTS admission_candidates (
     INDEX idx_admission_candidates_department_year_status (department_id, admission_year, status),
     INDEX idx_admission_candidates_name (name),
     INDEX idx_admission_candidates_created_at (created_at)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 수강신청과 성공 이력·멱등 응답의 원자적 저장. ERD 컬럼 그대로 사용합니다.
+CREATE TABLE IF NOT EXISTS enrollment_histories (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    student_id BIGINT NOT NULL,
+    lecture_id BIGINT NOT NULL,
+    action VARCHAR(20) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_enrollment_histories_student_id (student_id),
+    INDEX idx_enrollment_histories_lecture_id (lecture_id),
+    CONSTRAINT fk_enrollment_histories_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_enrollment_histories_lecture FOREIGN KEY (lecture_id) REFERENCES lectures (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    idempotency_key VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    requester_student_id BIGINT NOT NULL,
+    endpoint VARCHAR(255) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    response_snapshot JSON NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'IN_PROGRESS',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_idempotency_keys_key UNIQUE (idempotency_key),
+    INDEX idx_idempotency_keys_requester (requester_student_id),
+    INDEX idx_idempotency_keys_expiry (status, expires_at),
+    CONSTRAINT fk_idempotency_keys_requester FOREIGN KEY (requester_student_id) REFERENCES students (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

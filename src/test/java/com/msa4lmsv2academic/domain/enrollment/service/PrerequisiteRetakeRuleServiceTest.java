@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
@@ -22,9 +25,11 @@ import com.msa4lmsv2academic.domain.enrollment.repository.PrerequisiteRetakeRule
 import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleCreateRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleSearchRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeEvaluationResponseDTO;
+import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeRuleQueryResponseDTO;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.domain.student.repository.StudentQueryRepository;
 import com.msa4lmsv2academic.global.error.InvalidPrerequisiteRetakeRuleRequestException;
+import com.msa4lmsv2academic.global.error.PrerequisiteRetakeRuleAccessDeniedException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +53,32 @@ class PrerequisiteRetakeRuleServiceTest {
         assertThat(evaluation.retakeCondition().status()).isEqualTo(RetakeStatus.FIRST_ENROLLMENT);
         assertThat(evaluation.retakeCondition().satisfied()).isTrue();
         assertThat(evaluation.ruleSatisfied()).isTrue();
+        verify(fixture.evaluator()).evaluate(any(Long.class), any(Course.class));
+    }
+
+    @Test
+    void doesNotEvaluateWhenAdminOnlySearchesCriteria() {
+        Fixture fixture = fixture(List.of());
+
+        PrerequisiteRetakeRuleQueryResponseDTO response = fixture.service().search(
+                searchRequest(COURSE_ID), new CurrentUser(99L, "ADMIN")
+        );
+
+        assertThat(response.criteria().items()).isEmpty();
+        assertThat(response.evaluation()).isNull();
+        verifyNoInteractions(fixture.evaluator());
+    }
+
+    @Test
+    void rejectsStudentIdOverrideBeforeEvaluation() {
+        Fixture fixture = fixture(List.of());
+        PrerequisiteRetakeRuleSearchRequestDTO request = new PrerequisiteRetakeRuleSearchRequestDTO(
+                1, 20, null, COURSE_ID, STUDENT_ID + 1, null, "courseCode", "asc"
+        );
+
+        assertThatThrownBy(() -> fixture.service().search(request, new CurrentUser(STUDENT_USER_ID, "STUDENT")))
+                .isInstanceOf(PrerequisiteRetakeRuleAccessDeniedException.class);
+        verifyNoInteractions(fixture.evaluator());
     }
 
     @Test
@@ -134,7 +165,8 @@ class PrerequisiteRetakeRuleServiceTest {
                 repository,
                 queryRepository,
                 mock(StudentQueryRepository.class),
-                mock(AuditLogService.class)
+                mock(AuditLogService.class),
+                new PrerequisiteRetakeEvaluator(queryRepository)
         );
 
         assertThatThrownBy(() -> service.create(
@@ -156,13 +188,15 @@ class PrerequisiteRetakeRuleServiceTest {
                 .thenReturn(new PrerequisiteRetakeRuleSearchResult(List.of(), 0));
         when(queryRepository.findActiveRulesByCourseId(COURSE_ID)).thenReturn(List.of());
         when(queryRepository.findGradeAttempts(any(Long.class), anyList())).thenReturn(attempts);
+        PrerequisiteRetakeEvaluator evaluator = spy(new PrerequisiteRetakeEvaluator(queryRepository));
         PrerequisiteRetakeRuleService service = new PrerequisiteRetakeRuleService(
                 repository,
                 queryRepository,
                 studentQueryRepository,
-                mock(AuditLogService.class)
+                mock(AuditLogService.class),
+                evaluator
         );
-        return new Fixture(service, queryRepository);
+        return new Fixture(service, queryRepository, evaluator);
     }
 
     private PrerequisiteRetakeRuleSearchRequestDTO searchRequest(Long courseId) {
@@ -206,7 +240,8 @@ class PrerequisiteRetakeRuleServiceTest {
 
     private record Fixture(
             PrerequisiteRetakeRuleService service,
-            PrerequisiteRetakeRuleQueryRepository queryRepository
+            PrerequisiteRetakeRuleQueryRepository queryRepository,
+            PrerequisiteRetakeEvaluator evaluator
     ) {
     }
 }

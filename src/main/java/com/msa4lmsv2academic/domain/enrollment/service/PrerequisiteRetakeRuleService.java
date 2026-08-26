@@ -3,12 +3,6 @@ package com.msa4lmsv2academic.domain.enrollment.service;
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.course.entity.Course;
 import com.msa4lmsv2academic.domain.enrollment.entity.CoursePrerequisite;
-import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
-import com.msa4lmsv2academic.domain.enrollment.entity.GradeStatus;
-import com.msa4lmsv2academic.domain.enrollment.entity.PrerequisiteRetakeRuleRejectionReason;
-import com.msa4lmsv2academic.domain.enrollment.entity.RetakeGradePolicy;
-import com.msa4lmsv2academic.domain.enrollment.entity.RetakeStatus;
-import com.msa4lmsv2academic.domain.enrollment.repository.CourseGradeAttemptQueryResult;
 import com.msa4lmsv2academic.domain.enrollment.repository.CoursePrerequisiteRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.PrerequisiteRetakeRuleQueryRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.PrerequisiteRetakeRuleSearchCondition;
@@ -17,12 +11,9 @@ import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleCre
 import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleSearchRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleStatusRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.PrerequisiteRetakeRuleUpdateRequestDTO;
-import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteCompletionResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeEvaluationResponseDTO;
-import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeReasonResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeRuleCriteriaResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.PrerequisiteRetakeRuleQueryResponseDTO;
-import com.msa4lmsv2academic.domain.enrollment.response.RetakeConditionResponseDTO;
 import com.msa4lmsv2academic.domain.student.repository.ProfessorStudentScope;
 import com.msa4lmsv2academic.domain.student.repository.StudentQueryRepository;
 import com.msa4lmsv2academic.global.error.DuplicatePrerequisiteRetakeRuleException;
@@ -34,17 +25,13 @@ import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -65,6 +52,7 @@ public class PrerequisiteRetakeRuleService {
     private final PrerequisiteRetakeRuleQueryRepository prerequisiteRetakeRuleQueryRepository;
     private final StudentQueryRepository studentQueryRepository;
     private final AuditLogService auditLogService;
+    private final PrerequisiteRetakeEvaluator prerequisiteRetakeEvaluator;
 
     public PrerequisiteRetakeRuleQueryResponseDTO search(
             PrerequisiteRetakeRuleSearchRequestDTO request,
@@ -99,7 +87,7 @@ public class PrerequisiteRetakeRuleService {
                 (long) page * size < result.totalCount()
         );
         PrerequisiteRetakeEvaluationResponseDTO evaluation = scope.evaluate()
-                ? evaluate(scope.studentId(), findCourse(request.courseId()))
+                ? prerequisiteRetakeEvaluator.evaluate(scope.studentId(), findCourse(request.courseId()))
                 : null;
         return new PrerequisiteRetakeRuleQueryResponseDTO(criteria, evaluation);
     }
@@ -262,173 +250,6 @@ public class PrerequisiteRetakeRuleService {
                 ipAddress
         );
         return PrerequisiteRetakeRuleCriteriaResponseDTO.from(saved);
-    }
-
-    private PrerequisiteRetakeEvaluationResponseDTO evaluate(Long studentId, Course course) {
-        List<CoursePrerequisite> rules = prerequisiteRetakeRuleQueryRepository
-                .findActiveRulesByCourseId(course.getId());
-        List<Long> courseIds = new ArrayList<>();
-        courseIds.add(course.getId());
-        rules.stream()
-                .map(rule -> rule.getPrerequisiteCourse().getId())
-                .forEach(courseIds::add);
-        Map<Long, List<CourseGradeAttemptQueryResult>> attemptsByCourseId =
-                prerequisiteRetakeRuleQueryRepository.findGradeAttempts(studentId, courseIds)
-                        .stream()
-                        .collect(Collectors.groupingBy(CourseGradeAttemptQueryResult::courseId));
-
-        List<PrerequisiteCompletionResponseDTO> prerequisites = rules.stream()
-                .map(rule -> prerequisiteResult(
-                        rule,
-                        attemptsByCourseId.getOrDefault(rule.getPrerequisiteCourse().getId(), List.of())
-                ))
-                .toList();
-        boolean prerequisiteSatisfied = prerequisites.stream()
-                .allMatch(PrerequisiteCompletionResponseDTO::satisfied);
-        RetakeConditionResponseDTO retakeCondition = retakeResult(
-                attemptsByCourseId.getOrDefault(course.getId(), List.of())
-        );
-
-        LinkedHashSet<PrerequisiteRetakeRuleRejectionReason> rejectionReasons = new LinkedHashSet<>();
-        prerequisites.stream()
-                .filter(result -> !result.satisfied())
-                .map(result -> result.reason().code())
-                .forEach(rejectionReasons::add);
-        if (!retakeCondition.satisfied()) {
-            rejectionReasons.add(retakeCondition.reason().code());
-        }
-        return new PrerequisiteRetakeEvaluationResponseDTO(
-                studentId,
-                course.getId(),
-                course.getCode(),
-                course.getName(),
-                prerequisiteSatisfied,
-                prerequisites,
-                retakeCondition,
-                prerequisiteSatisfied && retakeCondition.satisfied(),
-                rejectionReasons.stream()
-                        .map(PrerequisiteRetakeReasonResponseDTO::from)
-                        .toList()
-        );
-    }
-
-    private PrerequisiteCompletionResponseDTO prerequisiteResult(
-            CoursePrerequisite rule,
-            List<CourseGradeAttemptQueryResult> attempts
-    ) {
-        String completedGrade = attempts.stream()
-                .filter(nonCancelled())
-                .filter(attempt -> attempt.gradeStatus() == GradeStatus.OPENED)
-                .map(CourseGradeAttemptQueryResult::letterGrade)
-                .filter(Objects::nonNull)
-                .filter(RetakeGradePolicy::completesPrerequisite)
-                .findFirst()
-                .orElse(null);
-        boolean satisfied = completedGrade != null;
-        return new PrerequisiteCompletionResponseDTO(
-                rule.getId(),
-                rule.getPrerequisiteCourse().getId(),
-                rule.getPrerequisiteCourse().getCode(),
-                rule.getPrerequisiteCourse().getName(),
-                satisfied,
-                completedGrade,
-                satisfied ? null : PrerequisiteRetakeReasonResponseDTO.from(
-                        PrerequisiteRetakeRuleRejectionReason.PREREQUISITE_NOT_COMPLETED
-                )
-        );
-    }
-
-    private RetakeConditionResponseDTO retakeResult(List<CourseGradeAttemptQueryResult> attempts) {
-        List<CourseGradeAttemptQueryResult> validEnrollments = attempts.stream()
-                .filter(nonCancelled())
-                .toList();
-        if (validEnrollments.stream().anyMatch(attempt ->
-                attempt.currentSemester() && attempt.gradeStatus() == GradeStatus.DRAFT)) {
-            return rejectedRetakeResult(
-                    RetakeStatus.ACTIVE_ENROLLMENT_EXISTS,
-                    null,
-                    PrerequisiteRetakeRuleRejectionReason.ACTIVE_ENROLLMENT_EXISTS
-            );
-        }
-
-        String blockingGrade = validEnrollments.stream()
-                .filter(attempt -> attempt.gradeStatus() == GradeStatus.OPENED)
-                .map(CourseGradeAttemptQueryResult::letterGrade)
-                .filter(Objects::nonNull)
-                .filter(RetakeGradePolicy::blocksRetake)
-                .max(Comparator.comparingInt(RetakeGradePolicy::rank))
-                .orElse(null);
-        if (blockingGrade != null) {
-            return rejectedRetakeResult(
-                    RetakeStatus.RETAKE_BLOCKED,
-                    blockingGrade,
-                    PrerequisiteRetakeRuleRejectionReason.RETAKE_BLOCKED_HIGH_GRADE
-            );
-        }
-
-        if (validEnrollments.stream().anyMatch(attempt -> attempt.gradeStatus() == GradeStatus.DRAFT)) {
-            return rejectedRetakeResult(
-                    RetakeStatus.GRADE_PENDING,
-                    null,
-                    PrerequisiteRetakeRuleRejectionReason.GRADE_NOT_OPENED
-            );
-        }
-        if (validEnrollments.stream().anyMatch(attempt ->
-                attempt.gradeStatus() == GradeStatus.OPENED && attempt.letterGrade() == null)) {
-            return rejectedRetakeResult(
-                    RetakeStatus.GRADE_PENDING,
-                    null,
-                    PrerequisiteRetakeRuleRejectionReason.GRADE_NOT_ENTERED
-            );
-        }
-        String invalidGrade = validEnrollments.stream()
-                .filter(attempt -> attempt.gradeStatus() == GradeStatus.OPENED)
-                .map(CourseGradeAttemptQueryResult::letterGrade)
-                .filter(Objects::nonNull)
-                .filter(grade -> !RetakeGradePolicy.isRecognized(grade))
-                .findFirst()
-                .orElse(null);
-        if (invalidGrade != null) {
-            return rejectedRetakeResult(
-                    RetakeStatus.INVALID_GRADE_DATA,
-                    invalidGrade,
-                    PrerequisiteRetakeRuleRejectionReason.INVALID_GRADE_DATA
-            );
-        }
-
-        String allowedGrade = validEnrollments.stream()
-                .filter(attempt -> attempt.gradeStatus() == GradeStatus.OPENED)
-                .map(CourseGradeAttemptQueryResult::letterGrade)
-                .filter(Objects::nonNull)
-                .filter(RetakeGradePolicy::isAllowedForRetake)
-                .max(Comparator.comparingInt(RetakeGradePolicy::rank))
-                .orElse(null);
-        if (allowedGrade != null) {
-            return new RetakeConditionResponseDTO(
-                    RetakeStatus.RETAKE_ALLOWED,
-                    true,
-                    allowedGrade,
-                    null
-            );
-        }
-        return new RetakeConditionResponseDTO(RetakeStatus.FIRST_ENROLLMENT, true, null, null);
-    }
-
-    private RetakeConditionResponseDTO rejectedRetakeResult(
-            RetakeStatus status,
-            String referenceGrade,
-            PrerequisiteRetakeRuleRejectionReason reason
-    ) {
-        return new RetakeConditionResponseDTO(
-                status,
-                false,
-                referenceGrade,
-                PrerequisiteRetakeReasonResponseDTO.from(reason)
-        );
-    }
-
-    private Predicate<CourseGradeAttemptQueryResult> nonCancelled() {
-        return attempt -> attempt.enrollmentStatus() != EnrollmentStatus.CANCELLED;
     }
 
     private SearchScope resolveSearchScope(
