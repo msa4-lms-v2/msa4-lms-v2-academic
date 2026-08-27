@@ -172,6 +172,9 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
     processed_by BIGINT NULL,
     reject_reason VARCHAR(500) NULL,
     processed_at DATETIME NULL,
+    cancel_reason VARCHAR(255) NULL DEFAULT NULL,
+    cancelled_by BIGINT NULL DEFAULT NULL,
+    cancelled_at DATETIME NULL DEFAULT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     active_student_id BIGINT GENERATED ALWAYS AS (
@@ -183,6 +186,7 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
     CONSTRAINT fk_withdrawal_requests_requested_by FOREIGN KEY (requested_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT fk_withdrawal_requests_advisor_reviewer FOREIGN KEY (advisor_reviewed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT fk_withdrawal_requests_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_withdrawal_requests_canceller FOREIGN KEY (cancelled_by) REFERENCES users (id) ON DELETE RESTRICT,
     INDEX idx_withdrawal_requests_student_status (student_id, status),
     INDEX idx_withdrawal_requests_status_created (status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -640,7 +644,7 @@ CREATE TABLE IF NOT EXISTS enrollment_histories (
 CREATE TABLE IF NOT EXISTS idempotency_keys (
     id BIGINT NOT NULL AUTO_INCREMENT,
     idempotency_key VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-    requester_student_id BIGINT NOT NULL,
+    requester_user_id BIGINT NOT NULL,
     endpoint VARCHAR(255) NOT NULL,
     request_hash VARCHAR(64) NOT NULL,
     response_snapshot JSON NULL,
@@ -649,7 +653,7 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
     expires_at DATETIME NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_idempotency_keys_key UNIQUE (idempotency_key),
-    INDEX idx_idempotency_keys_requester (requester_student_id),
+    INDEX idx_idempotency_keys_requester (requester_user_id),
     INDEX idx_idempotency_keys_expiry (status, expires_at),
-    CONSTRAINT fk_idempotency_keys_requester FOREIGN KEY (requester_student_id) REFERENCES students (id) ON DELETE RESTRICT
+    CONSTRAINT fk_idempotency_keys_user FOREIGN KEY (requester_user_id) REFERENCES users (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -90,6 +90,16 @@ public class WithdrawalRequest {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    @Column(name = "cancel_reason", length = 255)
+    private String cancelReason;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancelled_by")
+    private User cancelledBy;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -151,6 +161,16 @@ public class WithdrawalRequest {
         this.processedBy = processor;
         this.processedAt = processedAt;
         this.rejectReason = rejectReason;
+    }
+
+    public void cancel(User actor, String reason, LocalDateTime cancelledAt) {
+        if (status != WithdrawalStatus.PENDING && status != WithdrawalStatus.ADVISOR_APPROVED) {
+            throw new IllegalStateException("진행 중인 자퇴 신청만 취소할 수 있습니다.");
+        }
+        this.status = WithdrawalStatus.CANCELLED;
+        this.cancelledBy = actor;
+        this.cancelReason = reason;
+        this.cancelledAt = cancelledAt;
     }
 
     private void requireStatus(WithdrawalStatus expected) {

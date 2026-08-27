@@ -17,16 +17,19 @@ public interface WithdrawalRequestRepository extends JpaRepository<WithdrawalReq
 
     boolean existsByStudentIdAndStatusIn(Long studentId, Collection<WithdrawalStatus> statuses);
 
+    @Query("SELECT request.student.id FROM WithdrawalRequest request WHERE request.id = :id")
+    Optional<Long> findStudentIdById(@Param("id") Long id);
+
     @EntityGraph(attributePaths = {"student", "student.user", "student.advisor", "student.advisor.user",
-            "requestedBy", "advisorReviewedBy", "processedBy"})
+            "requestedBy", "advisorReviewedBy", "processedBy", "cancelledBy"})
     Page<WithdrawalRequest> findByStudentUserId(Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"student", "student.user", "student.advisor", "student.advisor.user",
-            "requestedBy", "advisorReviewedBy", "processedBy"})
+            "requestedBy", "advisorReviewedBy", "processedBy", "cancelledBy"})
     Page<WithdrawalRequest> findByStudentAdvisorUserId(Long userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"student", "student.user", "student.advisor", "student.advisor.user",
-            "requestedBy", "advisorReviewedBy", "processedBy"})
+            "requestedBy", "advisorReviewedBy", "processedBy", "cancelledBy"})
     Page<WithdrawalRequest> findAll(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -34,6 +37,6 @@ public interface WithdrawalRequestRepository extends JpaRepository<WithdrawalReq
     Optional<WithdrawalRequest> findByIdForUpdate(@Param("id") Long id);
 
     @EntityGraph(attributePaths = {"student", "student.user", "student.advisor", "student.advisor.user",
-            "requestedBy", "advisorReviewedBy", "processedBy"})
+            "requestedBy", "advisorReviewedBy", "processedBy", "cancelledBy"})
     Optional<WithdrawalRequest> findDetailById(Long id);
 }

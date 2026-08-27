@@ -22,4 +22,10 @@ public interface AcademicIdempotencyKeyRepository extends JpaRepository<Academic
             + "and k.status = com.msa4lmsv2academic.global.idempotency.IdempotencyStatus.COMPLETED "
             + "and k.expiresAt <= :now")
     int deleteExpiredCompletedKeys(@Param("endpoint") String endpoint, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("delete from AcademicIdempotencyKey k where k.endpoint like concat(:prefix, '%') "
+            + "and k.status = com.msa4lmsv2academic.global.idempotency.IdempotencyStatus.COMPLETED "
+            + "and k.expiresAt <= :now")
+    int deleteExpiredCompletedKeysByEndpointPrefix(@Param("prefix") String prefix, @Param("now") LocalDateTime now);
 }

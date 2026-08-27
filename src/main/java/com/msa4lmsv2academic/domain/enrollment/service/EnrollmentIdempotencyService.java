@@ -42,7 +42,7 @@ public class EnrollmentIdempotencyService {
     // 키만 별도 커밋되지 않도록 반드시 신청 서비스의 기존 쓰기 transaction에 참여합니다.
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<GlobalResponseDTO<StudentEnrollmentCreateResponseDTO>> replay(
-            String key, Long studentId, String hash, LocalDateTime now
+            String key, Long userId, String hash, LocalDateTime now
     ) {
         AcademicIdempotencyKey saved = keyRepository.findByIdempotencyKey(key).orElse(null);
         if (saved == null) {
@@ -53,7 +53,7 @@ public class EnrollmentIdempotencyService {
             keyRepository.deleteExpiredCompletedKey(key, ENDPOINT, now);
             return Optional.empty();
         }
-        if (!saved.matches(studentId, ENDPOINT, hash) || saved.getStatus() != IdempotencyStatus.COMPLETED) {
+        if (!saved.matches(userId, ENDPOINT, hash) || saved.getStatus() != IdempotencyStatus.COMPLETED) {
             throw EnrollmentApplicationRejectedException.from(EnrollmentApplicationRejectionReason.IDEMPOTENCY_KEY_CONFLICT);
         }
         return Optional.of(objectMapper.readValue(saved.getResponseSnapshot(),
@@ -62,9 +62,9 @@ public class EnrollmentIdempotencyService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public AcademicIdempotencyKey reserve(String key, Long studentId, String hash, LocalDateTime now) {
+    public AcademicIdempotencyKey reserve(String key, Long userId, String hash, LocalDateTime now) {
         try {
-            return keyRepository.saveAndFlush(AcademicIdempotencyKey.create(key, studentId, ENDPOINT, hash, now));
+            return keyRepository.saveAndFlush(AcademicIdempotencyKey.create(key, userId, ENDPOINT, hash, now));
         } catch (DataIntegrityViolationException exception) {
             // 다른 학생의 동시 요청도 전역 unique key를 공유합니다. 예약 충돌은 전체 신청을 롤백합니다.
             throw EnrollmentApplicationRejectedException.from(EnrollmentApplicationRejectionReason.IDEMPOTENCY_KEY_CONFLICT);
