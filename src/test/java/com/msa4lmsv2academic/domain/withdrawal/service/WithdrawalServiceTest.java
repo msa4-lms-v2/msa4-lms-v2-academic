@@ -6,12 +6,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
-import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
+import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
+import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalQueryRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
-import com.msa4lmsv2academic.domain.user.repository.UserRepository;
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalRequest;
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalStatus;
 import com.msa4lmsv2academic.domain.withdrawal.repository.AcademicStatusHistoryRepository;
@@ -35,9 +34,11 @@ class WithdrawalServiceTest {
     @Mock
     private AcademicStatusHistoryRepository historyRepository;
     @Mock
-    private StudentRepository studentRepository;
+    private WithdrawalQueryRepository queryRepository;
     @Mock
-    private UserRepository userRepository;
+    private WithdrawalIdempotencyService idempotencyService;
+    @Mock
+    private AuditLogService auditLogService;
 
     private WithdrawalService service;
 
@@ -46,8 +47,10 @@ class WithdrawalServiceTest {
         service = new WithdrawalService(
                 withdrawalRepository,
                 historyRepository,
-                studentRepository,
-                userRepository
+                queryRepository,
+                idempotencyService,
+                new WithdrawalPolicy(),
+                new WithdrawalAuditService(auditLogService)
         );
     }
 
@@ -56,32 +59,31 @@ class WithdrawalServiceTest {
         User studentUser = user(21L, "학생");
         User advisorUser = user(11L, "지도교수");
         User adminUser = user(1L, "관리자");
-        Professor advisor = mock(Professor.class);
-        lenient().when(advisor.getUser()).thenReturn(advisorUser);
         Student student = mock(Student.class);
         lenient().when(student.getId()).thenReturn(41L);
         lenient().when(student.getUser()).thenReturn(studentUser);
-        lenient().when(student.getAdvisor()).thenReturn(advisor);
         when(student.getAcademicStatus()).thenReturn(AcademicStatus.ENROLLED);
 
         WithdrawalRequest withdrawal = WithdrawalRequest.create(
-                student, "개인 사유", LocalDate.of(2026, 9, 1), studentUser
+                student, "개인 사유", LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).minusDays(1), studentUser
         );
         withdrawal.advisorApprove(advisorUser, LocalDateTime.now());
         when(withdrawalRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(withdrawal));
-        when(studentRepository.findByIdForUpdate(41L)).thenReturn(Optional.of(student));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(adminUser));
+        when(withdrawalRepository.findStudentIdById(51L)).thenReturn(Optional.of(41L));
+        when(queryRepository.findStudentByIdForUpdate(41L)).thenReturn(Optional.of(student));
+        when(queryRepository.findUserById(1L)).thenReturn(Optional.of(adminUser));
+        when(withdrawalRepository.saveAndFlush(withdrawal)).thenReturn(withdrawal);
 
         var response = service.reviewByAdmin(
                 51L,
-                new FinalWithdrawalReviewRequestDTO(true, LocalDate.of(2026, 9, 10), null),
-                new CurrentUser(1L, "ADMIN")
+                new FinalWithdrawalReviewRequestDTO(true, LocalDate.now(java.time.ZoneId.of("Asia/Seoul")), null),
+                "review-key", new CurrentUser(1L, "ADMIN"), new WithdrawalAuditContext(null, null)
         );
 
         assertThat(response.status()).isEqualTo(WithdrawalStatus.APPROVED);
-        assertThat(response.effectiveDate()).isEqualTo(LocalDate.of(2026, 9, 10));
+        assertThat(response.effectiveDate()).isEqualTo(LocalDate.now(java.time.ZoneId.of("Asia/Seoul")));
         verify(student).changeAcademicStatus(AcademicStatus.WITHDRAWN);
-        verify(withdrawalRepository).flush();
+        verify(withdrawalRepository).saveAndFlush(withdrawal);
         verify(historyRepository).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 

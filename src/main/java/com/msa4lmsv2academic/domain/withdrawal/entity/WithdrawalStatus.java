@@ -5,5 +5,6 @@ public enum WithdrawalStatus {
     ADVISOR_APPROVED,
     ADVISOR_REJECTED,
     APPROVED,
-    REJECTED
+    REJECTED,
+    CANCELLED
 }

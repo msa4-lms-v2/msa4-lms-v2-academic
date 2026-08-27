@@ -52,7 +52,7 @@ public class StudentEnrollmentApplicationService {
         Student student = queryRepository.findStudentByUserIdForUpdate(currentUser.id())
                 .orElseThrow(StudentNotFoundException::new);
         String hash = idempotencyService.hash(request);
-        var replay = idempotencyService.replay(key, student.getId(), hash, LocalDateTime.now());
+        var replay = idempotencyService.replay(key, currentUser.id(), hash, LocalDateTime.now());
         if (replay.isPresent()) {
             return replay.orElseThrow();
         }
@@ -61,7 +61,7 @@ public class StudentEnrollmentApplicationService {
                 .orElseThrow(EnrollmentLectureNotFoundException::new);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime recordedAt = now.truncatedTo(ChronoUnit.SECONDS);
-        AcademicIdempotencyKey reserved = idempotencyService.reserve(key, student.getId(), hash, recordedAt);
+        AcademicIdempotencyKey reserved = idempotencyService.reserve(key, currentUser.id(), hash, recordedAt);
         validateAcademicStatus(student);
         // 전역 키 예약이 다른 transaction을 기다린 경우에도 실제 검증 시점의 기간을 사용합니다.
         validateLecture(student, lecture, LocalDateTime.now());

@@ -96,6 +96,8 @@ class StudentEnrollmentApplicationIntegrationTest extends MySqlIntegrationTest {
         var response = apply(USER, LECTURE, "success");
         assertThat(response.code()).isEqualTo("00");
         assertThat(response.data().studentId()).isEqualTo(STUDENT);
+        assertThat(jdbc.queryForObject("SELECT requester_user_id FROM idempotency_keys WHERE idempotency_key = 'success'",
+                Long.class)).isEqualTo(USER);
         assertThat(response.data().status().name()).isEqualTo("ACTIVE");
         assertThat(jdbc.queryForObject("SELECT grade_status FROM enrollments WHERE id = ?", String.class,
                 response.data().enrollmentId())).isEqualTo("DRAFT");
@@ -427,18 +429,18 @@ class StudentEnrollmentApplicationIntegrationTest extends MySqlIntegrationTest {
     }
 
     private void insertKey(String key, String endpoint, String status, LocalDateTime expiresAt) {
-        jdbc.update("INSERT INTO idempotency_keys (idempotency_key, requester_student_id, endpoint, request_hash, response_snapshot, status, expires_at) "
-                + "VALUES (?, 120001, ?, ?, '{}', ?, ?)", key, endpoint, "a".repeat(64), status, expiresAt);
+        jdbc.update("INSERT INTO idempotency_keys (idempotency_key, requester_user_id, endpoint, request_hash, response_snapshot, status, expires_at) "
+                + "VALUES (?, 120011, ?, ?, '{}', ?, ?)", key, endpoint, "a".repeat(64), status, expiresAt);
     }
 
     private void assertCounts(int enrollments, int histories, int keys) {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM enrollments WHERE student_id IN (120001,120002)", Integer.class)).isEqualTo(enrollments);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM enrollment_histories WHERE student_id IN (120001,120002)", Integer.class)).isEqualTo(histories);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_keys WHERE requester_student_id IN (120001,120002)", Integer.class)).isEqualTo(keys);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_keys WHERE requester_user_id IN (120011,120012)", Integer.class)).isEqualTo(keys);
     }
 
     private void cleanFixture() {
-        jdbc.update("DELETE FROM idempotency_keys WHERE requester_student_id IN (120001,120002)");
+        jdbc.update("DELETE FROM idempotency_keys WHERE requester_user_id IN (120011,120012)");
         jdbc.update("DELETE FROM enrollment_histories WHERE student_id IN (120001,120002)");
         jdbc.update("DELETE FROM enrollments WHERE student_id IN (120001,120002)");
         jdbc.update("DELETE FROM lecture_schedules WHERE lecture_id BETWEEN 120001 AND 120003");

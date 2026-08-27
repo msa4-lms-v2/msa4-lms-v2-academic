@@ -16,7 +16,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "idempotency_keys",
         uniqueConstraints = @UniqueConstraint(name = "uk_idempotency_keys_key", columnNames = "idempotency_key"),
         indexes = {
-                @Index(name = "idx_idempotency_keys_requester", columnList = "requester_student_id"),
+                @Index(name = "idx_idempotency_keys_requester", columnList = "requester_user_id"),
                 @Index(name = "idx_idempotency_keys_expiry", columnList = "status,expires_at")
         })
 public class AcademicIdempotencyKey {
@@ -24,8 +24,8 @@ public class AcademicIdempotencyKey {
     private Long id;
     @Column(name = "idempotency_key", nullable = false, length = 100)
     private String idempotencyKey;
-    @Column(name = "requester_student_id", nullable = false)
-    private Long requesterStudentId;
+    @Column(name = "requester_user_id", nullable = false)
+    private Long requesterUserId;
     @Column(nullable = false, length = 255)
     private String endpoint;
     @Column(name = "request_hash", nullable = false, length = 64)
@@ -40,11 +40,11 @@ public class AcademicIdempotencyKey {
     private LocalDateTime expiresAt;
 
     public static AcademicIdempotencyKey create(
-            String key, Long studentId, String endpoint, String requestHash, LocalDateTime now
+            String key, Long userId, String endpoint, String requestHash, LocalDateTime now
     ) {
         AcademicIdempotencyKey entry = new AcademicIdempotencyKey();
         entry.idempotencyKey = key;
-        entry.requesterStudentId = studentId;
+        entry.requesterUserId = userId;
         entry.endpoint = endpoint;
         entry.requestHash = requestHash;
         entry.status = IdempotencyStatus.IN_PROGRESS;
@@ -53,8 +53,8 @@ public class AcademicIdempotencyKey {
         return entry;
     }
 
-    public boolean matches(Long studentId, String endpoint, String requestHash) {
-        return requesterStudentId.equals(studentId) && this.endpoint.equals(endpoint)
+    public boolean matches(Long userId, String endpoint, String requestHash) {
+        return requesterUserId.equals(userId) && this.endpoint.equals(endpoint)
                 && this.requestHash.equals(requestHash);
     }
 
