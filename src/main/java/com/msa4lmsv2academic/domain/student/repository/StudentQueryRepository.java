@@ -18,6 +18,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.JPQLQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +56,13 @@ public class StudentQueryRepository {
                         professorScopePredicate(scope)
                 )
                 .fetchFirst() != null;
+    }
+
+    // 학적 이력 조회는 현재 관계만 제한하며, 자퇴·졸업·퇴학 학생도 제외하지 않는다.
+    public JPQLQuery<Long> studentIdsInProfessorScope(ProfessorStudentScope scope) {
+        return JPAExpressions.select(student.id)
+                .from(student)
+                .where(professorScopePredicate(scope));
     }
 
     public StudentSearchResult search(StudentSearchCondition condition) {
