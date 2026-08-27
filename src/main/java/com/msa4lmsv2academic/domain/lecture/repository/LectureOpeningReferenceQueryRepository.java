@@ -41,10 +41,13 @@ public class LectureOpeningReferenceQueryRepository {
     }
 
     public Optional<Professor> lockProfessor(Long professorId) {
-        return Optional.ofNullable(entityManager.find(
-                Professor.class,
-                professorId,
-                LockModeType.PESSIMISTIC_WRITE
-        ));
+        return entityManager.createQuery(
+                        "select professor from Professor professor where professor.id = :professorId",
+                        Professor.class
+                )
+                .setParameter("professorId", professorId)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .getResultStream()
+                .findFirst();
     }
 }
