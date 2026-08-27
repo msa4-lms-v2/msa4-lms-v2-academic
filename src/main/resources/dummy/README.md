@@ -62,3 +62,58 @@ Body는 raw JSON `{"lectureId": 실제_강의_ID}`다. ID는 위 조회의 `lect
 키는 사용자/테스트 회차별로 구별하고, 재생 테스트에서만 동일 키를 그대로 복사한다. 대소문자만 바꿔 새 키로 사용하지 않는다.
 성공 POST가 실제로 저장한 `enrollments`, `enrollment_histories`, `idempotency_keys`를 확인하며, 실패 요청은 이 세 테이블에 새 행을 남기지 않는다.
 이미 신청된 학생으로 다시 진행하면 중복/최대학점 오류가 날 수 있다. 이 SQL은 기존 신청을 삭제하지 않는다.
+
+## 학적 변경 이력 조회용 더미
+
+`03_academic-status-history-sample.sql`은 `academic_status_histories`에 조회용 가상 이력만 추가한다.
+학생의 현재 학적, 계정, 소속, 지도교수, 수강, 원본 신청은 수정하지 않으며 Auth·SCG·Payment는 변경하지 않는다.
+테이블·컬럼 추가도 없다. **실제 승인 결과가 아니며 운영/공유 DB에는 적용하지 않는다.**
+
+### 적용 방법
+
+1. 로컬 Academic DB를 선택한다. 현재 `academic_status_histories` 스키마가 먼저 준비돼 있어야 한다.
+2. SQL 편집기에서 `03_academic-status-history-sample.sql` 전체만 한 연결로 실행한다. 오류 시 같은 연결에서 `ROLLBACK`한다.
+3. `seed_status`, 실제 `student_id`와 `student_user_id`, 생성 이력 결과를 확인한다.
+4. DB에 직접 추가한 이력은 다음 GET부터 조회되므로 Academic 재시작은 필요 없다.
+
+local 프로필은 `dummy/*.sql`을 읽으므로 재시작 때도 03이 실행된다. 단, **01은 학생 상태·성적·현재 학기 등을 다시 설정하고 02는 테스트 수강신청 기간을 갱신한다. 기존 결과를 보존하려면 03만 수동 실행한다.** 설정 파일과 기존 01/02 SQL은 이번 작업에서 변경하지 않는다.
+
+### 대상과 데이터
+
+- 최초에는 삭제되지 않은 `ACTIVE` 학생 계정 중 `ENROLLED`인 학생을 ID 순으로 최대 2명 선택한다. 관리자는 삭제되지 않은 `ACTIVE` ADMIN 중 ID가 가장 작은 계정을 `changed_by`로 사용한다.
+- 학생이나 관리자가 없으면 임의의 계정·학생을 만들지 않고 건너뛴다.
+- 처음 기록한 기본·추가 학생은 마커로 기억한다. 재실행 전에 그 학생이 비활성·논리 삭제·휴학 등으로 변경되면 해당 학생에게 누락 이력을 추가하지 않는다. 기존 이력도 덮어쓰지 않는다.
+- 사유의 `[LOCAL_STATUS_HISTORY_SAMPLE_V1]`로 실제 이력과 구분한다. 실제 원본 신청을 만들지 않으므로 `source_id=NULL`이다.
+- 동일 대상·마커 이력이 있으면 추가하지 않는다. 단일 연결 순차 실행용이며 동시 실행 중복 방지까지 보장하지는 않는다.
+
+| 대상 | 가상 이력 | 기록 시각(KST) | source_type |
+|---|---|---|---|
+| 기본 학생 P1 | ENROLLED → ON_LEAVE | 2026-08-01 09:00:00 | LEAVE_REQUEST |
+| 기본 학생 P2 | ON_LEAVE → ENROLLED | 2026-08-05 09:00:00 | LEAVE_REQUEST |
+| 기본 학생 P3 | ENROLLED → ON_LEAVE | 2026-08-10 09:00:00 | LEAVE_REQUEST |
+| 기본 학생 P4 | ON_LEAVE → ENROLLED | 2026-08-10 09:00:00 | ADMIN_CORRECTION |
+| 추가 학생 S1(있을 때만) | ENROLLED → ON_LEAVE | 2026-08-03 09:00:00 | LEAVE_REQUEST |
+| 추가 학생 S2(있을 때만) | ON_LEAVE → ENROLLED | 2026-08-07 09:00:00 | LEAVE_REQUEST |
+
+`READY`는 6건, `READY_PRIMARY_ONLY`는 기본 학생 4건이 준비됐다는 뜻이다.
+`SKIPPED_NO_ACTIVE_ADMIN`, `SKIPPED_NO_ENROLLED_STUDENT`는 선행 데이터 부족을 뜻한다.
+`CHECK_SELECTED_STUDENT_STATE`는 기존 대상 상태 또는 부분 데이터를 확인해야 한다는 뜻이다.
+재실행 시 `inserted_count=0`이고 기존 4/6건이 남아 있는 것도 정상이다. READY는 현재 교수의 조회 권한까지 보장하는 값은 아니다.
+
+### Postman 핵심 테스트
+
+공통 URL은 `GET http://localhost:8080/api/academic/status-histories`다.
+Authorization은 각 역할의 **accessToken**을 쓰는 Bearer Token이며 Body와 Idempotency-Key는 없다.
+아래 `{primaryStudentId}`·`{secondaryStudentId}`는 실행 결과로 바꾼다. `student_user_id`와 혼동하지 않는다.
+
+| Request 이름 | 역할 / 쿼리 | 예상 |
+|---|---|---|
+| Admin - Get Academic Status Histories | ADMIN, `?page=1&size=20&sortDirection=desc` | 00, 테스트 이력 4건 또는 6건 포함. 실제 이력이 있으면 totalCount는 더 클 수 있음 |
+| Admin - Filter Academic Status Histories | ADMIN, `?studentId={primaryStudentId}&newStatus=ON_LEAVE&fromDate=2026-08-01&toDate=2026-08-10` | 기본 학생 P1/P3 포함, 조건 밖 이력 제외 |
+| Admin - Page Academic Status Histories | ADMIN, `?studentId={primaryStudentId}&page=1&size=2&sortDirection=desc` 후 page=2 | 같은 시각은 historyId 내림차순. 페이지 간 중복 없음 |
+| Student - Get My Academic Status Histories | 기본 학생의 STUDENT 토큰, 필터 없음 | 본인 P1~P4만 포함하고 추가 학생 S1/S2는 제외 |
+| Student - Hide Other Student Histories | 기본 학생 토큰, `?studentId={secondaryStudentId}` | 추가 학생이 실제로 있을 때 HTTP 200, 빈 items, totalCount=0 |
+| Professor - Get Scoped Academic Status Histories | PROFESSOR, 선택 학생의 `studentId` | 현재 지도학생·같은 학과·현재 학기 ACTIVE 수강생이면 해당 학생 이력, 관계가 없으면 빈 목록 |
+
+추가 학생이 없거나 범위 밖 교수가 없으면 해당 권한 경계 테스트를 완료했다고 기록하지 않는다.
+이 SQL은 테스트 편의를 위해 계정이나 소속 관계를 조작하지 않으므로 필요한 추가 계정은 별도로 준비해야 한다.
