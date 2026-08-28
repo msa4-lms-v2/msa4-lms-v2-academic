@@ -80,17 +80,17 @@ public class GraduationCreditRecordService {
     private List<GraduationCreditRecordResponseDTO> classify(
             List<GraduationCreditRecordQueryResult> newestFirst
     ) {
-        Set<Long> appliedCourseIds = new HashSet<>();
+        Set<Long> reflectedCourseIds = new HashSet<>();
         return newestFirst.stream()
-                .map(record -> classify(record, appliedCourseIds))
+                .map(record -> classify(record, reflectedCourseIds))
                 .toList();
     }
 
     private GraduationCreditRecordResponseDTO classify(
             GraduationCreditRecordQueryResult record,
-            Set<Long> appliedCourseIds
+            Set<Long> reflectedCourseIds
     ) {
-        GraduationCreditExclusionReason exclusionReason = exclusionReason(record, appliedCourseIds);
+        GraduationCreditExclusionReason exclusionReason = exclusionReason(record, reflectedCourseIds);
         GraduationCreditRecordResult result = exclusionReason == null
                 ? GraduationCreditRecordResult.APPLIED
                 : GraduationCreditRecordResult.EXCLUDED;
@@ -118,13 +118,16 @@ public class GraduationCreditRecordService {
 
     private GraduationCreditExclusionReason exclusionReason(
             GraduationCreditRecordQueryResult record,
-            Set<Long> appliedCourseIds
+            Set<Long> reflectedCourseIds
     ) {
         if (record.enrollmentStatus() == EnrollmentStatus.CANCELLED) {
             return GraduationCreditExclusionReason.ENROLLMENT_CANCELLED;
         }
         if (record.gradeStatus() != GradeStatus.OPENED) {
             return GraduationCreditExclusionReason.GRADE_NOT_OPENED;
+        }
+        if (!reflectedCourseIds.add(record.courseId())) {
+            return GraduationCreditExclusionReason.RETAKE_DUPLICATE;
         }
         if (record.letterGrade() == null) {
             return GraduationCreditExclusionReason.GRADE_NOT_ENTERED;
@@ -134,9 +137,6 @@ public class GraduationCreditRecordService {
         }
         if (!GraduationCreditGradePolicy.isPassing(record.letterGrade())) {
             return GraduationCreditExclusionReason.INVALID_GRADE_DATA;
-        }
-        if (!appliedCourseIds.add(record.courseId())) {
-            return GraduationCreditExclusionReason.RETAKE_DUPLICATE;
         }
         return null;
     }

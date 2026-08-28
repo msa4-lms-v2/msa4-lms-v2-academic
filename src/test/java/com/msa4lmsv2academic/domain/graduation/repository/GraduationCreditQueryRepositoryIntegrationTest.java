@@ -92,6 +92,28 @@ class GraduationCreditQueryRepositoryIntegrationTest extends MySqlIntegrationTes
     }
 
     @Test
+    void latestOpenedRetakeGradeReplacesOlderPassingGrade() {
+        jdbcTemplate.update("INSERT INTO semesters "
+                + "(id, academic_year, term, start_date, end_date, enrollment_start_at, enrollment_end_at, is_current) "
+                + "VALUES (91002, 2026, 'SECOND', '2026-09-01', '2026-12-18', "
+                + "'2026-08-01 09:00:00', '2026-08-07 18:00:00', 1)");
+        jdbcTemplate.update("INSERT INTO lectures "
+                        + "(id, semester_id, course_id, professor_id, section_no, capacity, classroom, status, "
+                        + "midterm_ratio, final_ratio, assignment_ratio, attendance_ratio, syllabus) "
+                        + "VALUES (91008, 91002, 91001, ?, '01', 40, 'A101', 'CLOSED', 30, 30, 30, 10, NULL)",
+                PROFESSOR_ID);
+        insertEnrollment(91008L, 91008L, "ACTIVE", "OPENED", "F");
+
+        GraduationCreditDiagnosisQueryResult result = graduationCreditQueryRepository
+                .findCreditDiagnosisByStudentId(STUDENT_ID)
+                .orElseThrow();
+
+        assertThat(result.earnedMajorCredits()).isZero();
+        assertThat(result.earnedGeneralCredits()).isEqualTo(2);
+        assertThat(result.earnedTotalCredits()).isEqualTo(2);
+    }
+
+    @Test
     void checksStudentOwnershipAndAdvisorRelationshipFromPersistedData() {
         assertThat(graduationCreditQueryRepository.isStudentOwnedByUser(STUDENT_ID, STUDENT_USER_ID)).isTrue();
         assertThat(graduationCreditQueryRepository.isStudentOwnedByUser(STUDENT_ID, 99999L)).isFalse();
