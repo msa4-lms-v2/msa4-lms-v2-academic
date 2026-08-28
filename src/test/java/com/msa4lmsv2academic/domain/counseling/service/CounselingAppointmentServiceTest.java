@@ -53,12 +53,19 @@ class CounselingAppointmentServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private CounselingNotificationService notificationService;
+
     private CounselingAppointmentService service;
 
     @BeforeEach
     void setUp() {
         service = new CounselingAppointmentService(
-                appointmentRepository, availabilityRepository, participantQueryRepository, auditLogService
+                appointmentRepository,
+                availabilityRepository,
+                participantQueryRepository,
+                auditLogService,
+                notificationService
         );
     }
 
@@ -115,7 +122,7 @@ class CounselingAppointmentServiceTest {
     @Test
     void onlyAssignedProfessorCanCompleteAppointment() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> service.changeStatus(
                 51L,
@@ -127,7 +134,7 @@ class CounselingAppointmentServiceTest {
     @Test
     void assignedProfessorConfirmsAppointmentAndRecordsAudit() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
         when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
 
         var result = service.changeStatus(
@@ -151,12 +158,17 @@ class CounselingAppointmentServiceTest {
                 isNull(),
                 isNull()
         );
+        verify(notificationService).createForStatusChange(
+                appointment,
+                CounselingAppointmentStatus.PENDING,
+                "요청한 시간에 온라인 상담을 진행하겠습니다."
+        );
     }
 
     @Test
     void professorMustProvideReasonWhenConfirmingAppointment() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> service.changeStatus(
                 51L,
@@ -169,7 +181,7 @@ class CounselingAppointmentServiceTest {
     @Test
     void professorMustProvideReasonWhenRejectingAppointment() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> service.changeStatus(
                 51L,
@@ -182,7 +194,7 @@ class CounselingAppointmentServiceTest {
     @Test
     void professorCannotCancelStudentAppointment() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> service.changeStatus(
                 51L,
@@ -195,7 +207,7 @@ class CounselingAppointmentServiceTest {
     @Test
     void studentCancelsOwnAppointmentAndRecordsAudit() {
         CounselingAppointment appointment = appointment();
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
         when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
 
         var result = service.changeStatus(
@@ -216,13 +228,18 @@ class CounselingAppointmentServiceTest {
                 isNull(),
                 isNull()
         );
+        verify(notificationService).createForStatusChange(
+                appointment,
+                CounselingAppointmentStatus.PENDING,
+                null
+        );
     }
 
     @Test
     void professorCompletesConfirmedAppointmentWithOnlineAnswer() {
         CounselingAppointment appointment = appointment();
         appointment.changeStatus(CounselingAppointmentStatus.CONFIRMED, null);
-        when(appointmentRepository.findById(51L)).thenReturn(Optional.of(appointment));
+        when(appointmentRepository.findByIdForUpdate(51L)).thenReturn(Optional.of(appointment));
         when(appointmentRepository.saveAndFlush(appointment)).thenReturn(appointment);
 
         var result = service.changeStatus(
@@ -246,6 +263,11 @@ class CounselingAppointmentServiceTest {
                 eq("수강 계획을 확인한 뒤 전공필수 과목부터 신청하세요."),
                 isNull(),
                 isNull()
+        );
+        verify(notificationService).createForStatusChange(
+                appointment,
+                CounselingAppointmentStatus.CONFIRMED,
+                "수강 계획을 확인한 뒤 전공필수 과목부터 신청하세요."
         );
     }
 

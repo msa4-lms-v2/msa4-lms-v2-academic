@@ -51,6 +51,7 @@ public class CounselingAppointmentService {
     private final CounselorAvailabilityRepository availabilityRepository;
     private final CounselingParticipantQueryRepository participantQueryRepository;
     private final AuditLogService auditLogService;
+    private final CounselingNotificationService notificationService;
 
     public PageResponseDTO<CounselingAppointmentResponseDTO> search(
             CounselingAppointmentSearchRequestDTO request,
@@ -137,7 +138,7 @@ public class CounselingAppointmentService {
             CurrentUser currentUser
     ) {
         validateAuthenticatedRole(currentUser);
-        CounselingAppointment appointment = getAppointment(appointmentId);
+        CounselingAppointment appointment = getAppointmentForUpdate(appointmentId);
         String note = normalizeNullable(request.professorNote(), MAX_NOTE_LENGTH, "교수 메모");
 
         if ("STUDENT".equals(currentUser.role())) {
@@ -147,6 +148,7 @@ public class CounselingAppointmentService {
         } else {
             throw new CounselingAccessDeniedException("상담 참여자만 예약 상태를 변경할 수 있습니다.");
         }
+        CounselingAppointmentStatus previousStatus = appointment.getStatus();
         Map<String, Object> beforeValue = auditSnapshot(appointment);
 
         try {
@@ -166,6 +168,7 @@ public class CounselingAppointmentService {
                 null,
                 null
         );
+        notificationService.createForStatusChange(saved, previousStatus, note);
         return CounselingAppointmentResponseDTO.from(saved);
     }
 
@@ -174,6 +177,14 @@ public class CounselingAppointmentService {
             throw new InvalidCounselingRequestException("appointmentId는 양수여야 합니다.");
         }
         return appointmentRepository.findById(appointmentId)
+                .orElseThrow(CounselingAppointmentNotFoundException::new);
+    }
+
+    private CounselingAppointment getAppointmentForUpdate(Long appointmentId) {
+        if (appointmentId == null || appointmentId <= 0) {
+            throw new InvalidCounselingRequestException("appointmentId는 양수여야 합니다.");
+        }
+        return appointmentRepository.findByIdForUpdate(appointmentId)
                 .orElseThrow(CounselingAppointmentNotFoundException::new);
     }
 

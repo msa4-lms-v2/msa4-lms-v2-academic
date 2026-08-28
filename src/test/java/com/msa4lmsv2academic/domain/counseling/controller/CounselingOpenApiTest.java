@@ -25,6 +25,9 @@ class CounselingOpenApiTest extends MySqlIntegrationTest {
         String appointmentsPath = "$['paths']['/api/academic/counseling/appointments']";
         String appointmentPath = "$['paths']['/api/academic/counseling/appointments/{appointmentId}']";
         String statusPath = "$['paths']['/api/academic/counseling/appointments/{appointmentId}/status']";
+        String notificationsPath = "$['paths']['/api/academic/counseling/notifications']";
+        String notificationReadPath =
+                "$['paths']['/api/academic/counseling/notifications/{notificationId}/read']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
@@ -40,6 +43,14 @@ class CounselingOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(statusPath + "['patch']['responses']['403']").exists())
                 .andExpect(jsonPath(statusPath + "['patch']['responses']['404']").exists())
                 .andExpect(jsonPath(statusPath + "['patch']['responses']['409']").exists())
+                .andExpect(jsonPath(notificationsPath + "['get']").exists())
+                .andExpect(jsonPath(notificationsPath + "['get']['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(notificationReadPath + "['patch']").exists())
+                .andExpect(jsonPath(notificationReadPath + "['patch']['responses']['200']").exists())
+                .andExpect(jsonPath(notificationReadPath + "['patch']['responses']['400']").exists())
+                .andExpect(jsonPath(notificationReadPath + "['patch']['responses']['401']").exists())
+                .andExpect(jsonPath(notificationReadPath + "['patch']['responses']['403']").exists())
+                .andExpect(jsonPath(notificationReadPath + "['patch']['responses']['404']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/counseling/records']").doesNotExist())
                 .andExpect(jsonPath(appointmentsPath + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(appointmentsPath + "['get']['security'][0]['bearerAuth']").isArray())

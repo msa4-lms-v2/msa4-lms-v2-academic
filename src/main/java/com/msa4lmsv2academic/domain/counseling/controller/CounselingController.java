@@ -3,10 +3,13 @@ package com.msa4lmsv2academic.domain.counseling.controller;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingAppointmentCreateRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingAppointmentSearchRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingAppointmentStatusRequestDTO;
+import com.msa4lmsv2academic.domain.counseling.request.CounselingNotificationSearchRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselorAvailabilityReplaceRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.response.CounselingAppointmentResponseDTO;
+import com.msa4lmsv2academic.domain.counseling.response.CounselingNotificationResponseDTO;
 import com.msa4lmsv2academic.domain.counseling.response.CounselorAvailabilityResponseDTO;
 import com.msa4lmsv2academic.domain.counseling.service.CounselingAppointmentService;
+import com.msa4lmsv2academic.domain.counseling.service.CounselingNotificationService;
 import com.msa4lmsv2academic.domain.counseling.service.CounselorAvailabilityService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
@@ -49,6 +52,7 @@ public class CounselingController {
 
     private final CounselorAvailabilityService availabilityService;
     private final CounselingAppointmentService appointmentService;
+    private final CounselingNotificationService notificationService;
 
     @Operation(
             summary = "상담 가능 시간 조회",
@@ -168,5 +172,53 @@ public class CounselingController {
         return ResponseEntity.ok(GlobalResponseDTO.success(
                 appointmentService.changeStatus(appointmentId, request, currentUser)
         ));
+    }
+
+    @Operation(
+            summary = "내 상담 알림 목록 조회",
+            description = "학생과 교수가 본인에게 전달된 상담 변경·취소 알림을 최신순으로 조회합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "페이지 조건 오류",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "상담 참여자 권한 필요",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+    })
+    @GetMapping("/notifications")
+    @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<CounselingNotificationResponseDTO>>> searchNotifications(
+            @ParameterObject @Valid @ModelAttribute CounselingNotificationSearchRequestDTO request,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(notificationService.search(request, currentUser)));
+    }
+
+    @Operation(
+            summary = "상담 알림 읽음 처리",
+            description = "학생과 교수가 본인에게 전달된 상담 알림을 읽음으로 변경합니다. 반복 호출해도 같은 결과를 반환합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "읽음 처리 성공"),
+            @ApiResponse(responseCode = "400", description = "알림 ID 오류",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "상담 참여자 권한 필요",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "본인 소유 알림 없음",
+                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+    })
+    @PatchMapping("/notifications/{notificationId}/read")
+    @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
+    public ResponseEntity<GlobalResponseDTO<CounselingNotificationResponseDTO>> markNotificationRead(
+            @PathVariable @Positive Long notificationId,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(notificationService.markRead(notificationId, currentUser)));
     }
 }
