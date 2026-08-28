@@ -87,6 +87,14 @@ public class AcademicStatusHistory {
         this.sourceId = sourceId;
     }
 
+    public static AcademicStatusHistory leaveChanged(
+            Student student, AcademicStatus previousStatus, User changedBy, Long requestId
+    ) {
+        return new AcademicStatusHistory(student, previousStatus, student.getAcademicStatus(),
+                student.getAcademicStatus() == AcademicStatus.ON_LEAVE ? "휴학 승인" : "복학 승인",
+                changedBy, "LEAVE_REQUEST", requestId);
+    }
+
     public static AcademicStatusHistory withdrawalApproved(
             Student student,
             AcademicStatus previousStatus,
