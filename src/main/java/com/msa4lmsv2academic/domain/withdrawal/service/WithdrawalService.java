@@ -1,5 +1,7 @@
 package com.msa4lmsv2academic.domain.withdrawal.service;
 
+import com.msa4lmsv2academic.domain.leaverequest.service.LeaveAuditContext;
+import com.msa4lmsv2academic.domain.leaverequest.service.LeaveWithdrawalCancellationService;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -53,6 +55,7 @@ public class WithdrawalService {
     private final WithdrawalIdempotencyService idempotencyService;
     private final WithdrawalPolicy policy;
     private final WithdrawalAuditService auditService;
+    private final LeaveWithdrawalCancellationService leaveCancellationService;
 
     public PageResponseDTO<WithdrawalResponseDTO> search(
             WithdrawalSearchRequestDTO request,
@@ -208,6 +211,8 @@ public class WithdrawalService {
                 historyRepository.saveAndFlush(AcademicStatusHistory.withdrawalApproved(
                         student, previousStatus, processor, request.getId()
                 ));
+                leaveCancellationService.cancelPending(student.getId(), request.getId(), currentUser,
+                        new LeaveAuditContext(context.requestId(), context.ipAddress()));
             } else {
                 request.reject(processor, requiredRejectReason(review.rejectReason()), now);
             }

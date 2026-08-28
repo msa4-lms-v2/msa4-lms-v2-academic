@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
+import com.msa4lmsv2academic.domain.leaverequest.service.LeaveWithdrawalCancellationService;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalQueryRepository;
@@ -50,7 +51,8 @@ class WithdrawalServiceTest {
                 queryRepository,
                 idempotencyService,
                 new WithdrawalPolicy(),
-                new WithdrawalAuditService(auditLogService)
+                new WithdrawalAuditService(auditLogService),
+                mock(LeaveWithdrawalCancellationService.class)
         );
     }
 

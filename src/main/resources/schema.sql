@@ -737,3 +737,56 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
     INDEX idx_idempotency_keys_expiry (status, expires_at),
     CONSTRAINT fk_idempotency_keys_user FOREIGN KEY (requester_user_id) REFERENCES users (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 기존 사용자 academic_requests 테이블과 동일한 구조를 재사용합니다. 기존 테이블을 ALTER/DROP하지 않습니다.
+CREATE TABLE IF NOT EXISTS academic_requests (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    student_id BIGINT NOT NULL,
+    request_type VARCHAR(20) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    target_year SMALLINT NOT NULL,
+    target_semester TINYINT NOT NULL,
+    return_year SMALLINT NULL,
+    return_semester TINYINT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    reject_reason VARCHAR(500) NULL,
+    cancel_reason VARCHAR(500) NULL,
+    attachment_original_name VARCHAR(255) NULL,
+    attachment_stored_name VARCHAR(255) NULL,
+    attachment_content_type VARCHAR(100) NULL,
+    attachment_size BIGINT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    active_student_id BIGINT GENERATED ALWAYS AS (
+        CASE WHEN status = 'PENDING' THEN student_id ELSE NULL END
+    ) STORED,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_academic_requests_active_student UNIQUE (active_student_id),
+    INDEX idx_academic_requests_student_status (student_id, status),
+    INDEX idx_academic_requests_status_created (status, created_at),
+    CONSTRAINT fk_academic_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_academic_requests_target_semester CHECK (target_semester IN (1, 2)),
+    CONSTRAINT ck_academic_requests_return_semester CHECK (return_semester IS NULL OR return_semester IN (1, 2))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 학기별 수강신청 기간과 분리한 휴·복학 접수/승인 기간. semester_id는 적용 학기입니다.
+CREATE TABLE IF NOT EXISTS leave_request_periods (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    semester_id BIGINT NOT NULL,
+    request_type VARCHAR(20) NOT NULL,
+    start_at DATETIME NOT NULL,
+    end_at DATETIME NOT NULL,
+    approval_start_at DATETIME NOT NULL,
+    approval_end_at DATETIME NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_leave_request_periods_semester_type UNIQUE (semester_id, request_type),
+    CONSTRAINT fk_leave_request_periods_semester FOREIGN KEY (semester_id) REFERENCES semesters (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_leave_request_periods_request_type CHECK (
+        request_type IN ('GENERAL_LEAVE', 'GENERAL_RETURN', 'MILITARY_LEAVE', 'MILITARY_RETURN')
+    ),
+    CONSTRAINT ck_leave_request_periods_receipt CHECK (start_at < end_at),
+    CONSTRAINT ck_leave_request_periods_approval CHECK (approval_start_at < approval_end_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
