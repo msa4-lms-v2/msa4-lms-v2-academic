@@ -30,11 +30,23 @@ public class EnrollmentHistory {
     private LocalDateTime createdAt;
 
     public static EnrollmentHistory from(Enrollment enrollment) {
+        return create(enrollment, EnrollmentHistoryAction.ENROLL, enrollment.getEnrolledAt());
+    }
+
+    public static EnrollmentHistory fromCancellation(Enrollment enrollment, LocalDateTime cancelledAt) {
+        return create(enrollment, EnrollmentHistoryAction.CANCEL, cancelledAt);
+    }
+
+    private static EnrollmentHistory create(
+            Enrollment enrollment,
+            EnrollmentHistoryAction action,
+            LocalDateTime createdAt
+    ) {
         EnrollmentHistory history = new EnrollmentHistory();
         history.student = enrollment.getStudent();
         history.lecture = enrollment.getLecture();
-        history.action = EnrollmentHistoryAction.ENROLL;
-        history.createdAt = enrollment.getEnrolledAt();
+        history.action = action;
+        history.createdAt = createdAt;
         return history;
     }
 }
