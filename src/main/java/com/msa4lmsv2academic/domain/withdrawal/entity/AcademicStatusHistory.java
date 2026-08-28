@@ -95,6 +95,14 @@ public class AcademicStatusHistory {
                 changedBy, "LEAVE_REQUEST", requestId);
     }
 
+    public static AcademicStatusHistory dismissalConfirmed(
+            Student student, AcademicStatus previousStatus, User changedBy, Long dismissalId
+    ) {
+        // 학생/교수에게 보이는 학적 이력에는 관리자용 상세 제적 근거를 복사하지 않습니다.
+        return new AcademicStatusHistory(student, previousStatus, AcademicStatus.DISMISSED,
+                "관리자 제적 확정", changedBy, "DISMISSAL", dismissalId);
+    }
+
     public static AcademicStatusHistory withdrawalApproved(
             Student student,
             AcademicStatus previousStatus,

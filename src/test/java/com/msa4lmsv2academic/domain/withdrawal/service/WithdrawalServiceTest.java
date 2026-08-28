@@ -52,7 +52,8 @@ class WithdrawalServiceTest {
                 idempotencyService,
                 new WithdrawalPolicy(),
                 new WithdrawalAuditService(auditLogService),
-                mock(LeaveWithdrawalCancellationService.class)
+                mock(LeaveWithdrawalCancellationService.class),
+                mock(com.msa4lmsv2academic.domain.dismissal.service.DismissalWithdrawalGuard.class)
         );
     }
 

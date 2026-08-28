@@ -19,4 +19,8 @@ public class AcademicStatusHistoryWriter {
     public void recordLeave(Student student, AcademicStatus previous, User actor, Long requestId) {
         repository.saveAndFlush(AcademicStatusHistory.leaveChanged(student, previous, actor, requestId));
     }
+
+    public void recordDismissal(Student student, AcademicStatus previous, User actor, Long dismissalId) {
+        repository.saveAndFlush(AcademicStatusHistory.dismissalConfirmed(student, previous, actor, dismissalId));
+    }
 }
