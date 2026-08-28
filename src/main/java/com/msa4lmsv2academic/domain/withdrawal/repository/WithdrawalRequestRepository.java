@@ -17,6 +17,10 @@ public interface WithdrawalRequestRepository extends JpaRepository<WithdrawalReq
 
     boolean existsByStudentIdAndStatusIn(Long studentId, Collection<WithdrawalStatus> statuses);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from WithdrawalRequest r where r.student.id = :studentId and r.status in :statuses order by r.id")
+    java.util.List<WithdrawalRequest> findActiveForUpdate(Long studentId, Collection<WithdrawalStatus> statuses);
+
     @Query("SELECT request.student.id FROM WithdrawalRequest request WHERE request.id = :id")
     Optional<Long> findStudentIdById(@Param("id") Long id);
 

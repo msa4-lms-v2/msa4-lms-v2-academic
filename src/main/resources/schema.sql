@@ -790,3 +790,41 @@ CREATE TABLE IF NOT EXISTS leave_request_periods (
     CONSTRAINT ck_leave_request_periods_receipt CHECK (start_at < end_at),
     CONSTRAINT ck_leave_request_periods_approval CHECK (approval_start_at < approval_end_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 관리자 제적. 학생 자퇴와 분리하며 확정 시 학적 이력/감사/진행 중 신청 취소를 함께 저장합니다.
+CREATE TABLE IF NOT EXISTS dismissal_candidates (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    version BIGINT NOT NULL DEFAULT 0,
+    student_id BIGINT NOT NULL,
+    reason_type VARCHAR(30) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    registered_by BIGINT NOT NULL,
+    processed_by BIGINT NULL DEFAULT NULL,
+    processed_at DATETIME NULL DEFAULT NULL,
+    cancel_reason VARCHAR(500) NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    active_student_id BIGINT GENERATED ALWAYS AS (
+        CASE WHEN status = 'PENDING' THEN student_id ELSE NULL END
+    ) STORED,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_dismissal_candidates_active_student UNIQUE (active_student_id),
+    INDEX idx_dismissal_candidates_student_status (student_id, status),
+    INDEX idx_dismissal_candidates_status_created (status, created_at),
+    CONSTRAINT fk_dismissal_candidates_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_dismissal_candidates_registrant FOREIGN KEY (registered_by) REFERENCES users (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_dismissal_candidates_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_dismissal_candidates_version CHECK (version >= 0),
+    CONSTRAINT ck_dismissal_candidates_reason_type CHECK (
+        reason_type IN ('LEAVE_EXPIRED', 'NON_REGISTRATION', 'DISCIPLINARY', 'ACADEMIC_WARNING', 'ACADEMIC_WARNING_REPEAT')
+    ),
+    CONSTRAINT ck_dismissal_candidates_status CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED')),
+    CONSTRAINT ck_dismissal_candidates_reason CHECK (CHAR_LENGTH(TRIM(reason)) > 0),
+    CONSTRAINT ck_dismissal_candidates_processing CHECK (
+        (status = 'PENDING' AND processed_by IS NULL AND processed_at IS NULL AND cancel_reason IS NULL)
+        OR (status = 'CONFIRMED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL AND cancel_reason IS NULL)
+        OR (status = 'CANCELLED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL
+            AND cancel_reason IS NOT NULL AND CHAR_LENGTH(TRIM(cancel_reason)) > 0)
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

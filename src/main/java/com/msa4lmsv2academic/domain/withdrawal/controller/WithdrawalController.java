@@ -142,6 +142,7 @@ public class WithdrawalController {
                     + "승인 시 학적을 WITHDRAWN으로 변경하고 학적 이력·감사·멱등 응답을 같은 transaction에 저장합니다. "
                     + "같은 학생의 PENDING 휴·복학 신청은 자동 취소하며 자동 취소·감사 실패 시 자퇴 승인도 함께 롤백합니다. "
                     + "이미 승인·반려·취소된 휴·복학 신청과 증빙은 보존합니다. "
+                    + "같은 학생의 PENDING 제적 후보가 있으면 최종 승인을 차단합니다. 후보 취소 후 다시 승인해야 합니다. "
                     + "반려 사유는 필수이며 희망일 전 반려는 가능합니다. 자동 승인·소급·일반 승인 취소는 제공하지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "200", description = "00: 정상 처리 또는 저장된 성공 응답 재생")

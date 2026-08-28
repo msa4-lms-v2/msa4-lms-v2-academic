@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.withdrawal.service;
 
 import com.msa4lmsv2academic.domain.leaverequest.service.LeaveAuditContext;
+import com.msa4lmsv2academic.domain.dismissal.service.DismissalWithdrawalGuard;
 import com.msa4lmsv2academic.domain.leaverequest.service.LeaveWithdrawalCancellationService;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
@@ -56,6 +57,7 @@ public class WithdrawalService {
     private final WithdrawalPolicy policy;
     private final WithdrawalAuditService auditService;
     private final LeaveWithdrawalCancellationService leaveCancellationService;
+    private final DismissalWithdrawalGuard dismissalGuard;
 
     public PageResponseDTO<WithdrawalResponseDTO> search(
             WithdrawalSearchRequestDTO request,
@@ -202,6 +204,7 @@ public class WithdrawalService {
             if (Boolean.TRUE.equals(review.approved())) {
                 LocalDate effectiveDate = requiredEffectiveDate(review.effectiveDate());
                 Student student = request.getStudent(); // getForUpdate에서 학생 행부터 잠급니다.
+                dismissalGuard.validateNoPendingCandidate(student.getId());
                 policy.validateAcademicStatus(student.getAcademicStatus());
                 policy.validateFinalDate(effectiveDate, request.getRequestedEffectiveDate(), now.toLocalDate());
                 AcademicStatus previousStatus = student.getAcademicStatus();
