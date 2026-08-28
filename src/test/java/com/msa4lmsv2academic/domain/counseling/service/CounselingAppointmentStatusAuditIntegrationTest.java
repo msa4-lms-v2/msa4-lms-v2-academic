@@ -109,6 +109,12 @@ class CounselingAppointmentStatusAuditIntegrationTest extends MySqlIntegrationTe
         assertThat(audit.getBeforeValue()).containsEntry("status", "PENDING");
         assertThat(audit.getAfterValue()).containsEntry("status", "REJECTED");
         assertThat(audit.getCreatedAt()).isNotNull();
+        assertNotification(
+                STUDENT_USER_ID,
+                "APPOINTMENT_REJECTED",
+                "PENDING",
+                "REJECTED"
+        );
     }
 
     @Test
@@ -124,6 +130,12 @@ class CounselingAppointmentStatusAuditIntegrationTest extends MySqlIntegrationTe
         assertThat(audit.getActorId()).isEqualTo(STUDENT_USER_ID);
         assertThat(audit.getBeforeValue()).containsEntry("status", "PENDING");
         assertThat(audit.getAfterValue()).containsEntry("status", "CANCELLED");
+        assertNotification(
+                PROFESSOR_USER_ID,
+                "APPOINTMENT_CANCELLED",
+                "PENDING",
+                "CANCELLED"
+        );
 
         assertThatThrownBy(() -> counselingAppointmentService.changeStatus(
                 APPOINTMENT_ID,
@@ -139,5 +151,25 @@ class CounselingAppointmentStatusAuditIntegrationTest extends MySqlIntegrationTe
                 .filter(audit -> Long.valueOf(APPOINTMENT_ID).equals(audit.getTargetId()))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    private void assertNotification(
+            long recipientUserId,
+            String notificationType,
+            String previousStatus,
+            String newStatus
+    ) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM counseling_notifications "
+                        + "WHERE appointment_id = ? AND recipient_user_id = ? "
+                        + "AND notification_type = ? AND previous_status = ? AND new_status = ?",
+                Integer.class,
+                APPOINTMENT_ID,
+                recipientUserId,
+                notificationType,
+                previousStatus,
+                newStatus
+        );
+        assertThat(count).isEqualTo(1);
     }
 }
