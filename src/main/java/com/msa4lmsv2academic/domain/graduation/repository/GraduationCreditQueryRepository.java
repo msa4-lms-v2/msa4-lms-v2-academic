@@ -12,6 +12,7 @@ import com.msa4lmsv2academic.domain.course.entity.CompletionType;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.enrollment.entity.GradeStatus;
 import com.msa4lmsv2academic.domain.graduation.entity.GraduationCreditGradePolicy;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.repository.ProfessorStudentScope;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
@@ -123,31 +124,50 @@ public class GraduationCreditQueryRepository {
         if (studentIds == null || studentIds.isEmpty()) {
             return Map.of();
         }
-        List<Tuple> completedCourses = jpaQueryFactory
-                .select(student.id, course.id, course.credits, course.completionType)
+        List<Tuple> openedAttempts = jpaQueryFactory
+                .select(
+                        student.id,
+                        course.id,
+                        course.credits,
+                        course.completionType,
+                        semester.academicYear,
+                        semester.term,
+                        enrollment.id,
+                        enrollment.letterGrade
+                )
                 .from(enrollment)
                 .join(enrollment.student, student)
                 .join(enrollment.lecture, lecture)
                 .join(lecture.course, course)
+                .join(lecture.semester, semester)
                 .where(
                         student.id.in(studentIds),
                         enrollment.status.eq(EnrollmentStatus.ACTIVE),
-                        enrollment.gradeStatus.eq(GradeStatus.OPENED),
-                        enrollment.letterGrade.in(GraduationCreditGradePolicy.passingGrades())
+                        enrollment.gradeStatus.eq(GradeStatus.OPENED)
                 )
-                .groupBy(student.id, course.id, course.credits, course.completionType)
                 .fetch();
 
-        Map<Long, MutableCreditTotals> totals = new HashMap<>();
-        for (Tuple completedCourse : completedCourses) {
-            Long studentId = completedCourse.get(student.id);
-            Byte credits = completedCourse.get(course.credits);
-            CompletionType completionType = completedCourse.get(course.completionType);
-            if (studentId == null || credits == null || completionType == null) {
+        Map<StudentCourseKey, OpenedAttempt> latestByStudentCourse = new HashMap<>();
+        for (Tuple row : openedAttempts) {
+            OpenedAttempt attempt = openedAttempt(row);
+            if (attempt.studentId() == null || attempt.courseId() == null) {
                 continue;
             }
-            totals.computeIfAbsent(studentId, ignored -> new MutableCreditTotals())
-                    .add(completionType, credits);
+            latestByStudentCourse.merge(
+                    new StudentCourseKey(attempt.studentId(), attempt.courseId()),
+                    attempt,
+                    (left, right) -> compareAttempt(left, right) >= 0 ? left : right
+            );
+        }
+
+        Map<Long, MutableCreditTotals> totals = new HashMap<>();
+        for (OpenedAttempt attempt : latestByStudentCourse.values()) {
+            if (attempt.credits() == null || attempt.completionType() == null
+                    || !GraduationCreditGradePolicy.isPassing(attempt.letterGrade())) {
+                continue;
+            }
+            totals.computeIfAbsent(attempt.studentId(), ignored -> new MutableCreditTotals())
+                    .add(attempt.completionType(), attempt.credits());
         }
 
         Map<Long, EarnedCreditTotals> result = new LinkedHashMap<>();
@@ -280,6 +300,50 @@ public class GraduationCreditQueryRepository {
     private int requiredValue(Tuple requirement, com.querydsl.core.types.Expression<Integer> expression) {
         Integer value = requirement.get(expression);
         return value == null ? 0 : value;
+    }
+
+    private OpenedAttempt openedAttempt(Tuple row) {
+        return new OpenedAttempt(
+                row.get(student.id),
+                row.get(course.id),
+                row.get(course.credits),
+                row.get(course.completionType),
+                row.get(semester.academicYear),
+                row.get(semester.term),
+                row.get(enrollment.id),
+                row.get(enrollment.letterGrade)
+        );
+    }
+
+    private int compareAttempt(OpenedAttempt left, OpenedAttempt right) {
+        int yearComparison = Short.compare(left.academicYear(), right.academicYear());
+        if (yearComparison != 0) {
+            return yearComparison;
+        }
+        int termComparison = Integer.compare(termOrder(left.term()), termOrder(right.term()));
+        if (termComparison != 0) {
+            return termComparison;
+        }
+        return Long.compare(left.enrollmentId(), right.enrollmentId());
+    }
+
+    private int termOrder(SemesterTerm term) {
+        return term == SemesterTerm.SECOND ? 2 : 1;
+    }
+
+    private record StudentCourseKey(Long studentId, Long courseId) {
+    }
+
+    private record OpenedAttempt(
+            Long studentId,
+            Long courseId,
+            Byte credits,
+            CompletionType completionType,
+            short academicYear,
+            SemesterTerm term,
+            Long enrollmentId,
+            String letterGrade
+    ) {
     }
 
     private static final class MutableCreditTotals {
