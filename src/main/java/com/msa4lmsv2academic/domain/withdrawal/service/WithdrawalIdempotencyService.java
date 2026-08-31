@@ -20,7 +20,6 @@ import tools.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(propagation = Propagation.MANDATORY)
 public class WithdrawalIdempotencyService {
     private final AcademicIdempotencyKeyRepository keyRepository;
     private final ObjectMapper objectMapper;
@@ -32,14 +31,18 @@ public class WithdrawalIdempotencyService {
     }
 
     public String hash(Object body) {
+        return digest(objectMapper.writeValueAsBytes(body));
+    }
+
+    public String digest(byte[] bytes) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(objectMapper.writeValueAsBytes(body)));
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
     }
 
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
     public Optional<WithdrawalResponseDTO> replay(String key, Long userId, String endpoint, String hash,
                                                   LocalDateTime now) {
         AcademicIdempotencyKey saved = keyRepository.findByIdempotencyKey(key).orElse(null);
@@ -48,7 +51,6 @@ public class WithdrawalIdempotencyService {
         }
         if (endpoint.equals(saved.getEndpoint()) && saved.getStatus() == IdempotencyStatus.COMPLETED
                 && !saved.getExpiresAt().isAfter(now)) {
-            keyRepository.deleteExpiredCompletedKey(key, endpoint, now);
             return Optional.empty();
         }
         if (!saved.matches(userId, endpoint, hash) || saved.getStatus() != IdempotencyStatus.COMPLETED) {
@@ -57,8 +59,10 @@ public class WithdrawalIdempotencyService {
         return Optional.of(objectMapper.readValue(saved.getResponseSnapshot(), WithdrawalResponseDTO.class));
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public AcademicIdempotencyKey reserve(String key, Long userId, String endpoint, String hash,
                                           LocalDateTime now) {
+        keyRepository.deleteExpiredCompletedKey(key, endpoint, now);
         try {
             return keyRepository.saveAndFlush(AcademicIdempotencyKey.create(key, userId, endpoint, hash, now));
         } catch (DataIntegrityViolationException exception) {
@@ -70,6 +74,7 @@ public class WithdrawalIdempotencyService {
         }
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public void complete(AcademicIdempotencyKey key, WithdrawalResponseDTO response) {
         key.complete(objectMapper.writeValueAsString(response));
         keyRepository.flush();

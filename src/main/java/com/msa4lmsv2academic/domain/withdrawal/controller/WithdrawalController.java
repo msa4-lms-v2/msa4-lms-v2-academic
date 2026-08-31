@@ -3,10 +3,12 @@ package com.msa4lmsv2academic.domain.withdrawal.controller;
 import com.msa4lmsv2academic.domain.withdrawal.request.AdvisorWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.FinalWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCreateRequestDTO;
+import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalAttachmentUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCancelRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalSearchRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.response.WithdrawalResponseDTO;
 import com.msa4lmsv2academic.domain.withdrawal.service.WithdrawalService;
+import com.msa4lmsv2academic.domain.withdrawal.service.WithdrawalEvidenceApplicationService;
 import com.msa4lmsv2academic.domain.withdrawal.service.WithdrawalAuditContext;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
@@ -22,11 +24,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,10 +42,13 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Withdrawals", description = "자퇴 신청·취소와 2단계 승인. 변경 요청의 완료 응답은 같은 사용자·경로·본문·키에 한해 24시간 재생합니다. "
         + "재생은 업무·감사를 다시 실행하지 않으며 이후 상태는 GET으로 확인합니다. 실패는 전체 rollback하고, 만료 후 같은 키도 새 요청으로 검사합니다.")
@@ -48,15 +57,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/academic/withdrawals")
 @RequiredArgsConstructor
 @ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21: 잘못된 ID·사유·본문·멱등 키·페이지·적용일",
+        @ApiResponse(responseCode = "400", description = "E21/E40: 잘못된 ID·사유·본문·멱등 키·페이지·적용일 또는 PDF 형식",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
         @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 인증 정보",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
         @ApiResponse(responseCode = "403", description = "E03: 역할·본인·지도교수 범위 위반",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "E10: 자퇴 신청 없음",
+        @ApiResponse(responseCode = "404", description = "E10: 자퇴 신청 또는 증빙 없음",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
         @ApiResponse(responseCode = "409", description = "E11: 진행 중 신청 중복·상태 충돌·멱등 키 충돌·희망일 이전 승인·학적 변경 불가",
+                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
+        @ApiResponse(responseCode = "413", description = "E41: PDF 10MB 초과",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
         @ApiResponse(responseCode = "500", description = "E80/E99: DB·시스템 오류. 변경 요청은 감사·멱등 응답과 함께 rollback",
                 content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
@@ -64,6 +75,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WithdrawalController {
 
     private final WithdrawalService withdrawalService;
+    private final WithdrawalEvidenceApplicationService evidenceApplicationService;
 
     @Operation(operationId = "searchWithdrawals", summary = "자퇴 신청 목록 조회",
             description = "STUDENT는 본인, PROFESSOR는 현재 배정 지도학생, ADMIN은 전체 신청을 조회합니다. "
@@ -113,6 +125,59 @@ public class WithdrawalController {
         return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(
                 withdrawalService.create(request, key, currentUser, WithdrawalAuditContext.from(httpRequest))
         ));
+    }
+
+    @Operation(operationId = "updateWithdrawalAttachment", summary = "자퇴 증빙 등록·교체",
+            description = "STUDENT 본인은 PENDING 신청의 PDF를 등록·교체하고, ADMIN은 PENDING 또는 ADVISOR_APPROVED 신청을 "
+                    + "예외 처리 사유와 함께 등록·교체합니다. 학생 최초 등록은 request 파트를 생략할 수 있고 감사 사유를 서버가 "
+                    + "자동 기록합니다. 학생 교체와 관리자의 모든 변경은 255자 이하 changeReason이 필수입니다. "
+                    + "10MB 이하의 PDF 확장자·application/pdf MIME·PDF 시그니처를 모두 검증합니다. "
+                    + "변경 전후 파일 메타데이터·처리자·시각·사유를 감사하며 이전 MinIO 파일은 보존합니다. "
+                    + "승인·반려·취소된 종결 신청의 파일은 변경할 수 없습니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponse(responseCode = "200", description = "00: 증빙 등록·교체 성공 또는 저장된 성공 응답 재생")
+    @PutMapping(value = "/{withdrawalId}/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<WithdrawalResponseDTO>> updateAttachment(
+            @Parameter(description = "자퇴 신청 ID", example = "1") @Positive @PathVariable Long withdrawalId,
+            @Parameter(description = "변경 사유 JSON. 학생 최초 등록만 생략 가능")
+            @Valid @RequestPart(value = "request", required = false) WithdrawalAttachmentUpdateRequestDTO request,
+            @Parameter(description = "10MB 이하 PDF", required = true,
+                    schema = @Schema(type = "string", format = "binary"))
+            @RequestPart("file") MultipartFile file,
+            @Parameter(description = "요청별 고유 키. 파일 내용·이름·크기·사유가 모두 같은 재전송에만 완료 응답 재생",
+                    required = true, schema = @Schema(minLength = 1, maxLength = 100),
+                    example = "withdrawal-attachment-001")
+            @RequestHeader(value = "Idempotency-Key", required = false) String key,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(evidenceApplicationService.update(
+                withdrawalId, request, file, key, currentUser, WithdrawalAuditContext.from(httpRequest))));
+    }
+
+    @Operation(operationId = "downloadWithdrawalAttachment", summary = "자퇴 증빙 다운로드",
+            description = "STUDENT 본인, 현재 배정 지도교수 또는 ADMIN만 다운로드합니다. Academic이 권한을 확인한 뒤 "
+                    + "MinIO 파일을 전달하고 저장 키·MinIO URL은 공개하지 않습니다. 첨부가 없으면 E10입니다. "
+                    + "취소·반려·승인 뒤에도 증빙은 보존하며 조회 권한은 유지합니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponse(responseCode = "200", description = "PDF 파일(공통 JSON envelope 미사용)",
+            content = @Content(mediaType = "application/pdf",
+                    schema = @Schema(type = "string", format = "binary")))
+    @GetMapping("/{withdrawalId}/attachment")
+    @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @Parameter(description = "자퇴 신청 ID", example = "1") @Positive @PathVariable Long withdrawalId,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        var download = evidenceApplicationService.download(withdrawalId, currentUser);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.originalName(), StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(download.content());
     }
 
     @Operation(operationId = "reviewWithdrawalByAdvisor", summary = "지도교수 자퇴 신청 검토",

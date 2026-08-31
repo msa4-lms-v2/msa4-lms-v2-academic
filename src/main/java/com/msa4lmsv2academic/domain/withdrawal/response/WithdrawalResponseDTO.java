@@ -31,7 +31,13 @@ public record WithdrawalResponseDTO(
                 example = "학업을 계속하기로 결정했습니다.") String cancelReason,
         @Schema(description = "취소한 학생의 Academic 사용자 ID", nullable = true, minimum = "1", example = "21") Long cancelledBy,
         @Schema(description = "취소 시각(KST)", nullable = true, format = "date-time", example = "2026-09-01T11:00:00")
-        LocalDateTime cancelledAt
+        LocalDateTime cancelledAt,
+        @Schema(description = "현재 연결된 PDF 원본 파일명. MinIO 저장 키는 응답하지 않음", nullable = true,
+                maxLength = 255, example = "자퇴증빙.pdf") String attachmentOriginalName,
+        @Schema(description = "현재 연결된 증빙 MIME 타입", nullable = true, maxLength = 100,
+                example = "application/pdf") String attachmentContentType,
+        @Schema(description = "현재 연결된 증빙 크기(byte), 최대 10485760", nullable = true,
+                maximum = "10485760", example = "1024") Long attachmentSize
 ) {
     public static WithdrawalResponseDTO from(WithdrawalRequest request) {
         return new WithdrawalResponseDTO(
@@ -42,6 +48,7 @@ public record WithdrawalResponseDTO(
                 request.getProcessedBy() == null ? null : request.getProcessedBy().getId(),
                 request.getProcessedAt(), request.getRejectReason(), request.getCreatedAt(), request.getUpdatedAt(),
                 request.getCancelReason(), request.getCancelledBy() == null ? null : request.getCancelledBy().getId(),
-                request.getCancelledAt());
+                request.getCancelledAt(), request.getAttachmentOriginalName(), request.getAttachmentContentType(),
+                request.getAttachmentSize());
     }
 }

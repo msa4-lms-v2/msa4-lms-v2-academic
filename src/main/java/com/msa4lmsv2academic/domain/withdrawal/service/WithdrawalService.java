@@ -15,12 +15,14 @@ import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalQueryReposit
 import com.msa4lmsv2academic.domain.withdrawal.request.AdvisorWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.FinalWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCreateRequestDTO;
+import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalAttachmentUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCancelRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalSearchRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.response.WithdrawalResponseDTO;
 import com.msa4lmsv2academic.global.error.DuplicateWithdrawalRequestException;
 import com.msa4lmsv2academic.global.error.InvalidWithdrawalRequestException;
 import com.msa4lmsv2academic.global.error.WithdrawalAccessDeniedException;
+import com.msa4lmsv2academic.global.error.WithdrawalAttachmentNotFoundException;
 import com.msa4lmsv2academic.global.error.WithdrawalNotFoundException;
 import com.msa4lmsv2academic.global.error.WithdrawalStateConflictException;
 import com.msa4lmsv2academic.global.idempotency.AcademicIdempotencyKey;
@@ -32,6 +34,7 @@ import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -86,6 +89,75 @@ public class WithdrawalService {
                 .orElseThrow(WithdrawalNotFoundException::new);
         validateReadable(request, currentUser);
         return toResponse(request);
+    }
+
+    public Optional<WithdrawalResponseDTO> preflightAttachmentUpdate(
+            Long withdrawalId,
+            WithdrawalAttachmentUpdateRequestDTO update,
+            String key,
+            String hash,
+            CurrentUser currentUser
+    ) {
+        validateAttachmentWriter(currentUser);
+        validateId(withdrawalId);
+        idempotencyService.validateKey(key);
+        String endpoint = attachmentEndpoint(withdrawalId);
+        var replay = idempotencyService.replay(key, currentUser.id(), endpoint, hash, now());
+        if (replay.isPresent()) {
+            return replay;
+        }
+        WithdrawalRequest request = withdrawalRepository.findDetailById(withdrawalId)
+                .orElseThrow(WithdrawalNotFoundException::new);
+        attachmentChangeReason(request, update, currentUser);
+        return Optional.empty();
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public WithdrawalResponseDTO updateAttachment(
+            Long withdrawalId,
+            WithdrawalAttachmentUpdateRequestDTO update,
+            WithdrawalAttachment attachment,
+            String key,
+            String hash,
+            CurrentUser currentUser,
+            WithdrawalAuditContext context
+    ) {
+        validateAttachmentWriter(currentUser);
+        validateId(withdrawalId);
+        idempotencyService.validateKey(key);
+        String endpoint = attachmentEndpoint(withdrawalId);
+        var replay = idempotencyService.replay(key, currentUser.id(), endpoint, hash, now());
+        if (replay.isPresent()) {
+            return replay.orElseThrow();
+        }
+
+        WithdrawalRequest request = getForUpdate(withdrawalId);
+        boolean replacing = request.hasAttachment();
+        String reason = attachmentChangeReason(request, update, currentUser);
+        AcademicIdempotencyKey reserved = idempotencyService.reserve(
+                key, currentUser.id(), endpoint, hash, now());
+        Map<String, Object> before = auditService.snapshot(request);
+        try {
+            request.updateAttachment(attachment.originalName(), attachment.storedName(),
+                    attachment.contentType(), attachment.size());
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidWithdrawalRequestException("유효한 자퇴 증빙 메타데이터가 필요합니다.");
+        }
+        String action = attachmentAction(replacing, currentUser);
+        return finish(request, reserved, before, action, reason, currentUser, context);
+    }
+
+    public WithdrawalAttachment attachment(Long withdrawalId, CurrentUser currentUser) {
+        validateUser(currentUser);
+        validateId(withdrawalId);
+        WithdrawalRequest request = withdrawalRepository.findDetailById(withdrawalId)
+                .orElseThrow(WithdrawalNotFoundException::new);
+        validateReadable(request, currentUser);
+        if (!request.hasAttachment()) {
+            throw new WithdrawalAttachmentNotFoundException();
+        }
+        return new WithdrawalAttachment(request.getAttachmentOriginalName(), request.getAttachmentStoredName(),
+                request.getAttachmentContentType(), request.getAttachmentSize());
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -277,6 +349,52 @@ public class WithdrawalService {
         if (!readable) {
             throw new WithdrawalAccessDeniedException("자퇴 신청 조회 권한이 없습니다.");
         }
+    }
+
+    private String attachmentChangeReason(WithdrawalRequest request, WithdrawalAttachmentUpdateRequestDTO update,
+                                          CurrentUser currentUser) {
+        boolean admin = "ADMIN".equals(currentUser.role());
+        if ("STUDENT".equals(currentUser.role())) {
+            if (!request.getStudent().getUser().getId().equals(currentUser.id())) {
+                throw new WithdrawalAccessDeniedException("본인의 자퇴 신청 증빙만 변경할 수 있습니다.");
+            }
+            if (request.getStatus() != WithdrawalStatus.PENDING) {
+                throw new WithdrawalStateConflictException("학생은 PENDING 상태의 자퇴 증빙만 변경할 수 있습니다.");
+            }
+        } else if (admin) {
+            if (request.getStatus() != WithdrawalStatus.PENDING
+                    && request.getStatus() != WithdrawalStatus.ADVISOR_APPROVED) {
+                throw new WithdrawalStateConflictException(
+                        "관리자는 PENDING 또는 ADVISOR_APPROVED 상태의 자퇴 증빙만 변경할 수 있습니다.");
+            }
+        }
+
+        if (!admin && !request.hasAttachment()) {
+            return "자퇴 증빙 최초 등록";
+        }
+        if (update == null) {
+            throw new InvalidWithdrawalRequestException("증빙 교체 또는 관리자 변경에는 changeReason이 필요합니다.");
+        }
+        return requiredReason(update.changeReason(), 255);
+    }
+
+    private String attachmentAction(boolean replacing, CurrentUser currentUser) {
+        if ("ADMIN".equals(currentUser.role())) {
+            return replacing ? "WITHDRAWAL_ATTACHMENT_REPLACED_BY_ADMIN"
+                    : "WITHDRAWAL_ATTACHMENT_CREATED_BY_ADMIN";
+        }
+        return replacing ? "WITHDRAWAL_ATTACHMENT_REPLACED" : "WITHDRAWAL_ATTACHMENT_CREATED";
+    }
+
+    private void validateAttachmentWriter(CurrentUser currentUser) {
+        validateUser(currentUser);
+        if (!("STUDENT".equals(currentUser.role()) || "ADMIN".equals(currentUser.role()))) {
+            throw new WithdrawalAccessDeniedException("자퇴 증빙 변경 권한이 없습니다.");
+        }
+    }
+
+    private String attachmentEndpoint(Long withdrawalId) {
+        return "PUT /api/academic/withdrawals/" + withdrawalId + "/attachment";
     }
 
     private WithdrawalResponseDTO toResponse(WithdrawalRequest request) {

@@ -175,6 +175,10 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
     cancel_reason VARCHAR(255) NULL DEFAULT NULL,
     cancelled_by BIGINT NULL DEFAULT NULL,
     cancelled_at DATETIME NULL DEFAULT NULL,
+    attachment_original_name VARCHAR(255) NULL,
+    attachment_stored_name VARCHAR(255) NULL,
+    attachment_content_type VARCHAR(100) NULL,
+    attachment_size BIGINT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     active_student_id BIGINT GENERATED ALWAYS AS (

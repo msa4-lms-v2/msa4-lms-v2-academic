@@ -11,8 +11,10 @@ import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalStatus;
 import com.msa4lmsv2academic.domain.withdrawal.request.*;
 import com.msa4lmsv2academic.domain.withdrawal.response.WithdrawalResponseDTO;
 import com.msa4lmsv2academic.global.error.*;
+import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -24,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.util.AopTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,10 +43,12 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
     private static final WithdrawalAuditContext CONTEXT = new WithdrawalAuditContext("withdrawal-test", "127.0.0.1");
     private static final String URL = "/api/academic/withdrawals";
     @Autowired private WithdrawalService service;
+    @Autowired private WithdrawalEvidenceApplicationService evidenceApplication;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper mapper;
     @Autowired private WithdrawalIdempotencyCleanupService cleanupService;
+    @MockitoBean private FileStorageService storage;
     @MockitoSpyBean private AuditLogService audit;
 
     @BeforeEach
@@ -57,6 +63,9 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("INSERT INTO professors (id, version, user_id, hire_year, department_id) VALUES (180001, 0, 180013, 2020, 180001)");
         jdbc.update("INSERT INTO students (id, user_id, department_id, grade_level, admission_year, academic_status, advisor_id) VALUES "
                 + "(180001, 180011, 180001, 3, 2024, 'ENROLLED', 180001), (180002, 180012, 180001, 3, 2024, 'ON_LEAVE', 180001)");
+        when(storage.uploadEvidence(anyString(), any())).thenAnswer(invocation ->
+                invocation.getArgument(0, String.class) + "/stored.pdf");
+        when(storage.download(anyString())).thenReturn("%PDF-1.7 stored".getBytes(StandardCharsets.UTF_8));
     }
 
     @AfterEach
@@ -81,6 +90,111 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThatThrownBy(() -> service.create(body, "wd-create-new-key", STUDENT, CONTEXT))
                 .isInstanceOf(DuplicateWithdrawalRequestException.class);
         assertThat(count("idempotency_keys")).isEqualTo(1);
+    }
+
+    @Test
+    void studentCreatesReplaysAndDownloadsOptionalEvidenceWithAutomaticAuditReason() {
+        long id = create(null).id();
+        assertThatThrownBy(() -> evidenceApplication.download(id, STUDENT))
+                .isInstanceOf(WithdrawalAttachmentNotFoundException.class);
+        var first = evidenceApplication.update(id, null, pdf("proof.pdf", "first"), "wd-file", STUDENT, CONTEXT);
+        assertThat(first.attachmentOriginalName()).isEqualTo("proof.pdf");
+        assertThat(first.attachmentContentType()).isEqualTo("application/pdf");
+        assertThat(first.attachmentSize()).isPositive();
+        assertThat(evidenceApplication.update(id, null, pdf("proof.pdf", "first"), "wd-file", STUDENT, CONTEXT))
+                .isEqualTo(first);
+        verify(storage, times(1)).uploadEvidence(eq("withdrawal-requests/" + id), any());
+        assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? AND action='WITHDRAWAL_ATTACHMENT_CREATED'",
+                String.class, id)).isEqualTo("자퇴 증빙 최초 등록");
+        assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(after_value,'$.attachmentStoredName')) "
+                + "FROM audit_logs WHERE target_id=? AND action='WITHDRAWAL_ATTACHMENT_CREATED'", String.class, id))
+                .contains("withdrawal-requests/" + id);
+
+        assertThat(evidenceApplication.download(id, STUDENT).originalName()).isEqualTo("proof.pdf");
+        assertThat(evidenceApplication.download(id, PROFESSOR).content()).startsWith('%', 'P', 'D', 'F');
+        assertThat(evidenceApplication.download(id, ADMIN).originalName()).isEqualTo("proof.pdf");
+        assertThatThrownBy(() -> evidenceApplication.download(id, OTHER))
+                .isInstanceOf(WithdrawalAccessDeniedException.class);
+    }
+
+    @Test
+    void adminInitialEvidenceNeedsReasonAndUsesAdminAuditAction() {
+        long id = create(null).id();
+        assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("admin.pdf", "admin"),
+                "wd-admin-missing-reason", ADMIN, CONTEXT)).isInstanceOf(InvalidWithdrawalRequestException.class);
+        var result = evidenceApplication.update(id,
+                new WithdrawalAttachmentUpdateRequestDTO("학생이 제출한 서류를 확인하여 대신 등록합니다."),
+                pdf("admin.pdf", "admin"), "wd-admin-file", ADMIN, CONTEXT);
+        assertThat(result.attachmentOriginalName()).isEqualTo("admin.pdf");
+        assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? "
+                + "AND action='WITHDRAWAL_ATTACHMENT_CREATED_BY_ADMIN'", String.class, id))
+                .isEqualTo("학생이 제출한 서류를 확인하여 대신 등록합니다.");
+        verify(storage, times(1)).uploadEvidence(anyString(), any());
+    }
+
+    @Test
+    void replacementAndAdminExceptionNeedReasonsAndPreservePreviousMetadataInAudit() {
+        long id = create(null).id();
+        evidenceApplication.update(id, null, pdf("first.pdf", "first"), "wd-file-first", STUDENT, CONTEXT);
+        assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("second.pdf", "second"),
+                "wd-file-missing-reason", STUDENT, CONTEXT)).isInstanceOf(InvalidWithdrawalRequestException.class);
+        verify(storage, times(1)).uploadEvidence(anyString(), any());
+
+        var studentReplaced = evidenceApplication.update(id,
+                new WithdrawalAttachmentUpdateRequestDTO("  개인정보를 가린 파일로 정정합니다.  "),
+                pdf("second.pdf", "second"), "wd-file-second", STUDENT, CONTEXT);
+        assertThat(studentReplaced.attachmentOriginalName()).isEqualTo("second.pdf");
+        assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? AND action='WITHDRAWAL_ATTACHMENT_REPLACED'",
+                String.class, id)).isEqualTo("개인정보를 가린 파일로 정정합니다.");
+        assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(before_value,'$.attachmentOriginalName')) "
+                + "FROM audit_logs WHERE target_id=? AND action='WITHDRAWAL_ATTACHMENT_REPLACED'", String.class, id))
+                .isEqualTo("first.pdf");
+
+        advisorApprove(id);
+        assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("admin.pdf", "admin"),
+                "wd-admin-missing-reason", ADMIN, CONTEXT)).isInstanceOf(InvalidWithdrawalRequestException.class);
+        var adminReplaced = evidenceApplication.update(id,
+                new WithdrawalAttachmentUpdateRequestDTO("학생 요청에 따라 정상 발급본으로 교체합니다."),
+                pdf("admin.pdf", "admin"), "wd-admin-file", ADMIN, CONTEXT);
+        assertThat(adminReplaced.attachmentOriginalName()).isEqualTo("admin.pdf");
+        assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? "
+                + "AND action='WITHDRAWAL_ATTACHMENT_REPLACED_BY_ADMIN'", String.class, id))
+                .isEqualTo("학생 요청에 따라 정상 발급본으로 교체합니다.");
+        verify(storage, never()).delete(anyString());
+    }
+
+    @Test
+    void changedFileCannotReuseKeyAndTerminalRequestKeepsReadableImmutableEvidence() {
+        long id = create(null).id();
+        evidenceApplication.update(id, null, pdf("proof.pdf", "first"), "wd-file", STUDENT, CONTEXT);
+        assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("proof.pdf", "changed"),
+                "wd-file", STUDENT, CONTEXT)).isInstanceOf(WithdrawalIdempotencyConflictException.class);
+        advisorApprove(id);
+        assertThatThrownBy(() -> evidenceApplication.update(id,
+                new WithdrawalAttachmentUpdateRequestDTO("지도교수 승인 후 학생 교체"), pdf("late-student.pdf", "late"),
+                "wd-file-late-student", STUDENT, CONTEXT)).isInstanceOf(WithdrawalStateConflictException.class);
+        finalApprove(id, "wd-final");
+        assertThatThrownBy(() -> evidenceApplication.update(id,
+                new WithdrawalAttachmentUpdateRequestDTO("승인 후 교체"), pdf("late.pdf", "late"),
+                "wd-file-late", ADMIN, CONTEXT)).isInstanceOf(WithdrawalStateConflictException.class);
+        assertThat(evidenceApplication.download(id, STUDENT).originalName()).isEqualTo("proof.pdf");
+        verify(storage, times(1)).uploadEvidence(anyString(), any());
+    }
+
+    @Test
+    void attachmentAuditFailureRollsBackMetadataAndKeyButDoesNotDeleteUploadedObject() {
+        long id = create(null).id();
+        doThrow(new IllegalStateException("forced attachment audit failure")).when(auditTarget())
+                .record(anyLong(), eq("WITHDRAWAL_ATTACHMENT_CREATED"), anyString(), anyLong(),
+                        any(), any(), any(), any(), any());
+        assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("proof.pdf", "first"),
+                "wd-file-rollback", STUDENT, CONTEXT)).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("SELECT attachment_stored_name FROM withdrawal_requests WHERE id=?",
+                String.class, id)).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_keys WHERE idempotency_key='wd-file-rollback'",
+                Integer.class)).isZero();
+        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, never()).delete(anyString());
     }
 
     @Test
@@ -253,6 +367,36 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void attachmentHttpContractUsesPutMultipartAndAuthorizedProxyDownload() throws Exception {
+        long id = create(null).id();
+        mvc.perform(multipart(URL + "/" + id + "/attachment")
+                        .file(pdf("proof.pdf", "http"))
+                        .header("X-User-Id", STUDENT.id()).header("X-User-Role", "STUDENT")
+                        .header("Idempotency-Key", "wd-file-http")
+                        .with(request -> { request.setMethod("PUT"); return request; }))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("00"))
+                .andExpect(jsonPath("$.data.attachmentOriginalName").value("proof.pdf"))
+                .andExpect(jsonPath("$.data.attachmentContentType").value("application/pdf"))
+                .andExpect(jsonPath("$.data.attachmentStoredName").doesNotExist());
+
+        mvc.perform(get(URL + "/" + id + "/attachment")
+                        .header("X-User-Id", PROFESSOR.id()).header("X-User-Role", "PROFESSOR"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/pdf"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(content().bytes("%PDF-1.7 stored".getBytes(StandardCharsets.UTF_8)));
+
+        mvc.perform(multipart(URL + "/" + id + "/attachment")
+                        .file(pdf("denied.pdf", "denied"))
+                        .header("X-User-Id", PROFESSOR.id()).header("X-User-Role", "PROFESSOR")
+                        .header("Idempotency-Key", "wd-file-denied")
+                        .with(request -> { request.setMethod("PUT"); return request; }))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void simultaneousSameKeyCreatesOneApplicationAndReturnsSameResult() throws Exception {
         var responses = race(() -> create(null), () -> create(null));
         assertThat(responses.get(0)).isEqualTo(responses.get(1));
@@ -382,6 +526,11 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
 
     private LocalDate today() {
         return LocalDate.now(ZoneId.of("Asia/Seoul"));
+    }
+
+    private MockMultipartFile pdf(String filename, String marker) {
+        return new MockMultipartFile("file", filename, "application/pdf",
+                ("%PDF-1.7 " + marker).getBytes(StandardCharsets.UTF_8));
     }
 
     private int count(String table) {
