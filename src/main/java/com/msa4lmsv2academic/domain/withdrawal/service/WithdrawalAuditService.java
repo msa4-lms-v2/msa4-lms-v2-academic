@@ -40,6 +40,10 @@ public class WithdrawalAuditService {
         value.put("cancelledBy", request.getCancelledBy() == null ? null : request.getCancelledBy().getId());
         value.put("cancelledAt", request.getCancelledAt());
         value.put("cancelReason", request.getCancelReason());
+        value.put("attachmentOriginalName", request.getAttachmentOriginalName());
+        value.put("attachmentStoredName", request.getAttachmentStoredName());
+        value.put("attachmentContentType", request.getAttachmentContentType());
+        value.put("attachmentSize", request.getAttachmentSize());
         return value;
     }
 

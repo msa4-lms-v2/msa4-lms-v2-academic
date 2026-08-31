@@ -100,6 +100,18 @@ public class WithdrawalRequest {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    @Column(name = "attachment_original_name", length = 255)
+    private String attachmentOriginalName;
+
+    @Column(name = "attachment_stored_name", length = 255)
+    private String attachmentStoredName;
+
+    @Column(name = "attachment_content_type", length = 100)
+    private String attachmentContentType;
+
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -171,6 +183,21 @@ public class WithdrawalRequest {
         this.cancelledBy = actor;
         this.cancelReason = reason;
         this.cancelledAt = cancelledAt;
+    }
+
+    public boolean hasAttachment() {
+        return attachmentStoredName != null && !attachmentStoredName.isBlank();
+    }
+
+    public void updateAttachment(String originalName, String storedName, String contentType, Long size) {
+        if (originalName == null || originalName.isBlank() || storedName == null || storedName.isBlank()
+                || contentType == null || contentType.isBlank() || size == null || size <= 0) {
+            throw new IllegalArgumentException("유효한 자퇴 증빙 메타데이터가 필요합니다.");
+        }
+        this.attachmentOriginalName = originalName;
+        this.attachmentStoredName = storedName;
+        this.attachmentContentType = contentType;
+        this.attachmentSize = size;
     }
 
     private void requireStatus(WithdrawalStatus expected) {

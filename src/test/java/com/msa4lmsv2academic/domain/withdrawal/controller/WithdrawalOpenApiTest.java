@@ -25,6 +25,7 @@ class WithdrawalOpenApiTest extends MySqlIntegrationTest {
         String detail = "$['paths']['/api/academic/withdrawals/{withdrawalId}']";
         String advisorReview = "$['paths']['/api/academic/withdrawals/{withdrawalId}/advisor-review']";
         String finalReview = "$['paths']['/api/academic/withdrawals/{withdrawalId}/final-review']";
+        String attachment = "$['paths']['/api/academic/withdrawals/{withdrawalId}/attachment']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
@@ -34,11 +35,18 @@ class WithdrawalOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(detail + "['get']['responses']['403']['description']")
                         .value("E03: 역할·본인·지도교수 범위 위반"))
                 .andExpect(jsonPath(detail + "['get']['responses']['404']['description']")
-                        .value("E10: 자퇴 신청 없음"))
+                        .value("E10: 자퇴 신청 또는 증빙 없음"))
                 .andExpect(jsonPath(detail + "['get']['responses']['403']['content']['*/*']['schema']").exists())
                 .andExpect(jsonPath(detail + "['get']['responses']['404']['content']['*/*']['schema']").exists())
                 .andExpect(jsonPath(advisorReview + "['patch']").exists())
                 .andExpect(jsonPath(finalReview + "['patch']").exists())
+                .andExpect(jsonPath(attachment + "['put']['operationId']").value("updateWithdrawalAttachment"))
+                .andExpect(jsonPath(attachment + "['get']['operationId']").value("downloadWithdrawalAttachment"))
+                .andExpect(jsonPath(attachment + "['put']['responses']['200']").exists())
+                .andExpect(jsonPath(attachment + "['put']['responses']['413']").exists())
+                .andExpect(jsonPath(attachment + "['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath(attachment + "['put']['parameters'][?(@.name == 'Idempotency-Key')].required")
+                        .value(hasItems(true)))
                 .andExpect(jsonPath(collection + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(collection + "['post']['responses']['200']").doesNotExist())
                 .andExpect(jsonPath(collection + "['get']['responses']['200']").exists())
@@ -53,6 +61,11 @@ class WithdrawalOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['WithdrawalCancelRequestDTO']['required']")
                         .value(hasItems("cancelReason")))
                 .andExpect(jsonPath("$['components']['schemas']['WithdrawalResponseDTO']['properties']['cancelledBy']").exists())
+                .andExpect(jsonPath("$['components']['schemas']['WithdrawalResponseDTO']['properties']['attachmentOriginalName']").exists())
+                .andExpect(jsonPath("$['components']['schemas']['WithdrawalResponseDTO']['properties']['attachmentStoredName']")
+                        .doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['WithdrawalAttachmentUpdateRequestDTO']['properties']['changeReason']")
+                        .exists())
                 .andExpect(jsonPath("$['components']['schemas']['WithdrawalCreateRequestDTO']['required']")
                         .value(hasItems("reason")))
                 .andExpect(jsonPath("$['components']['schemas']['AdvisorWithdrawalReviewRequestDTO']['required']")
