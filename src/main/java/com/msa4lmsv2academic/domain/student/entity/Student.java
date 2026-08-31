@@ -107,6 +107,10 @@ public class Student {
         this.major = major;
     }
 
+    public void clearAdvisor() {
+        this.advisor = null;
+    }
+
     public void assignDoubleMajor(Major doubleMajor) {
         this.doubleMajor = doubleMajor;
     }

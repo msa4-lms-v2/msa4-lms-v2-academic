@@ -3,6 +3,17 @@
 `02_enrollment-application-sample.sql`은 기존 스키마에 **데이터만** 넣는다. 테이블·컬럼은 변경하지 않는다.
 운영/공유 DB에 적용하지 않는다. Auth·SCG·Payment 데이터나 코드는 변경하지 않는다.
 
+## 전과 신청 희망 학과·전공 더미
+
+`04_department-transfer-target-sample.sql`은 전과 신청 Postman 테스트에서 사용할 활성 단과대·학과·전공을 추가한다. 기존 학생 소속, 전과 신청, 접수 기간과 다른 서비스 데이터는 변경하지 않는다.
+
+- 단과대: 코드 `DTR`, `전과테스트경영대학`
+- 학과: 코드 `DTR`, `전과테스트경영학과`
+- 전공: 코드 `DTR-MGT`, `경영학전공`
+- 반복 실행해도 코드별 한 행만 유지하며 활성 상태와 소속 관계를 테스트 기준으로 복원한다.
+- 파일 전체를 Academic 로컬 DB의 한 연결에서 실행하면 마지막 조회로 `target_department_id`와 `target_major_id`가 출력된다.
+- local 프로필로 Academic을 재시작해도 `dummy/*.sql` 순서에 따라 자동 실행된다. 기존 Postman 결과를 보존하려면 재시작 대신 이 파일만 수동으로 실행한다.
+
 ## 적용
 
 - 현재 `local` 설정은 `dummy/*.sql`을 실행한다. Academic을 local 프로필로 재시작하면 기존 `01`과 새 `02`가 실행된다.
