@@ -100,7 +100,7 @@ public class DepartmentTransferService {
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
             AcademicChangeRequest request = AcademicChangeRequest.create(student, resolved.department(),
-                    resolved.major(), resolved.semester(), body.reason());
+                    resolved.major(), resolved.semester());
             for (StoredTransferDocument document : documents) {
                 request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
                         document.storedName(), document.contentType(), document.size()));

@@ -196,6 +196,8 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/documents/{documentType}']['get']['responses']['200']['content']['application/pdf']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/department-transfer-periods/{periodId}/status']['patch']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['required']").isArray())
+                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['reason']").doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['documents']").exists());
     }
 
@@ -205,7 +207,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     private DepartmentTransferCreateRequestDTO body() {
-        return new DepartmentTransferCreateRequestDTO(295002L, 295002L, 295001L, "진로 변경");
+        return new DepartmentTransferCreateRequestDTO(295002L, 295002L, 295001L);
     }
 
     private MockMultipartFile pdf(String filename) {
