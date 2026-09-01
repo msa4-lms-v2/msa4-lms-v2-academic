@@ -34,6 +34,7 @@ class ProfessorLectureQueryServiceTest {
                 (short) 2026,
                 SemesterTerm.FIRST,
                 LectureStatus.OPEN,
+                null,
                 0L,
                 20
         )).thenReturn(new ProfessorLectureSearchResult(List.of(queryResult), 1L));
@@ -45,7 +46,8 @@ class ProfessorLectureQueryServiceTest {
                         20,
                         (short) 2026,
                         SemesterTerm.FIRST,
-                        LectureStatus.OPEN
+                        LectureStatus.OPEN,
+                        null
                 ),
                 new CurrentUser(3001L, "PROFESSOR")
         );
@@ -60,6 +62,7 @@ class ProfessorLectureQueryServiceTest {
                 (short) 2026,
                 SemesterTerm.FIRST,
                 LectureStatus.OPEN,
+                null,
                 0L,
                 20
         );
@@ -69,12 +72,12 @@ class ProfessorLectureQueryServiceTest {
     void returnsEmptyPageAndClampsPageSize() {
         ProfessorLectureQueryRepository repository = mock(ProfessorLectureQueryRepository.class);
         when(repository.existsProfessorByUserId(3001L)).thenReturn(true);
-        when(repository.searchByProfessorUserId(3001L, null, null, null, 0L, 100))
+        when(repository.searchByProfessorUserId(3001L, null, null, null, null, 0L, 100))
                 .thenReturn(new ProfessorLectureSearchResult(List.of(), 0L));
         ProfessorLectureQueryService service = new ProfessorLectureQueryService(repository);
 
         PageResponseDTO<?> response = service.getMyLectures(
-                new ProfessorLectureSearchRequestDTO(1, 500, null, null, null),
+                new ProfessorLectureSearchRequestDTO(1, 500, null, null, null, null),
                 new CurrentUser(3001L, "PROFESSOR")
         );
 
@@ -90,7 +93,7 @@ class ProfessorLectureQueryServiceTest {
         );
 
         assertThatThrownBy(() -> service.getMyLectures(
-                new ProfessorLectureSearchRequestDTO(null, null, null, null, null),
+                new ProfessorLectureSearchRequestDTO(null, null, null, null, null, null),
                 new CurrentUser(2001L, "STUDENT")
         )).isInstanceOf(ProfessorLectureAccessDeniedException.class);
     }
@@ -102,7 +105,7 @@ class ProfessorLectureQueryServiceTest {
         ProfessorLectureQueryService service = new ProfessorLectureQueryService(repository);
 
         assertThatThrownBy(() -> service.getMyLectures(
-                new ProfessorLectureSearchRequestDTO(null, null, null, null, null),
+                new ProfessorLectureSearchRequestDTO(null, null, null, null, null, null),
                 new CurrentUser(3001L, "PROFESSOR")
         )).isInstanceOf(ProfessorNotFoundException.class);
     }

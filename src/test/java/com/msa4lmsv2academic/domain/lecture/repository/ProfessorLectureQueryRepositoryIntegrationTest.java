@@ -71,6 +71,7 @@ class ProfessorLectureQueryRepositoryIntegrationTest extends MySqlIntegrationTes
                 (short) 2026,
                 SemesterTerm.FIRST,
                 LectureStatus.OPEN,
+                null,
                 0L,
                 20
         );
@@ -95,6 +96,7 @@ class ProfessorLectureQueryRepositoryIntegrationTest extends MySqlIntegrationTes
                 null,
                 null,
                 null,
+                null,
                 0L,
                 1
         );
@@ -109,6 +111,7 @@ class ProfessorLectureQueryRepositoryIntegrationTest extends MySqlIntegrationTes
         ProfessorLectureSearchResult result = professorLectureQueryRepository.searchByProfessorUserId(
                 PROFESSOR_USER_ID,
                 (short) 2025,
+                null,
                 null,
                 null,
                 0L,

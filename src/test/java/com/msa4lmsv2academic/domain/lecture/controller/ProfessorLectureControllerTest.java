@@ -24,6 +24,7 @@ class ProfessorLectureControllerTest {
                 20,
                 (short) 2026,
                 SemesterTerm.FIRST,
+                null,
                 null
         );
         CurrentUser currentUser = new CurrentUser(3001L, "PROFESSOR");
