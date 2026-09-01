@@ -51,6 +51,7 @@ public class SecurityConfig {
                     }
 
                     auth.requestMatchers(SWAGGER_PATHS).permitAll();
+                    auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
                     auth.anyRequest().authenticated();
                 })
                 .exceptionHandling(handling -> handling
