@@ -33,6 +33,12 @@ class ProfileInfoChangeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(studentRequests + "['get']").exists())
                 .andExpect(jsonPath(studentRequests + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(studentRequests + "['post']['responses']['413']").exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['StudentInfoChangeRequestResponseDTO']['properties']['changedFields']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['StudentInfoChangeRequestResponseDTO']['properties']['attachmentCount']"
+                ).exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/info-change-requests/{requestId}/cancel']['patch']")
                         .exists())
                 .andExpect(jsonPath(professorRequests + "['get']").exists())

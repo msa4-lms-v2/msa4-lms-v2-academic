@@ -51,7 +51,8 @@ public class StudentInfoChangeRequestController {
             operationId = "searchStudentProfileChangeRequests",
             summary = "학생 프로필 변경 신청 목록 조회",
             description = "STUDENT는 본인 신청만, ADMIN은 전체 학생 신청을 조회합니다. 신청자 이름·상태·학과로 "
-                    + "필터링하고 생성 시각 정렬 방향을 선택할 수 있으며 결과가 없으면 빈 items를 반환합니다.",
+                    + "필터링하고 생성 시각 정렬 방향을 선택할 수 있으며 결과가 없으면 빈 items를 반환합니다. "
+                    + "각 항목에는 변경 신청 항목과 증빙 첨부파일 수가 포함됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "200", description = "조회 성공")
@@ -74,7 +75,7 @@ public class StudentInfoChangeRequestController {
     @Operation(
             operationId = "getStudentProfileChangeRequest",
             summary = "학생 프로필 변경 신청 상세 조회",
-            description = "STUDENT 본인 또는 ADMIN이 신청 상세와 증빙 PDF의 1일 유효 임시 URL을 조회합니다.",
+            description = "STUDENT 본인 또는 ADMIN이 신청 상세와 증빙 PDF/JPEG/PNG의 1일 유효 임시 URL을 조회합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "200", description = "조회 성공")
@@ -100,7 +101,8 @@ public class StudentInfoChangeRequestController {
             operationId = "createStudentProfileChangeRequest",
             summary = "학생 프로필 변경 신청",
             description = "STUDENT가 이름·전화번호·이메일·주소·프로필 이미지 중 실제로 달라지는 항목을 신청합니다. "
-                    + "프로필 이미지는 JPEG/PNG 5MB 이하, 증빙은 PDF 파일당 10MB 이하·최대 5개이며 전체 요청은 "
+                    + "프로필 이미지는 JPEG/PNG 5MB 이하, 증빙은 PDF/JPEG/PNG 파일당 10MB 이하·최대 5개이며 "
+                    + "전체 요청은 "
                     + "20MB 이하여야 합니다. 처리 대기 신청은 한 건만 허용됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
