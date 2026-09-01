@@ -26,7 +26,8 @@ public class DepartmentTransferAuditService {
         value.put("sourceMajorId", request.getSourceMajor() == null ? null : request.getSourceMajor().getId());
         value.put("targetDepartmentId", request.getTargetDepartment().getId());
         value.put("targetMajorId", request.getTargetMajor().getId());
-        value.put("targetSemesterId", request.getTargetSemester().getId());
+        value.put("targetSemesterId", request.getTargetSemester() == null ? null : request.getTargetSemester().getId());
+        value.put("requestPeriodId", request.getRequestPeriod() == null ? null : request.getRequestPeriod().getId());
         value.put("status", request.getStatus());
         value.put("rejectReason", request.getRejectReason());
         value.put("processedBy", request.getProcessedBy() == null ? null : request.getProcessedBy().getId());

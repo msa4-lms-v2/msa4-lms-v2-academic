@@ -26,7 +26,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Table(name = "academic_change_requests", indexes = {
         @Index(name = "idx_academic_change_requests_student_status", columnList = "student_id,status"),
         @Index(name = "idx_academic_change_requests_status_created", columnList = "status,created_at"),
-        @Index(name = "idx_academic_change_requests_target_semester", columnList = "target_semester_id")
+        @Index(name = "idx_academic_change_requests_target_semester", columnList = "target_semester_id"),
+        @Index(name = "idx_academic_change_requests_period", columnList = "request_period_id")
 }, uniqueConstraints = @UniqueConstraint(name = "uk_academic_change_requests_active_type",
         columnNames = {"request_type", "active_student_id"}))
 public class AcademicChangeRequest {
@@ -49,9 +50,12 @@ public class AcademicChangeRequest {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "target_major_id", nullable = false)
     private Major targetMajor;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "target_semester_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_semester_id")
     private Semester targetSemester;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_period_id")
+    private AcademicChangeRequestPeriod requestPeriod;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private AcademicChangeRequestStatus status;
     @Column(name = "reject_reason", length = 500)
@@ -78,8 +82,9 @@ public class AcademicChangeRequest {
     @LastModifiedDate @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static AcademicChangeRequest create(Student student, Department targetDepartment, Major targetMajor,
-                                                Semester targetSemester) {
+    public static AcademicChangeRequest createTransfer(Student student, Department targetDepartment, Major targetMajor,
+                                                       Semester targetSemester,
+                                                       AcademicChangeRequestPeriod requestPeriod) {
         AcademicChangeRequest request = new AcademicChangeRequest();
         request.student = student;
         request.requestType = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
@@ -88,6 +93,21 @@ public class AcademicChangeRequest {
         request.targetDepartment = targetDepartment;
         request.targetMajor = targetMajor;
         request.targetSemester = targetSemester;
+        request.requestPeriod = requestPeriod;
+        request.status = AcademicChangeRequestStatus.PENDING;
+        return request;
+    }
+
+    public static AcademicChangeRequest createDoubleMajor(Student student, Major targetMajor,
+                                                           AcademicChangeRequestPeriod requestPeriod) {
+        AcademicChangeRequest request = new AcademicChangeRequest();
+        request.student = student;
+        request.requestType = AcademicChangeRequestType.DOUBLE_MAJOR;
+        request.sourceDepartment = student.getDepartment();
+        request.sourceMajor = student.getMajor();
+        request.targetDepartment = targetMajor.getDepartment();
+        request.targetMajor = targetMajor;
+        request.requestPeriod = requestPeriod;
         request.status = AcademicChangeRequestStatus.PENDING;
         return request;
     }
@@ -121,7 +141,7 @@ public class AcademicChangeRequest {
 
     private void requirePending() {
         if (status != AcademicChangeRequestStatus.PENDING) {
-            throw new IllegalStateException("대기 중인 전과 신청만 처리할 수 있습니다.");
+            throw new IllegalStateException("대기 중인 학적 변경 신청만 처리할 수 있습니다.");
         }
     }
 }

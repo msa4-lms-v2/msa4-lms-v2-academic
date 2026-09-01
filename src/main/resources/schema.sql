@@ -814,7 +814,7 @@ CREATE TABLE IF NOT EXISTS academic_change_request_periods (
     CONSTRAINT ck_academic_change_periods_range CHECK (start_at < end_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 전과/복수전공 공용 신청 원본. 현재 구현은 TRANSFER_DEPARTMENT만 생성합니다.
+-- 전과/복수전공 공용 신청 원본. 전과는 적용 학기를, 복수전공은 접수 모집 회차를 저장합니다.
 CREATE TABLE IF NOT EXISTS academic_change_requests (
     id BIGINT NOT NULL AUTO_INCREMENT,
     student_id BIGINT NOT NULL,
@@ -823,7 +823,8 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     source_major_id BIGINT NULL,
     target_department_id BIGINT NOT NULL,
     target_major_id BIGINT NOT NULL,
-    target_semester_id BIGINT NOT NULL,
+    target_semester_id BIGINT NULL,
+    request_period_id BIGINT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     reject_reason VARCHAR(500) NULL,
     processed_by BIGINT NULL,
@@ -841,16 +842,22 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     INDEX idx_academic_change_requests_student_status (student_id, status),
     INDEX idx_academic_change_requests_status_created (status, created_at),
     INDEX idx_academic_change_requests_target_semester (target_semester_id),
+    INDEX idx_academic_change_requests_period (request_period_id),
     CONSTRAINT fk_academic_change_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_source_department FOREIGN KEY (source_department_id) REFERENCES departments (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_source_major FOREIGN KEY (source_major_id) REFERENCES majors (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_department FOREIGN KEY (target_department_id) REFERENCES departments (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_major FOREIGN KEY (target_major_id) REFERENCES majors (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_semester FOREIGN KEY (target_semester_id) REFERENCES semesters (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_academic_change_requests_period FOREIGN KEY (request_period_id) REFERENCES academic_change_request_periods (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_canceller FOREIGN KEY (cancelled_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT ck_academic_change_requests_type CHECK (
         request_type IN ('TRANSFER_DEPARTMENT', 'DOUBLE_MAJOR')
+    ),
+    CONSTRAINT ck_academic_change_requests_target_scope CHECK (
+        (request_type = 'TRANSFER_DEPARTMENT' AND target_semester_id IS NOT NULL)
+        OR (request_type = 'DOUBLE_MAJOR' AND target_semester_id IS NULL AND request_period_id IS NOT NULL)
     ),
     CONSTRAINT ck_academic_change_requests_status CHECK (
         status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')
@@ -869,7 +876,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 전과 신청의 필수 PDF 3종 메타데이터. 실제 파일은 비공개 MinIO에 저장합니다.
+-- 전과/복수전공 신청의 필수 PDF 3종 메타데이터. 실제 파일은 비공개 MinIO에 저장합니다.
 CREATE TABLE IF NOT EXISTS academic_change_request_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
     request_id BIGINT NOT NULL,

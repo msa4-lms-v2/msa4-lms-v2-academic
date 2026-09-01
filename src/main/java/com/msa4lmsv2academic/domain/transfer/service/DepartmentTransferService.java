@@ -63,7 +63,7 @@ public class DepartmentTransferService {
 
     public StoredTransferDocument document(Long id, TransferDocumentType documentType, CurrentUser actor) {
         readable(id, actor);
-        var file = fileRepository.findTransferFile(id, documentType)
+        var file = fileRepository.findFile(id, TYPE, documentType)
                 .orElseThrow(() -> new DepartmentTransferNotFoundException("제출 서류를 찾을 수 없습니다."));
         return new StoredTransferDocument(file.getDocumentType(), file.getOriginalName(), file.getStoredName(),
                 file.getContentType(), file.getSize());
@@ -99,8 +99,8 @@ public class DepartmentTransferService {
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
-            AcademicChangeRequest request = AcademicChangeRequest.create(student, resolved.department(),
-                    resolved.major(), resolved.semester());
+            AcademicChangeRequest request = AcademicChangeRequest.createTransfer(student, resolved.department(),
+                    resolved.major(), resolved.semester(), resolved.period());
             for (StoredTransferDocument document : documents) {
                 request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
                         document.storedName(), document.contentType(), document.size()));
@@ -226,7 +226,7 @@ public class DepartmentTransferService {
         if (!configured.accepts(DepartmentTransferPolicy.now())) {
             throw new DepartmentTransferConflictException("현재는 전과 접수 기간이 아닙니다.");
         }
-        return new ResolvedCreation(targetDepartment, targetMajor, targetSemester);
+        return new ResolvedCreation(targetDepartment, targetMajor, targetSemester, configured);
     }
 
     private void validateApproval(Student student, AcademicChangeRequest request) {
@@ -292,5 +292,6 @@ public class DepartmentTransferService {
         return new DepartmentTransferAccessDeniedException("본인의 전과 신청만 접근할 수 있습니다.");
     }
 
-    private record ResolvedCreation(Department department, Major major, Semester semester) { }
+    private record ResolvedCreation(Department department, Major major, Semester semester,
+                                    AcademicChangeRequestPeriod period) { }
 }
