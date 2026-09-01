@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.admission.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.admission.request.AdmissionCandidateCreateRequestDTO;
 import com.msa4lmsv2academic.domain.admission.request.AdmissionCandidateSearchRequestDTO;
 import com.msa4lmsv2academic.domain.admission.request.AdmissionCandidateStatusRequestDTO;
@@ -15,7 +18,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,14 +57,13 @@ public class AdmissionCandidateController {
                     + "결과가 없으면 빈 items를 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록"),
-            @ApiResponse(responseCode = "400", description = "잘못된 검색·정렬·페이징 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -82,16 +83,14 @@ public class AdmissionCandidateController {
                     + "학과·입학연도·등록 상태·프로비저닝 연결 결과를 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 입학 예정자 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping("/{candidateId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -113,18 +112,15 @@ public class AdmissionCandidateController {
                     + "이 단계에서는 Auth 계정, Academic 사용자·학생 또는 학번을 생성하지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "등록 성공"),
-            @ApiResponse(responseCode = "400", description = "필수값 누락, 잘못된 연도·생년월일·연락처 또는 비활성 학과",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "수험번호 중복 또는 기존 사용자 이메일 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "201", description = "등록 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -150,18 +146,15 @@ public class AdmissionCandidateController {
                     + "이메일·전화번호·주소의 공백 문자열은 null로 삭제합니다. 일반 수정에는 사유를 받지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청"),
-            @ApiResponse(responseCode = "400", description = "빈 PATCH, 잘못된 값·연도 또는 비활성 학과",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "REGISTERED가 아닌 상태, 이메일 충돌 또는 동시 수정 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PatchMapping("/{candidateId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -189,18 +182,15 @@ public class AdmissionCandidateController {
                     + "PROVISIONED는 향후 Auth 프로비저닝 성공 결과로만 변경할 수 있습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청"),
-            @ApiResponse(responseCode = "400", description = "상태 또는 사유 누락·형식 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "입학 예정자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "허용되지 않은 상태 전이 또는 프로비저닝 사전 검증 충돌",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PatchMapping("/{candidateId}/status")
     @PreAuthorize("hasRole('ADMIN')")

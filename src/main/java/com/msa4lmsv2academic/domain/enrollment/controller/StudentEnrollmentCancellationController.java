@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.enrollment.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentCancellationResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.service.StudentEnrollmentCancellationService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
@@ -10,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Positive;
@@ -39,22 +41,15 @@ public class StudentEnrollmentCancellationController {
             description = "STUDENT 본인이 신청한 ACTIVE 수강을 해당 학기의 수강신청 기간 안에 취소합니다. 수강 상태를 CANCELLED로 변경하고 CANCEL 이력을 같은 트랜잭션에 저장합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "취소 성공"),
-            @ApiResponse(responseCode = "400", description = "E21: 수강신청 ID 형식 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "E02/E04: 미인증 또는 잘못된 인증 정보",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "E03: 학생 외 역할의 취소",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "E10: 본인의 수강신청 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "E11: 기간 밖 취소 또는 이미 취소된 수강",
-                    content = @Content(schema = @Schema(ref = "#/components/schemas/EnrollmentApplicationError"),
-                            examples = @ExampleObject(value = """
-                                    {"code":"E11","message":"이미 처리되었거나 현재 상태와 충돌합니다.",
-                                     "data":{"reasons":[{"code":"ENROLLMENT_ALREADY_CANCELLED","message":"이미 취소된 수강입니다."}]}}
-                                    """)))
+            @ApiResponse(responseCode = "200", description = "취소 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @DeleteMapping("/{enrollmentId}")
     @PreAuthorize("hasRole('STUDENT')")

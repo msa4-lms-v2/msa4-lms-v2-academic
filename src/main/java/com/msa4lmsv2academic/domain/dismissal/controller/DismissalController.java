@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.dismissal.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.dismissal.request.*;
 import com.msa4lmsv2academic.domain.dismissal.response.DismissalResponseDTO;
 import com.msa4lmsv2academic.domain.dismissal.service.DismissalAuditContext;
@@ -10,7 +13,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,14 +34,15 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Dismissals", description = "관리자 제적. 학생 자퇴와 별도 관리")
 @SecurityRequirement(name = "bearerAuth")
-@ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21: 잘못된 ID·필수값·enum·사유·버전 또는 멱등 키 형식"),
-        @ApiResponse(responseCode = "401", description = "E02/E04: 인증 정보 없음 또는 유효하지 않음"),
-        @ApiResponse(responseCode = "403", description = "E03: ADMIN 이외 역할 또는 처리자 정보 없음"),
-        @ApiResponse(responseCode = "404", description = "E10: 학생 또는 제적 후보 없음"),
-        @ApiResponse(responseCode = "409", description = "E11: 대기 중복·허용되지 않는 학적/상태·오래된 버전·멱등 키 충돌"),
-        @ApiResponse(responseCode = "500", description = "E80/E99: 데이터/시스템 오류. 변경·학적 이력·자동 취소·감사는 함께 롤백")
-})
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
 public class DismissalController {
     private final DismissalService service;
     private static final String KEY_DESCRIPTION = "1~100자의 공백 없는 필수 키. 동일 사용자·경로·정규화된 본문·키의 성공 응답을 24시간 재생합니다. "

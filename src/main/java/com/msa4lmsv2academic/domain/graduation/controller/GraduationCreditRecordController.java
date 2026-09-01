@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.graduation.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.graduation.request.GraduationCreditRecordSearchRequestDTO;
 import com.msa4lmsv2academic.domain.graduation.response.GraduationCreditRecordResponseDTO;
 import com.msa4lmsv2academic.domain.graduation.service.GraduationCreditRecordService;
@@ -11,7 +14,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -46,16 +48,14 @@ public class GraduationCreditRecordController {
                     + "DRAFT 성적값은 모든 역할에서 노출하지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록"),
-            @ApiResponse(responseCode = "400", description = "학생 ID 또는 검색·정렬·페이징 조건 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "역할 또는 학생 관리 범위 접근 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "학생 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")

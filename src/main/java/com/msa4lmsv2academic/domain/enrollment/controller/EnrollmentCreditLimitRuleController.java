@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.enrollment.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCreditLimitRuleCreateRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCreditLimitRuleSearchRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCreditLimitRuleStatusRequestDTO;
@@ -14,7 +17,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,14 +59,13 @@ public class EnrollmentCreditLimitRuleController {
                     + "결과가 없으면 빈 items를 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록"),
-            @ApiResponse(responseCode = "400", description = "검색·정렬·페이징 조건 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공 또는 빈 목록")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -83,16 +84,14 @@ public class EnrollmentCreditLimitRuleController {
             description = "ADMIN이 학기별 최대 신청학점, 수강신청 기간과 활성 상태를 조회합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "상세 조회 성공"),
-            @ApiResponse(responseCode = "400", description = "규칙 ID 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "규칙 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "상세 조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping("/{ruleId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -114,18 +113,15 @@ public class EnrollmentCreditLimitRuleController {
                     + "등록 사유와 변경 후 값은 같은 transaction에서 감사 로그에 저장합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "등록 성공"),
-            @ApiResponse(responseCode = "400", description = "필수값·학점 범위 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "학기 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "동일 학기 중복 또는 수강신청 시작 후 변경",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "201", description = "등록 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -153,18 +149,15 @@ public class EnrollmentCreditLimitRuleController {
                     + "semesterId는 변경할 수 없고 동일 값 요청은 DB 변경과 감사 로그 추가 없이 현재 값을 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청"),
-            @ApiResponse(responseCode = "400", description = "필수값·학점 범위·규칙 ID 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "규칙 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "수강신청 시작 후 변경",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PutMapping("/{ruleId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -194,18 +187,15 @@ public class EnrollmentCreditLimitRuleController {
                     + "동일 상태 요청은 DB 변경과 감사 로그 추가 없이 현재 값을 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청"),
-            @ApiResponse(responseCode = "400", description = "필수값·규칙 ID 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "규칙 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "수강신청 시작 후 변경",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PatchMapping("/{ruleId}/status")
     @PreAuthorize("hasRole('ADMIN')")

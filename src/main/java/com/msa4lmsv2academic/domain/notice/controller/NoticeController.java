@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.notice.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.notice.request.NoticeCreateRequestDTO;
 import com.msa4lmsv2academic.domain.notice.request.NoticeSearchRequestDTO;
 import com.msa4lmsv2academic.domain.notice.request.NoticeUpdateRequestDTO;
@@ -14,7 +17,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,14 +55,13 @@ public class NoticeController {
                     + "목록 응답에는 본문과 작성자 정보가 포함되지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다."),
-            @ApiResponse(responseCode = "400", description = "잘못된 페이지·검색 조건",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "일반 사용자가 다른 역할 필터를 요청함",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공. 결과가 없으면 빈 items를 반환합니다.")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
@@ -77,16 +78,14 @@ public class NoticeController {
                     + "다른 역할 대상 공지는 403, 비활성 공지는 404로 처리하며 ADMIN은 모든 공지를 조회합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 공지사항 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "공지 대상 역할 불일치",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "공지사항 없음 또는 일반 사용자에게 숨겨진 비활성 공지",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping("/{noticeId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
@@ -104,16 +103,14 @@ public class NoticeController {
                     + "Gateway 인증 사용자로 기록합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "등록 성공"),
-            @ApiResponse(responseCode = "400", description = "필수값 누락 또는 입력값 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Academic에 동기화된 관리자 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "201", description = "등록 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -139,18 +136,15 @@ public class NoticeController {
                     + "있으며 같은 활성 상태 요청은 409로 처리합니다. 본문에 공백 문자열을 전달하면 null로 제거합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "수정 성공 또는 상태 외 동일 값 요청"),
-            @ApiResponse(responseCode = "400", description = "빈 PATCH 또는 입력값 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "공지사항 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "같은 활성 상태 요청",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "수정 성공 또는 상태 외 동일 값 요청")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PatchMapping("/{noticeId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -178,18 +172,15 @@ public class NoticeController {
                     + "이미 비활성인 공지를 다시 요청하면 409로 처리합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "비활성화 성공. data는 null입니다."),
-            @ApiResponse(responseCode = "400", description = "잘못된 공지사항 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "ADMIN 권한 필요",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "공지사항 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "이미 비활성 상태인 공지",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "비활성화 성공. data는 null입니다.")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PatchMapping("/{noticeId}/status")
     @PreAuthorize("hasRole('ADMIN')")

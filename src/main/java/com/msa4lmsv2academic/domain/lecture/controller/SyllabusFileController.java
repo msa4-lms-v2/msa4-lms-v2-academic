@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.lecture.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileDownloadResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.response.SyllabusFileResponseDTO;
 import com.msa4lmsv2academic.domain.lecture.service.SyllabusFileService;
@@ -10,7 +13,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,20 +52,16 @@ public class SyllabusFileController {
             description = "담당 교수가 개설 상태인 본인 강의에 10MB 이하 PDF 파일을 업로드합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "업로드 성공"),
-            @ApiResponse(responseCode = "400", description = "PDF 형식·무결성 검증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "담당 교수 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "강의 또는 업로드 사용자 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "중복 파일 또는 수정할 수 없는 강의 상태",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "413", description = "10MB 용량 초과",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "201", description = "업로드 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.FILE_SIZE_EXCEEDED,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('PROFESSOR')")
@@ -91,16 +89,14 @@ public class SyllabusFileController {
             description = "담당 교수 또는 관리자가 강의에 등록된 강의계획서 파일 목록을 조회합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "잘못된 강의 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "조회 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "강의 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")
@@ -117,7 +113,6 @@ public class SyllabusFileController {
             description = "담당 교수 또는 관리자가 권한이 확인된 PDF 강의계획서 파일을 다운로드합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "다운로드 성공",
@@ -125,15 +120,14 @@ public class SyllabusFileController {
                             mediaType = MediaType.APPLICATION_PDF_VALUE,
                             schema = @Schema(type = "string", format = "binary")
                     )
-            ),
-            @ApiResponse(responseCode = "400", description = "잘못된 파일 ID",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "다운로드 권한 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "파일 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            )
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping("/{fileId}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'ADMIN')")

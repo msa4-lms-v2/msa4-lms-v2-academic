@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.provisioning.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.provisioning.request.ProfessorProvisioningRequestDTO;
 import com.msa4lmsv2academic.domain.provisioning.request.StudentProvisioningRequestDTO;
 import com.msa4lmsv2academic.domain.provisioning.response.ProfessorProvisioningResponseDTO;
@@ -11,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,11 +37,12 @@ public class AccountProvisioningController {
             description = "Auth에서 전달받은 계정 ID와 학생 정보를 Academic DB에 저장하고 생성한 학번을 Auth에 반환합니다. 프론트에서 직접 호출하지 않는 내부 API입니다."
     )
     @SecurityRequirements
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "학생 정보 저장 및 학번 생성 성공"),
-            @ApiResponse(responseCode = "400", description = "요청값, 학과 또는 전공 검증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "이미 프로비저닝된 사용자 또는 중복 이메일", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "500", description = "학번 생성 또는 저장 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "학생 정보 저장 및 학번 생성 성공")
+    @CustomApiResponse({
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping("/students")
     public ResponseEntity<GlobalResponseDTO<StudentProvisioningResponseDTO>> provisionStudent(
@@ -63,11 +66,12 @@ public class AccountProvisioningController {
             description = "Auth에서 전달받은 계정 ID와 교수 정보를 Academic DB에 저장하고 생성한 교번을 Auth에 반환합니다. 프론트에서 직접 호출하지 않는 내부 API입니다."
     )
     @SecurityRequirements
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "교수 정보 저장 및 교번 생성 성공"),
-            @ApiResponse(responseCode = "400", description = "요청값 또는 학과 검증 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "이미 프로비저닝된 사용자 또는 중복 이메일", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "500", description = "교번 생성 또는 저장 실패", content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "교수 정보 저장 및 교번 생성 성공")
+    @CustomApiResponse({
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping("/professors")
     public ResponseEntity<GlobalResponseDTO<ProfessorProvisioningResponseDTO>> provisionProfessor(

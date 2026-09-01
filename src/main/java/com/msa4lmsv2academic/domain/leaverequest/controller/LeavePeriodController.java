@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.leaverequest.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.leaverequest.request.LeavePeriodSaveRequestDTO;
 import com.msa4lmsv2academic.domain.leaverequest.request.LeavePeriodSearchRequestDTO;
 import com.msa4lmsv2academic.domain.leaverequest.response.LeavePeriodResponseDTO;
@@ -13,7 +16,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,22 +36,16 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @RequestMapping("/api/academic/leave-request-periods")
 @SecurityRequirement(name = "bearerAuth")
-@ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21/E40: 입력 형식·기간 순서·사유·키·PDF 검증 실패",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 토큰",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "E03: 역할 또는 본인 소유 범위 위반",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "E10: 대상 신청·학생·학기·기간·첨부 없음",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "409", description = "E11: 중복·학적·기간·승인 근거·멱등 키 충돌",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "413", description = "E41: PDF 10MB 초과",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "500", description = "E80/E99: DB·시스템 오류. 업무·이력·감사·멱등 응답은 함께 롤백",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
-})
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.FILE_SIZE_EXCEEDED,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
 public class LeavePeriodController {
     private final LeavePeriodService service;
 

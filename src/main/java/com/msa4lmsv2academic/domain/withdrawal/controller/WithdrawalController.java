@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.withdrawal.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.withdrawal.request.AdvisorWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.FinalWithdrawalReviewRequestDTO;
 import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalCreateRequestDTO;
@@ -18,7 +21,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,22 +58,16 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/academic/withdrawals")
 @RequiredArgsConstructor
-@ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21/E40: 잘못된 ID·사유·본문·멱등 키·페이지·적용일 또는 PDF 형식",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 인증 정보",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "E03: 역할·본인·지도교수 범위 위반",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "E10: 자퇴 신청 또는 증빙 없음",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "409", description = "E11: 진행 중 신청 중복·상태 충돌·멱등 키 충돌·희망일 이전 승인·학적 변경 불가",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "413", description = "E41: PDF 10MB 초과",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "500", description = "E80/E99: DB·시스템 오류. 변경 요청은 감사·멱등 응답과 함께 rollback",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
-})
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.FILE_SIZE_EXCEEDED,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
 public class WithdrawalController {
 
     private final WithdrawalService withdrawalService;

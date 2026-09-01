@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.transfer.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.transfer.request.*;
 import com.msa4lmsv2academic.domain.transfer.response.DepartmentTransferPeriodResponseDTO;
 import com.msa4lmsv2academic.domain.transfer.service.*;
@@ -28,20 +31,15 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @RequestMapping("/api/academic/catalog/department-transfer-periods")
 @SecurityRequirement(name = "bearerAuth")
-@ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21: 입력·기간 순서·사유·멱등 키 검증 실패",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 토큰",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "E03: 역할 위반",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "E10: 학기 또는 기간 없음",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "409", description = "E11: 동일 학기 중복·상태·멱등 키 충돌",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "500", description = "E80/E99: DB·시스템 오류",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
-})
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
 public class DepartmentTransferPeriodController {
     private final DepartmentTransferPeriodService service;
 

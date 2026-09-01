@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.doublemajor.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.doublemajor.request.*;
 import com.msa4lmsv2academic.domain.doublemajor.response.DoubleMajorResponseDTO;
 import com.msa4lmsv2academic.domain.doublemajor.service.*;
@@ -32,22 +35,16 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 @RequestMapping("/api/academic/double-major-requests")
 @SecurityRequirement(name = "bearerAuth")
-@ApiResponses({
-        @ApiResponse(responseCode = "400", description = "E21/E40: 입력·멱등 키·필수 PDF 검증 실패",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 토큰",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "E03: 역할 또는 본인 소유 범위 위반",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "E10: 학생·신청·전공·모집 회차·서류 없음",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "409", description = "E11: 학적·기간·중복·상태·전공·멱등 키 충돌",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "413", description = "E41: PDF 10MB 초과",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-        @ApiResponse(responseCode = "500", description = "E80/E99: DB·파일 저장소·시스템 오류",
-                content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
-})
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.FILE_SIZE_EXCEEDED,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
 public class DoubleMajorController {
     private final DoubleMajorService service;
     private final DoubleMajorApplicationService applicationService;

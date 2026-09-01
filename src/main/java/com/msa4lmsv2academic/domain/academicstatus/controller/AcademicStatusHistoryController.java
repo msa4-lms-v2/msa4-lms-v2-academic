@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.academicstatus.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.academicstatus.request.AcademicStatusHistorySearchRequestDTO;
 import com.msa4lmsv2academic.domain.academicstatus.response.AcademicStatusHistoryResponseDTO;
 import com.msa4lmsv2academic.domain.academicstatus.service.AcademicStatusHistoryService;
@@ -11,7 +14,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -45,16 +47,14 @@ public class AcademicStatusHistoryController {
                     + "academic_status_histories에 기록된 확정 전이만 반환하며 신청 대기·반려 내역은 포함하지 않습니다. "
                     + "이름·학과는 현재 값이고 reason·sourceId는 null일 수 있습니다. 조회는 이력을 생성·수정하지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "00: 조회 성공. 결과 없음은 빈 items 및 totalCount 0"),
-            @ApiResponse(responseCode = "400", description = "E21: 잘못된 ID·페이지·검색어·상태·날짜 범위·정렬",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "E02/E04: 인증 필요 또는 유효하지 않은 토큰",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "E03: 허용하지 않는 역할",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "E10: 인증 교수와 연결된 Academic 교수 정보 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "00: 조회 성공. 결과 없음은 빈 items 및 totalCount 0")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")

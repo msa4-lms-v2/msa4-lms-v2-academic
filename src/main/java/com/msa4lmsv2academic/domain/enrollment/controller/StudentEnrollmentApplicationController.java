@@ -1,5 +1,8 @@
 package com.msa4lmsv2academic.domain.enrollment.controller;
 
+import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
+import com.msa4lmsv2academic.global.response.CustomResponseCode;
+
 import com.msa4lmsv2academic.domain.enrollment.request.StudentEnrollmentCreateRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentCreateResponseDTO;
 import com.msa4lmsv2academic.domain.enrollment.service.StudentEnrollmentApplicationService;
@@ -11,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -41,24 +43,15 @@ public class StudentEnrollmentApplicationController {
                     만료 후 과거 응답 재생은 보장하지 않으며 활성 수강 중복 검사는 계속 적용합니다.
                     E11의 data.reasons는 확인된 거절 사유이며 전체 검증 결과를 일괄 수집하지 않습니다.
                     """, security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "신청 성공 또는 보존된 성공 응답 재생"),
-            @ApiResponse(responseCode = "400", description = "E21: 필수 lectureId·멱등 키 누락 또는 형식 오류",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "401", description = "E02/E04: 미인증 또는 잘못된 인증 정보",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "E03: 학생 외 역할의 신청",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "E10: 본인 학생 또는 대상 강의 없음",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class))),
-            @ApiResponse(responseCode = "409", description = "E11: 학적·기간·개설·중복·정원·시간표·최대학점·선수과목·재수강·멱등 충돌",
-                    content = @Content(schema = @Schema(ref = "#/components/schemas/EnrollmentApplicationError"),
-                            examples = @ExampleObject(value = """
-                                    {"code":"E11","message":"이미 처리되었거나 현재 상태와 충돌합니다.",
-                                     "data":{"reasons":[{"code":"CREDIT_LIMIT_EXCEEDED","message":"최대 신청학점을 초과합니다."}]}}
-                                    """))),
-            @ApiResponse(responseCode = "500", description = "E80/E99: 저장 또는 시스템 오류. 신규 신청 전체 롤백",
-                    content = @Content(schema = @Schema(implementation = GlobalResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "신청 성공 또는 보존된 성공 응답 재생")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
     })
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
