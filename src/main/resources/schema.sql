@@ -824,7 +824,6 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     target_department_id BIGINT NOT NULL,
     target_major_id BIGINT NOT NULL,
     target_semester_id BIGINT NOT NULL,
-    reason VARCHAR(500) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     reject_reason VARCHAR(500) NULL,
     processed_by BIGINT NULL,
@@ -856,7 +855,6 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     CONSTRAINT ck_academic_change_requests_status CHECK (
         status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')
     ),
-    CONSTRAINT ck_academic_change_requests_reason CHECK (CHAR_LENGTH(TRIM(reason)) > 0),
     CONSTRAINT ck_academic_change_requests_processing CHECK (
         (status = 'PENDING' AND processed_by IS NULL AND processed_at IS NULL
             AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)

@@ -52,8 +52,6 @@ public class AcademicChangeRequest {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "target_semester_id", nullable = false)
     private Semester targetSemester;
-    @Column(nullable = false, length = 500)
-    private String reason;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private AcademicChangeRequestStatus status;
     @Column(name = "reject_reason", length = 500)
@@ -81,7 +79,7 @@ public class AcademicChangeRequest {
     private LocalDateTime updatedAt;
 
     public static AcademicChangeRequest create(Student student, Department targetDepartment, Major targetMajor,
-                                                Semester targetSemester, String reason) {
+                                                Semester targetSemester) {
         AcademicChangeRequest request = new AcademicChangeRequest();
         request.student = student;
         request.requestType = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
@@ -90,7 +88,6 @@ public class AcademicChangeRequest {
         request.targetDepartment = targetDepartment;
         request.targetMajor = targetMajor;
         request.targetSemester = targetSemester;
-        request.reason = reason;
         request.status = AcademicChangeRequestStatus.PENDING;
         return request;
     }
