@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface LectureScheduleRepository extends JpaRepository<LectureSchedule, Long> {
 
     @Query("""
@@ -23,5 +25,11 @@ public interface LectureScheduleRepository extends JpaRepository<LectureSchedule
             @Param("dayOfWeek") LectureDayOfWeek dayOfWeek,
             @Param("startPeriod") byte startPeriod,
             @Param("endPeriod") byte endPeriod
+    );
+
+    // 해당 강의의 교시를 찾기 위한 메서드
+    List<LectureSchedule> findAllByLectureIdAndDayOfWeekOrderByStartPeriodAsc(
+            Long lectureId,
+            LectureDayOfWeek dayOfWeek // 오늘 요일
     );
 }

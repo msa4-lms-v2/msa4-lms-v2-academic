@@ -36,6 +36,7 @@ public class ProfessorLectureQueryRepository {
             Short academicYear,
             SemesterTerm term,
             LectureStatus status,
+            Boolean current,
             long offset,
             int size
     ) {
@@ -84,7 +85,8 @@ public class ProfessorLectureQueryRepository {
                         professorUser.id.eq(userId),
                         academicYear == null ? null : semester.academicYear.eq(academicYear),
                         term == null ? null : semester.term.eq(term),
-                        status == null ? null : lecture.status.eq(status)
+                        status == null ? null : lecture.status.eq(status),
+                        current == null ? null : semester.current.eq(current)
                 )
                 .orderBy(
                         semester.academicYear.desc(),
@@ -107,7 +109,8 @@ public class ProfessorLectureQueryRepository {
                         professorUser.id.eq(userId),
                         academicYear == null ? null : semester.academicYear.eq(academicYear),
                         term == null ? null : semester.term.eq(term),
-                        status == null ? null : lecture.status.eq(status)
+                        status == null ? null : lecture.status.eq(status),
+                        current == null ? null : semester.current.eq(current)
                 )
                 .fetchOne();
 

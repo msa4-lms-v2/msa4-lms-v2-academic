@@ -19,6 +19,15 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_TIMEOUT:2s}
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -34,6 +43,10 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: true
+
+attendance:
+  qr:
+    base-url: ${ATTENDANCE_QR_BASE_URL:http://localhost:3000/attendance/check-in}
 
 minio:
   endpoint: ${MINIO_ENDPOINT}

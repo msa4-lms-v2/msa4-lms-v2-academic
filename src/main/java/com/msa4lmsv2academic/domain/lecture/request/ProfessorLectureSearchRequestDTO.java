@@ -27,7 +27,10 @@ public record ProfessorLectureSearchRequestDTO(
 
         @Schema(description = "강의 상태. 생략하면 전체 상태를 조회합니다.", example = "OPEN",
                 allowableValues = {"OPEN", "CLOSED"})
-        LectureStatus status
+        LectureStatus status,
+
+        @Schema(description = "현재 학기 여부. 생략하면 전체 학기를 조회합니다.", example = "true")
+        Boolean current
 ) {
 
     private static final int DEFAULT_PAGE = 1;

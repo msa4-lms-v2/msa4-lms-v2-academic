@@ -30,7 +30,7 @@ public class ProfessorLectureQueryService {
         }
 
         ProfessorLectureSearchRequestDTO resolvedRequest = request == null
-                ? new ProfessorLectureSearchRequestDTO(null, null, null, null, null)
+                ? new ProfessorLectureSearchRequestDTO(null, null, null, null, null, null)
                 : request;
         int page = resolvedRequest.resolvedPage();
         int size = resolvedRequest.resolvedSize();
@@ -40,6 +40,7 @@ public class ProfessorLectureQueryService {
                 resolvedRequest.academicYear(),
                 resolvedRequest.term(),
                 resolvedRequest.status(),
+                resolvedRequest.current(),
                 offset,
                 size
         );

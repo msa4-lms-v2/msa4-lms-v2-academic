@@ -30,4 +30,9 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
             where lecture.id = :classId
             """)
     Optional<Lecture> findSyllabusByIdForUpdate(@Param("classId") Long classId);
+
+    Optional<Lecture> findByIdAndProfessor_User_IdAndSemester_CurrentTrue(
+            Long classId,
+            Long userId
+    );
 }
