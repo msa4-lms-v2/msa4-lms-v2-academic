@@ -27,12 +27,37 @@ class ProfileFileValidatorTest {
     }
 
     @Test
+    void acceptsJpegAndPngAttachmentsForStudentRequests() {
+        MockMultipartFile jpeg = file(
+                "attachments", "residence.jpg", "image/jpeg",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00}
+        );
+        MockMultipartFile png = file(
+                "attachments", "certificate.png", "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+        );
+
+        assertThatNoException().isThrownBy(() -> validator.validateStudent(null, List.of(jpeg, png)));
+    }
+
+    @Test
+    void keepsProfessorAttachmentsPdfOnly() {
+        MockMultipartFile jpeg = file(
+                "attachments", "residence.jpg", "image/jpeg",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00}
+        );
+
+        assertThatThrownBy(() -> validator.validate(null, List.of(jpeg)))
+                .isInstanceOf(InvalidFileException.class);
+    }
+
+    @Test
     void rejectsFileWhoseMimeAndSignatureDoNotMatchPdfExtension() {
         MockMultipartFile disguised = file(
                 "attachments", "proof.pdf", "application/pdf", "not-a-pdf".getBytes()
         );
 
-        assertThatThrownBy(() -> validator.validate(null, List.of(disguised)))
+        assertThatThrownBy(() -> validator.validateStudent(null, List.of(disguised)))
                 .isInstanceOf(InvalidFileException.class);
     }
 

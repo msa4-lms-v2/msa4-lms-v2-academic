@@ -23,11 +23,23 @@ public class ProfileFileValidator {
     private static final byte[] PDF_SIGNATURE = {'%', 'P', 'D', 'F', '-'};
 
     public void validate(MultipartFile profileImage, List<MultipartFile> attachments) {
+        validate(profileImage, attachments, false);
+    }
+
+    public void validateStudent(MultipartFile profileImage, List<MultipartFile> attachments) {
+        validate(profileImage, attachments, true);
+    }
+
+    private void validate(
+            MultipartFile profileImage,
+            List<MultipartFile> attachments,
+            boolean allowImageAttachments
+    ) {
         List<MultipartFile> presentAttachments = attachments == null
                 ? List.of()
                 : attachments.stream().filter(this::hasContent).toList();
         if (presentAttachments.size() > ATTACHMENT_MAX_COUNT) {
-            throw new InvalidFileException("증빙 PDF는 최대 5개까지 첨부할 수 있습니다.");
+            throw new InvalidFileException("증빙 파일은 최대 5개까지 첨부할 수 있습니다.");
         }
 
         long totalSize = 0;
@@ -36,7 +48,7 @@ public class ProfileFileValidator {
             totalSize += profileImage.getSize();
         }
         for (MultipartFile attachment : presentAttachments) {
-            validatePdf(attachment);
+            validateAttachment(attachment, allowImageAttachments);
             totalSize += attachment.getSize();
         }
         if (totalSize > REQUEST_MAX_SIZE) {
@@ -61,15 +73,33 @@ public class ProfileFileValidator {
         }
     }
 
-    private void validatePdf(MultipartFile file) {
+    private void validateAttachment(MultipartFile file, boolean allowImages) {
         if (file.getSize() > ATTACHMENT_MAX_SIZE) {
-            throw new FileSizeExceededException("증빙 PDF는 파일당 10MB 이하여야 합니다.");
+            throw new FileSizeExceededException("증빙 파일은 파일당 10MB 이하여야 합니다.");
         }
-        if (!"pdf".equals(extension(file))
-                || !"application/pdf".equals(normalizedContentType(file))
-                || !hasSignature(file, PDF_SIGNATURE)) {
-            throw new InvalidFileException("증빙 파일은 PDF 형식만 허용됩니다.");
+        if (isPdf(file) || allowImages && isImage(file)) {
+            return;
         }
+        String allowedFormats = allowImages ? "PDF, JPEG 또는 PNG" : "PDF";
+        throw new InvalidFileException("증빙 파일은 " + allowedFormats + " 형식만 허용됩니다.");
+    }
+
+    private boolean isPdf(MultipartFile file) {
+        return "pdf".equals(extension(file))
+                && "application/pdf".equals(normalizedContentType(file))
+                && hasSignature(file, PDF_SIGNATURE);
+    }
+
+    private boolean isImage(MultipartFile file) {
+        String extension = extension(file);
+        String contentType = normalizedContentType(file);
+        boolean jpeg = ("jpg".equals(extension) || "jpeg".equals(extension))
+                && "image/jpeg".equals(contentType)
+                && hasJpegSignature(file);
+        boolean png = "png".equals(extension)
+                && "image/png".equals(contentType)
+                && hasSignature(file, PNG_SIGNATURE);
+        return jpeg || png;
     }
 
     private boolean hasJpegSignature(MultipartFile file) {
