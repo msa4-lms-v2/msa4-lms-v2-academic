@@ -7,7 +7,6 @@ import static com.msa4lmsv2academic.domain.transfer.entity.QAcademicChangeReques
 import static com.msa4lmsv2academic.domain.user.entity.QUser.user;
 
 import com.msa4lmsv2academic.domain.organization.entity.QDepartment;
-import com.msa4lmsv2academic.domain.organization.entity.QMajor;
 import com.msa4lmsv2academic.domain.transfer.entity.*;
 import com.msa4lmsv2academic.domain.transfer.request.DepartmentTransferPeriodSearchRequestDTO;
 import com.msa4lmsv2academic.domain.transfer.request.DepartmentTransferSearchRequestDTO;
@@ -28,8 +27,6 @@ public class DepartmentTransferQueryRepository {
 
     private static final QDepartment SOURCE_DEPARTMENT = new QDepartment("sourceDepartment");
     private static final QDepartment TARGET_DEPARTMENT = new QDepartment("targetDepartment");
-    private static final QMajor SOURCE_MAJOR = new QMajor("sourceMajor");
-    private static final QMajor TARGET_MAJOR = new QMajor("targetMajor");
     private static final QUser PROCESSED_BY = new QUser("processedBy");
     private static final QUser CANCELLED_BY = new QUser("cancelledBy");
 
@@ -86,9 +83,7 @@ public class DepartmentTransferQueryRepository {
                 .join(academicChangeRequest.student, student).fetchJoin()
                 .join(student.user, user).fetchJoin()
                 .join(academicChangeRequest.sourceDepartment, SOURCE_DEPARTMENT).fetchJoin()
-                .leftJoin(academicChangeRequest.sourceMajor, SOURCE_MAJOR).fetchJoin()
                 .join(academicChangeRequest.targetDepartment, TARGET_DEPARTMENT).fetchJoin()
-                .join(academicChangeRequest.targetMajor, TARGET_MAJOR).fetchJoin()
                 .join(academicChangeRequest.targetSemester, semester).fetchJoin()
                 .leftJoin(academicChangeRequest.processedBy, PROCESSED_BY).fetchJoin()
                 .leftJoin(academicChangeRequest.cancelledBy, CANCELLED_BY).fetchJoin();

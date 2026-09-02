@@ -5,6 +5,7 @@ import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestStatus;
 import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record LeaveRequestResponseDTO(
         @Schema(description = "신청 ID", example = "1") Long id,
@@ -22,10 +23,16 @@ public record LeaveRequestResponseDTO(
         @Schema(description = "PDF 원본 파일명", maxLength = 255, nullable = true, example = "증빙.pdf") String attachmentOriginalName,
         @Schema(description = "첨부 MIME 타입", nullable = true, example = "application/pdf") String attachmentContentType,
         @Schema(description = "첨부 크기(byte), 최대 10485760", maximum = "10485760", nullable = true, example = "1024") Long attachmentSize,
+        @Schema(description = "증빙 PDF 목록. 최대 5개") List<LeaveRequestFileResponseDTO> files,
         @Schema(description = "신청 시각(KST)", example = "2026-12-10T10:00:00") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각(KST). 승인·취소의 전용 시각이 아님", example = "2026-12-10T10:00:00") LocalDateTime updatedAt
 ) {
     public static LeaveRequestResponseDTO from(LeaveRequest request) {
+        List<LeaveRequestFileResponseDTO> files = request.getFiles().stream()
+                .map(LeaveRequestFileResponseDTO::from)
+                .toList();
+        var first = request.getFiles().isEmpty() ? null : request.getFiles().getFirst();
+        Long firstSize = first == null ? request.getAttachmentSize() : Long.valueOf(first.getSize());
         return new LeaveRequestResponseDTO(
                 request.getId(),
                 request.getStudent().getId(),
@@ -39,9 +46,10 @@ public record LeaveRequestResponseDTO(
                 request.getStatus(),
                 request.getRejectReason(),
                 request.getCancelReason(),
-                request.getAttachmentOriginalName(),
-                request.getAttachmentContentType(),
-                request.getAttachmentSize(),
+                first == null ? request.getAttachmentOriginalName() : first.getOriginalName(),
+                first == null ? request.getAttachmentContentType() : first.getContentType(),
+                firstSize,
+                files,
                 request.getCreatedAt(),
                 request.getUpdatedAt());
     }

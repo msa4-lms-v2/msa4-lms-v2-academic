@@ -8,7 +8,6 @@ import static com.msa4lmsv2academic.domain.user.entity.QUser.user;
 
 import com.msa4lmsv2academic.domain.doublemajor.request.*;
 import com.msa4lmsv2academic.domain.organization.entity.QDepartment;
-import com.msa4lmsv2academic.domain.organization.entity.QMajor;
 import com.msa4lmsv2academic.domain.transfer.entity.*;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
 import com.querydsl.core.BooleanBuilder;
@@ -25,8 +24,6 @@ public class DoubleMajorQueryRepository {
 
     private static final QDepartment SOURCE_DEPARTMENT = new QDepartment("doubleMajorSourceDepartment");
     private static final QDepartment TARGET_DEPARTMENT = new QDepartment("doubleMajorTargetDepartment");
-    private static final QMajor SOURCE_MAJOR = new QMajor("doubleMajorSourceMajor");
-    private static final QMajor TARGET_MAJOR = new QMajor("doubleMajorTargetMajor");
     private static final QAcademicChangeRequestPeriod REQUEST_PERIOD =
             new QAcademicChangeRequestPeriod("doubleMajorRequestPeriod");
     private static final QUser PROCESSED_BY = new QUser("doubleMajorProcessedBy");
@@ -46,14 +43,11 @@ public class DoubleMajorQueryRepository {
         if (filter.status() != null) where.and(academicChangeRequest.status.eq(filter.status()));
         if (filter.requestPeriodId() != null) where.and(academicChangeRequest.requestPeriod.id.eq(filter.requestPeriodId()));
         if (filter.targetDepartmentId() != null) where.and(academicChangeRequest.targetDepartment.id.eq(filter.targetDepartmentId()));
-        if (filter.targetMajorId() != null) where.and(academicChangeRequest.targetMajor.id.eq(filter.targetMajorId()));
         if (filter.normalizedKeyword() != null) {
             String keyword = filter.normalizedKeyword();
             where.and(academicChangeRequest.student.user.name.containsIgnoreCase(keyword)
                     .or(academicChangeRequest.sourceDepartment.name.containsIgnoreCase(keyword))
-                    .or(academicChangeRequest.sourceMajor.name.containsIgnoreCase(keyword))
-                    .or(academicChangeRequest.targetDepartment.name.containsIgnoreCase(keyword))
-                    .or(academicChangeRequest.targetMajor.name.containsIgnoreCase(keyword)));
+                    .or(academicChangeRequest.targetDepartment.name.containsIgnoreCase(keyword)));
         }
         var items = baseDetailQuery().where(where)
                 .orderBy(filter.ascending() ? academicChangeRequest.createdAt.asc() : academicChangeRequest.createdAt.desc(),
@@ -85,9 +79,7 @@ public class DoubleMajorQueryRepository {
                 .join(academicChangeRequest.student, student).fetchJoin()
                 .join(student.user, user).fetchJoin()
                 .join(academicChangeRequest.sourceDepartment, SOURCE_DEPARTMENT).fetchJoin()
-                .leftJoin(academicChangeRequest.sourceMajor, SOURCE_MAJOR).fetchJoin()
                 .join(academicChangeRequest.targetDepartment, TARGET_DEPARTMENT).fetchJoin()
-                .join(academicChangeRequest.targetMajor, TARGET_MAJOR).fetchJoin()
                 .join(academicChangeRequest.requestPeriod, REQUEST_PERIOD).fetchJoin()
                 .join(REQUEST_PERIOD.semester, semester).fetchJoin()
                 .leftJoin(academicChangeRequest.processedBy, PROCESSED_BY).fetchJoin()

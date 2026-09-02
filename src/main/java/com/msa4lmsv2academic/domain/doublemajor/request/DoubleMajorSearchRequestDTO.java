@@ -11,10 +11,9 @@ public record DoubleMajorSearchRequestDTO(
         @Schema(description = "처리 상태", example = "PENDING") AcademicChangeRequestStatus status,
         @Positive @Schema(description = "모집 회차 ID", example = "2") Long requestPeriodId,
         @Positive @Schema(description = "희망 학과 ID", example = "249") Long targetDepartmentId,
-        @Positive @Schema(description = "희망 복수전공 ID", example = "126") Long targetMajorId,
         @Positive @Schema(description = "학생 ID. 학생은 본인 ID만, 관리자는 전체 검색 가능", example = "1") Long studentId,
         @Size(max = 100)
-        @Schema(description = "학생명·신청 당시/희망 학과·전공명 검색(최대 100자)", example = "경영") String keyword,
+        @Schema(description = "학생명·신청 당시/희망 학과명 검색(최대 100자)", example = "경영") String keyword,
         @Schema(description = "생성 시각 정렬", defaultValue = "CREATED_AT_DESC", example = "CREATED_AT_DESC")
         DepartmentTransferRequestSort sort
 ) {

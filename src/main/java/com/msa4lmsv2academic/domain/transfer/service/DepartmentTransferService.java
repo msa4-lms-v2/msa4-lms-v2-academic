@@ -1,9 +1,7 @@
 package com.msa4lmsv2academic.domain.transfer.service;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentQueryRepository;
-import com.msa4lmsv2academic.domain.organization.repository.MajorRepository;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
 import com.msa4lmsv2academic.domain.student.entity.Student;
@@ -38,7 +36,6 @@ public class DepartmentTransferService {
     private final DepartmentTransferQueryRepository queries;
     private final StudentRepository studentRepository;
     private final DepartmentQueryRepository departmentRepository;
-    private final MajorRepository majorRepository;
     private final SemesterRepository semesterRepository;
     private final UserRepository userRepository;
     private final DepartmentTransferPolicy policy;
@@ -100,7 +97,7 @@ public class DepartmentTransferService {
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
             AcademicChangeRequest request = AcademicChangeRequest.createTransfer(student, resolved.department(),
-                    resolved.major(), resolved.semester(), resolved.period());
+                    resolved.semester(), resolved.period());
             for (StoredTransferDocument document : documents) {
                 request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
                         document.storedName(), document.contentType(), document.size()));
@@ -175,7 +172,7 @@ public class DepartmentTransferService {
             validateApproval(student, request);
             Map<String, Object> beforeAffiliation = audit.affiliation(student);
             request.approve(processor, now);
-            student.changeAffiliation(request.getTargetDepartment(), request.getTargetMajor());
+            student.changeAffiliation(request.getTargetDepartment());
             student.clearAdvisor();
             repository.flush();
             audit.record(student.getId(), "STUDENT_AFFILIATION", beforeAffiliation, audit.affiliation(student),
@@ -209,13 +206,8 @@ public class DepartmentTransferService {
         if (student.getDepartment().getId().equals(targetDepartment.getId())) {
             throw new DepartmentTransferConflictException("현재 소속과 다른 학과를 선택해야 합니다.");
         }
-        Major targetMajor = majorRepository.findDetailById(body.targetMajorId())
-                .orElseThrow(() -> new DepartmentTransferNotFoundException("희망 전공을 찾을 수 없습니다."));
-        if (!targetMajor.isActive() || !targetMajor.getDepartment().getId().equals(targetDepartment.getId())) {
-            throw new DepartmentTransferConflictException("희망 전공은 희망 학과 소속의 활성 전공이어야 합니다.");
-        }
-        if (student.getDoubleMajor() != null && student.getDoubleMajor().getId().equals(targetMajor.getId())) {
-            throw new DepartmentTransferConflictException("현재 복수전공과 같은 전공을 주전공으로 신청할 수 없습니다.");
+        if (student.getDoubleMajor() != null && student.getDoubleMajor().getId().equals(targetDepartment.getId())) {
+            throw new DepartmentTransferConflictException("현재 복수전공과 같은 학과로 전과를 신청할 수 없습니다.");
         }
         Semester targetSemester = semesterRepository.findById(body.targetSemesterId())
                 .orElseThrow(() -> new DepartmentTransferNotFoundException("적용 희망 학기를 찾을 수 없습니다."));
@@ -226,26 +218,21 @@ public class DepartmentTransferService {
         if (!configured.accepts(DepartmentTransferPolicy.now())) {
             throw new DepartmentTransferConflictException("현재는 전과 접수 기간이 아닙니다.");
         }
-        return new ResolvedCreation(targetDepartment, targetMajor, targetSemester, configured);
+        return new ResolvedCreation(targetDepartment, targetSemester, configured);
     }
 
     private void validateApproval(Student student, AcademicChangeRequest request) {
         policy.requireEnrolled(student.getAcademicStatus());
-        if (!student.getDepartment().getId().equals(request.getSourceDepartment().getId())
-                || !sameId(student.getMajor(), request.getSourceMajor())) {
+        if (!student.getDepartment().getId().equals(request.getSourceDepartment().getId())) {
             throw new DepartmentTransferConflictException("신청 이후 학생 소속이 변경되어 승인할 수 없습니다.");
         }
-        if (!request.getTargetDepartment().isActive() || !request.getTargetMajor().isActive()
-                || !request.getTargetMajor().getDepartment().getId().equals(request.getTargetDepartment().getId())) {
-            throw new DepartmentTransferConflictException("희망 학과 또는 전공이 비활성화되었거나 소속 관계가 변경되었습니다.");
+        if (!request.getTargetDepartment().isActive()) {
+            throw new DepartmentTransferConflictException("희망 학과가 비활성화되었습니다.");
         }
-        if (student.getDoubleMajor() != null && student.getDoubleMajor().getId().equals(request.getTargetMajor().getId())) {
-            throw new DepartmentTransferConflictException("현재 복수전공과 같은 전공으로 전과할 수 없습니다.");
+        if (student.getDoubleMajor() != null
+                && student.getDoubleMajor().getId().equals(request.getTargetDepartment().getId())) {
+            throw new DepartmentTransferConflictException("현재 복수전공과 같은 학과로 전과할 수 없습니다.");
         }
-    }
-
-    private boolean sameId(Major left, Major right) {
-        return left == null ? right == null : right != null && left.getId().equals(right.getId());
     }
 
     private AcademicChangeRequest readable(Long id, CurrentUser actor) {
@@ -292,6 +279,6 @@ public class DepartmentTransferService {
         return new DepartmentTransferAccessDeniedException("본인의 전과 신청만 접근할 수 있습니다.");
     }
 
-    private record ResolvedCreation(Department department, Major major, Semester semester,
+    private record ResolvedCreation(Department department, Semester semester,
                                     AcademicChangeRequestPeriod period) { }
 }

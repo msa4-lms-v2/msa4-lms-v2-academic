@@ -1,7 +1,6 @@
 package com.msa4lmsv2academic.domain.student.entity;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import jakarta.persistence.CheckConstraint;
@@ -35,12 +34,11 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
         name = "students",
         uniqueConstraints = @UniqueConstraint(name = "uk_students_user_id", columnNames = "user_id"),
         check = @CheckConstraint(
-                name = "ck_students_distinct_majors",
-                constraint = "major_id IS NULL OR double_major_id IS NULL OR major_id <> double_major_id"
+                name = "ck_students_distinct_departments",
+                constraint = "double_major_id IS NULL OR department_id <> double_major_id"
         ),
         indexes = {
                 @Index(name = "idx_students_department_id", columnList = "department_id"),
-                @Index(name = "idx_students_major_id", columnList = "major_id"),
                 @Index(name = "idx_students_double_major_id", columnList = "double_major_id"),
                 @Index(name = "idx_students_advisor_id", columnList = "advisor_id")
         }
@@ -61,12 +59,8 @@ public class Student {
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "major_id")
-    private Major major;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "double_major_id")
-    private Major doubleMajor;
+    private Department doubleMajor;
 
     @Column(name = "grade_level", nullable = false)
     private byte gradeLevel;
@@ -82,36 +76,34 @@ public class Student {
     @JoinColumn(name = "advisor_id")
     private Professor advisor;
 
-    private Student(User user, Department department, Major major, byte gradeLevel, short admissionYear,
+    private Student(User user, Department department, byte gradeLevel, short admissionYear,
                     Professor advisor) {
         this.user = user;
         this.department = department;
-        this.major = major;
         this.gradeLevel = gradeLevel;
         this.admissionYear = admissionYear;
         this.academicStatus = AcademicStatus.ENROLLED;
         this.advisor = advisor;
     }
 
-    public static Student create(User user, Department department, Major major, byte gradeLevel,
+    public static Student create(User user, Department department, byte gradeLevel,
                                  short admissionYear, Professor advisor) {
-        return new Student(user, department, major, gradeLevel, admissionYear, advisor);
+        return new Student(user, department, gradeLevel, admissionYear, advisor);
     }
 
     public void changeAcademicStatus(AcademicStatus academicStatus) {
         this.academicStatus = academicStatus;
     }
 
-    public void changeAffiliation(Department department, Major major) {
+    public void changeAffiliation(Department department) {
         this.department = department;
-        this.major = major;
     }
 
     public void clearAdvisor() {
         this.advisor = null;
     }
 
-    public void assignDoubleMajor(Major doubleMajor) {
+    public void assignDoubleMajor(Department doubleMajor) {
         this.doubleMajor = doubleMajor;
     }
 }

@@ -46,12 +46,10 @@ public class DepartmentTransferPolicy {
     }
 
     public void validateCreate(DepartmentTransferCreateRequestDTO body) {
-        if (body == null || body.targetDepartmentId() == null || body.targetMajorId() == null
-                || body.targetSemesterId() == null) {
-            throw new InvalidDepartmentTransferRequestException("희망 학과·전공과 적용 학기가 필요합니다.");
+        if (body == null || body.targetDepartmentId() == null || body.targetSemesterId() == null) {
+            throw new InvalidDepartmentTransferRequestException("희망 학과와 적용 학기가 필요합니다.");
         }
         requireId(body.targetDepartmentId());
-        requireId(body.targetMajorId());
         requireId(body.targetSemesterId());
     }
 

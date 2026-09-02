@@ -3,6 +3,8 @@ package com.msa4lmsv2academic.domain.leaverequest.entity;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -50,6 +52,9 @@ public class LeaveRequest {
     private String attachmentContentType;
     @Column(name = "attachment_size")
     private Long attachmentSize;
+    @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<LeaveRequestFile> files = new ArrayList<>();
     @CreatedDate @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     @LastModifiedDate @Column(name = "updated_at", nullable = false)
@@ -61,11 +66,7 @@ public class LeaveRequest {
                                       short year,
                                       byte term,
                                       Short returnYear,
-                                      Byte returnTerm,
-                                      String originalName,
-                                      String storedName,
-                                      String contentType,
-                                      Long size)
+                                      Byte returnTerm)
     {
         LeaveRequest request = new LeaveRequest();
         request.student = student;
@@ -76,11 +77,11 @@ public class LeaveRequest {
         request.returnYear = returnYear;
         request.returnSemester = returnTerm;
         request.status = LeaveRequestStatus.PENDING;
-        request.attachmentOriginalName = originalName;
-        request.attachmentStoredName = storedName;
-        request.attachmentContentType = contentType;
-        request.attachmentSize = size;
         return request;
+    }
+
+    public void addFile(String originalName, String storedName, String contentType, long size) {
+        files.add(LeaveRequestFile.create(this, originalName, storedName, contentType, size));
     }
 
     public void approve() {

@@ -46,7 +46,7 @@ class LeaveRequestPolicyTest {
 
     @Test void terminalRequestCannotBeChangedAgain() {
         var request = LeaveRequest.create(null, LeaveRequestType.GENERAL_LEAVE, "원본 사유",
-                (short) 2026, (byte) 2, (short) 2027, (byte) 1, null, null, null, null);
+                (short) 2026, (byte) 2, (short) 2027, (byte) 1);
         request.cancel("취소 사유");
         assertThat(request.getReason()).isEqualTo("원본 사유");
         assertThatThrownBy(request::approve).isInstanceOf(IllegalStateException.class);

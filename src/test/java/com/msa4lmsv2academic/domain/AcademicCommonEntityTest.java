@@ -12,7 +12,6 @@ import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.lecture.entity.LectureStatus;
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
@@ -41,13 +40,12 @@ class AcademicCommonEntityTest {
     void confirmedErdRelationshipsAreConnected() {
         College college = College.create("ENG", "공과대학", true);
         Department department = Department.create("100", college, "컴퓨터공학과", true);
-        Major major = Major.create(department, "CSE", "컴퓨터공학", true);
         User professorUser = User.synchronize(10L, "교수", "professor@test.com", null, null,
                 UserRole.PROFESSOR, UserStatus.ACTIVE);
         Professor professor = Professor.create(professorUser, null, department);
         User studentUser = User.synchronize(20L, "학생", "student@test.com", null, null,
                 UserRole.STUDENT, UserStatus.ACTIVE);
-        Student student = Student.create(studentUser, department, major, (byte) 4, (short) 2022,
+        Student student = Student.create(studentUser, department, (byte) 4, (short) 2022,
                 professor);
         Semester semester = Semester.create((short) 2026, SemesterTerm.FIRST,
                 LocalDate.of(2026, 3, 2), LocalDate.of(2026, 6, 19),
@@ -61,7 +59,6 @@ class AcademicCommonEntityTest {
                 60, 30, 130, List.of("CSE101"));
 
         assertThat(student.getDepartment()).isSameAs(department);
-        assertThat(student.getMajor()).isSameAs(major);
         assertThat(student.getAcademicStatus()).isEqualTo(AcademicStatus.ENROLLED);
         assertThat(professor.getHireYear()).isNull();
         assertThat(course.getTargetGrade()).isNull();

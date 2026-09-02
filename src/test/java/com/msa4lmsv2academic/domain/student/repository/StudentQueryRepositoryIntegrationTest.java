@@ -173,7 +173,7 @@ class StudentQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
         User studentUser = user(userId, name, UserRole.STUDENT);
         entityManager.persist(studentUser);
         Student student = Student.create(
-                studentUser, department, null, gradeLevel, admissionYear, advisor
+                studentUser, department, gradeLevel, admissionYear, advisor
         );
         student.changeAcademicStatus(academicStatus);
         return student;

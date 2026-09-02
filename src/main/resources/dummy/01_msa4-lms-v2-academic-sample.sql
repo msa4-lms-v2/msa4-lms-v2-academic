@@ -41,16 +41,6 @@ ON DUPLICATE KEY UPDATE
 
 SET @cse_department_id = (SELECT id FROM departments WHERE code = '001' LIMIT 1);
 
-INSERT INTO majors (department_id, code, name, active) VALUES
-    (@cse_department_id, 'CSE-SW', '소프트웨어전공', TRUE),
-    (@cse_department_id, 'CSE-AI', '인공지능전공', TRUE)
-ON DUPLICATE KEY UPDATE
-    department_id = VALUES(department_id),
-    name = VALUES(name),
-    active = VALUES(active);
-
-SET @software_major_id = (SELECT id FROM majors WHERE code = 'CSE-SW' LIMIT 1);
-
 INSERT INTO professors (user_id, hire_year, department_id)
 VALUES (@professor_user_id, 2020, @cse_department_id)
 ON DUPLICATE KEY UPDATE
@@ -64,7 +54,6 @@ SET @sample_professor_id = (
 INSERT INTO students (
     user_id,
     department_id,
-    major_id,
     double_major_id,
     grade_level,
     admission_year,
@@ -74,7 +63,6 @@ INSERT INTO students (
 VALUES (
     @student_user_id,
     @cse_department_id,
-    @software_major_id,
     NULL,
     3,
     2024,
@@ -83,7 +71,6 @@ VALUES (
 )
 ON DUPLICATE KEY UPDATE
     department_id = VALUES(department_id),
-    major_id = VALUES(major_id),
     double_major_id = VALUES(double_major_id),
     grade_level = VALUES(grade_level),
     admission_year = VALUES(admission_year),

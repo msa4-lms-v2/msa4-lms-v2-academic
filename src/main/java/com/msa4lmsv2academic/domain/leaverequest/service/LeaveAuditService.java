@@ -5,6 +5,7 @@ import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequest;
 import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestPeriod;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,10 +31,16 @@ public class LeaveAuditService {
         value.put("returnSemester", request.getReturnSemester());
         value.put("rejectReason", request.getRejectReason());
         value.put("cancelReason", request.getCancelReason());
-        value.put("attachmentOriginalName", request.getAttachmentOriginalName());
-        value.put("attachmentStoredName", request.getAttachmentStoredName());
-        value.put("attachmentContentType", request.getAttachmentContentType());
-        value.put("attachmentSize", request.getAttachmentSize());
+        List<Map<String, Object>> files = request.getFiles().stream().map(file -> {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("id", file.getId());
+            metadata.put("originalName", file.getOriginalName());
+            metadata.put("storedName", file.getStoredName());
+            metadata.put("contentType", file.getContentType());
+            metadata.put("size", file.getSize());
+            return metadata;
+        }).toList();
+        value.put("files", files);
         return value;
     }
 

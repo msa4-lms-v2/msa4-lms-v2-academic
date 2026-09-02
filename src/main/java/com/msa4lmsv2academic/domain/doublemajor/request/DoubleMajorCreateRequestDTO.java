@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Positive;
 
 public record DoubleMajorCreateRequestDTO(
         @NotNull @Positive
-        @Schema(description = "희망 복수전공 ID. 희망 학과는 이 전공의 소속 학과로 결정됩니다.", example = "126",
+        @Schema(description = "희망 복수전공 학과 ID", example = "249",
                 requiredMode = Schema.RequiredMode.REQUIRED)
-        Long targetMajorId
+        Long targetDepartmentId
 ) { }

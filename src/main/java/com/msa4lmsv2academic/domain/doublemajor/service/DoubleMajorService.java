@@ -3,8 +3,8 @@ package com.msa4lmsv2academic.domain.doublemajor.service;
 import com.msa4lmsv2academic.domain.doublemajor.repository.DoubleMajorQueryRepository;
 import com.msa4lmsv2academic.domain.doublemajor.request.*;
 import com.msa4lmsv2academic.domain.doublemajor.response.DoubleMajorResponseDTO;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
-import com.msa4lmsv2academic.domain.organization.repository.MajorRepository;
+import com.msa4lmsv2academic.domain.organization.entity.Department;
+import com.msa4lmsv2academic.domain.organization.repository.DepartmentQueryRepository;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.transfer.entity.*;
@@ -33,7 +33,7 @@ public class DoubleMajorService {
     private final AcademicChangeRequestPeriodRepository periodRepository;
     private final DoubleMajorQueryRepository queries;
     private final StudentRepository studentRepository;
-    private final MajorRepository majorRepository;
+    private final DepartmentQueryRepository departmentRepository;
     private final UserRepository userRepository;
     private final DoubleMajorPolicy policy;
     private final DepartmentTransferIdempotencyService idempotency;
@@ -71,7 +71,7 @@ public class DoubleMajorService {
         var replay = idempotency.replay(key, actor.id(), CREATE_ENDPOINT, hash, DoubleMajorPolicy.now(),
                 DoubleMajorResponseDTO.class);
         if (replay.isPresent()) return replay;
-        resolveCreation(student, body.targetMajorId(), false);
+        resolveCreation(student, body.targetDepartmentId(), false);
         return Optional.empty();
     }
 
@@ -85,15 +85,18 @@ public class DoubleMajorService {
         var now = DoubleMajorPolicy.now();
         var replay = idempotency.replay(key, actor.id(), CREATE_ENDPOINT, hash, now, DoubleMajorResponseDTO.class);
         if (replay.isPresent()) return new DoubleMajorCreationResult(replay.orElseThrow(), false);
-        ResolvedCreation resolved = resolveCreation(student, body.targetMajorId(), true);
-        if (documents == null || documents.size() != TransferDocumentType.values().length
-                || documents.stream().map(StoredTransferDocument::type).distinct().count()
-                != TransferDocumentType.values().length) {
-            throw new InvalidDoubleMajorRequestException("자기소개서·학업계획서·성적증명서 PDF가 모두 필요합니다.");
+        ResolvedCreation resolved = resolveCreation(student, body.targetDepartmentId(), true);
+        Set<TransferDocumentType> requiredTypes = EnumSet.of(
+                TransferDocumentType.SELF_INTRODUCTION,
+                TransferDocumentType.STUDY_PLAN);
+        if (documents == null || documents.size() != requiredTypes.size()
+                || !documents.stream().map(StoredTransferDocument::type).collect(java.util.stream.Collectors.toSet())
+                .equals(requiredTypes)) {
+            throw new InvalidDoubleMajorRequestException("자기소개서·학업계획서 PDF가 모두 필요합니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
-            AcademicChangeRequest request = AcademicChangeRequest.createDoubleMajor(student, resolved.targetMajor(),
+            AcademicChangeRequest request = AcademicChangeRequest.createDoubleMajor(student, resolved.targetDepartment(),
                     resolved.period());
             for (StoredTransferDocument document : documents) {
                 request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
@@ -167,7 +170,7 @@ public class DoubleMajorService {
             validateApproval(student, request);
             Map<String, Object> beforeAffiliation = audit.affiliation(student);
             request.approve(processor, now);
-            student.assignDoubleMajor(request.getTargetMajor());
+            student.assignDoubleMajor(request.getTargetDepartment());
             repository.flush();
             audit.record(student.getId(), "STUDENT_AFFILIATION", beforeAffiliation, audit.affiliation(student),
                     "STUDENT_DOUBLE_MAJOR_ASSIGNED", "관리자 복수전공 승인", actor, context);
@@ -185,7 +188,7 @@ public class DoubleMajorService {
         return response;
     }
 
-    private ResolvedCreation resolveCreation(Student student, Long targetMajorId, boolean lock) {
+    private ResolvedCreation resolveCreation(Student student, Long targetDepartmentId, boolean lock) {
         policy.requireEnrolled(student.getAcademicStatus());
         if (student.getDoubleMajor() != null) {
             throw new DoubleMajorConflictException("이미 복수전공이 배정된 학생입니다.");
@@ -194,30 +197,29 @@ public class DoubleMajorService {
                 AcademicChangeRequestStatus.PENDING)) {
             throw new DoubleMajorConflictException("진행 중인 복수전공 신청이 있습니다.");
         }
-        Major targetMajor = majorRepository.findDetailById(targetMajorId)
+        Department targetDepartment = departmentRepository.findByIdWithCollege(targetDepartmentId)
                 .orElseThrow(() -> new DoubleMajorNotFoundException("희망 복수전공을 찾을 수 없습니다."));
-        validateTarget(student, targetMajor);
+        validateTarget(student, targetDepartment);
         var now = DoubleMajorPolicy.now();
         var periods = lock ? periodRepository.findAcceptingForUpdate(TYPE, now) : periodRepository.findAccepting(TYPE, now);
         if (periods.isEmpty()) throw new DoubleMajorConflictException("현재는 복수전공 접수 기간이 아닙니다.");
         if (periods.size() > 1) throw new DoubleMajorConflictException("동시에 열린 복수전공 모집 기간이 여러 개입니다.");
-        return new ResolvedCreation(targetMajor, periods.getFirst());
+        return new ResolvedCreation(targetDepartment, periods.getFirst());
     }
 
     private void validateApproval(Student student, AcademicChangeRequest request) {
         policy.requireEnrolled(student.getAcademicStatus());
         if (student.getDoubleMajor() != null) throw new DoubleMajorConflictException("이미 복수전공이 배정된 학생입니다.");
-        validateTarget(student, request.getTargetMajor());
+        validateTarget(student, request.getTargetDepartment());
     }
 
-    private void validateTarget(Student student, Major targetMajor) {
-        if (!targetMajor.isActive() || !targetMajor.getDepartment().isActive()
-                || targetMajor.getDepartment().getCollege() != null
-                && !targetMajor.getDepartment().getCollege().isActive()) {
-            throw new DoubleMajorConflictException("활성 학과의 활성 전공만 복수전공으로 선택할 수 있습니다.");
+    private void validateTarget(Student student, Department targetDepartment) {
+        if (!targetDepartment.isActive() || targetDepartment.getCollege() != null
+                && !targetDepartment.getCollege().isActive()) {
+            throw new DoubleMajorConflictException("활성 학과만 복수전공으로 선택할 수 있습니다.");
         }
-        if (student.getMajor() != null && student.getMajor().getId().equals(targetMajor.getId())) {
-            throw new DoubleMajorConflictException("현재 주전공과 다른 전공을 선택해야 합니다.");
+        if (student.getDepartment().getId().equals(targetDepartment.getId())) {
+            throw new DoubleMajorConflictException("현재 소속과 다른 학과를 선택해야 합니다.");
         }
     }
 
@@ -254,5 +256,5 @@ public class DoubleMajorService {
     private DoubleMajorNotFoundException userMissing() { return new DoubleMajorNotFoundException("처리자 정보를 찾을 수 없습니다."); }
     private DoubleMajorAccessDeniedException accessDenied() { return new DoubleMajorAccessDeniedException("본인의 복수전공 신청만 접근할 수 있습니다."); }
 
-    private record ResolvedCreation(Major targetMajor, AcademicChangeRequestPeriod period) { }
+    private record ResolvedCreation(Department targetDepartment, AcademicChangeRequestPeriod period) { }
 }

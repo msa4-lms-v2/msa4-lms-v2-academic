@@ -3,6 +3,7 @@ package com.msa4lmsv2academic.domain.leaverequest.service;
 import com.msa4lmsv2academic.domain.leaverequest.entity.*;
 import com.msa4lmsv2academic.domain.leaverequest.repository.LeaveRequestQueryRepository;
 import com.msa4lmsv2academic.domain.leaverequest.repository.LeaveRequestRepository;
+import com.msa4lmsv2academic.domain.leaverequest.repository.LeaveRequestFileRepository;
 import com.msa4lmsv2academic.domain.leaverequest.request.*;
 import com.msa4lmsv2academic.domain.leaverequest.response.LeaveRequestResponseDTO;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
@@ -15,6 +16,7 @@ import com.msa4lmsv2academic.global.error.*;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeaveRequestService {
     private static final String CREATE_ENDPOINT = "POST /api/academic/leave-requests";
     private final LeaveRequestRepository repository;
+    private final LeaveRequestFileRepository fileRepository;
     private final LeaveRequestQueryRepository queries;
     private final WithdrawalQueryRepository studentQueries;
     private final LeaveRequestPolicy policy;
@@ -52,13 +55,24 @@ public class LeaveRequestService {
         return LeaveRequestResponseDTO.from(readable(id, actor));
     }
 
-    public LeaveAttachment attachment(Long id, CurrentUser actor) {
+    public LeaveAttachment attachment(Long id, Long fileId, CurrentUser actor) {
         LeaveRequest request = readable(id, actor);
-        if (request.getAttachmentStoredName() == null) {
-            throw new LeaveRequestNotFoundException("등록된 증빙이 없습니다.");
+        var file = fileRepository.findByIdAndRequestId(fileId, request.getId())
+                .orElseThrow(() -> new LeaveRequestNotFoundException("등록된 증빙 파일이 없습니다."));
+        return new LeaveAttachment(file.getOriginalName(), file.getStoredName(), file.getContentType(), file.getSize());
+    }
+
+    public LeaveAttachment firstAttachment(Long id, CurrentUser actor) {
+        LeaveRequest request = readable(id, actor);
+        if (!request.getFiles().isEmpty()) {
+            var file = request.getFiles().getFirst();
+            return new LeaveAttachment(file.getOriginalName(), file.getStoredName(), file.getContentType(), file.getSize());
         }
-        return new LeaveAttachment(request.getAttachmentOriginalName(), request.getAttachmentStoredName(),
-                request.getAttachmentContentType(), request.getAttachmentSize());
+        if (request.getAttachmentStoredName() != null) {
+            return new LeaveAttachment(request.getAttachmentOriginalName(), request.getAttachmentStoredName(),
+                    request.getAttachmentContentType(), request.getAttachmentSize());
+        }
+        throw new LeaveRequestNotFoundException("등록된 증빙이 없습니다.");
     }
 
     // 원격 업로드 전에 권한/완료 재생/업무 조건을 읽기로 검사합니다. 쓰기 transaction에서 반드시 재검증합니다.
@@ -83,22 +97,24 @@ public class LeaveRequestService {
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public LeaveRequestResponseDTO create(LeaveRequestCreateRequestDTO body, LeaveAttachment attachment,
-                                          String key, String hash, CurrentUser actor, LeaveAuditContext context) {
+    public LeaveRequestCreationResult create(LeaveRequestCreateRequestDTO body, List<LeaveAttachment> attachments,
+                                             String key, String hash, CurrentUser actor, LeaveAuditContext context) {
         validateCreateInput(body, key, actor);
         Student student = studentQueries.findStudentByUserIdForUpdate(actor.id()).orElseThrow(this::studentMissing);
         var now = LeaveRequestPolicy.now();
         var replay = idempotency.replay(key, actor.id(), CREATE_ENDPOINT, hash, now, LeaveRequestResponseDTO.class);
-        if (replay.isPresent()) return replay.orElseThrow();
+        if (replay.isPresent()) return new LeaveRequestCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body, true);
-        if (resolved.type() == LeaveRequestType.MILITARY_LEAVE
-                && (attachment.storedName() == null || attachment.size() == null || attachment.size() <= 0)) {
-            throw new InvalidLeaveRequestException("군휴학에는 입영통지서 PDF가 필수입니다.");
+        if (resolved.type() == LeaveRequestType.MILITARY_LEAVE && attachments.size() != 1) {
+            throw new InvalidLeaveRequestException("군휴학에는 입영통지서 PDF 1개가 필수입니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
-        LeaveRequest request = repository.saveAndFlush(LeaveRequest.create(student, resolved.type(), resolved.reason(),
-                body.targetYear(), body.targetSemester(), resolved.returnYear(), resolved.returnTerm(),
-                attachment.originalName(), attachment.storedName(), attachment.contentType(), attachment.size()));
+        LeaveRequest request = LeaveRequest.create(student, resolved.type(), resolved.reason(), body.targetYear(),
+                body.targetSemester(), resolved.returnYear(), resolved.returnTerm());
+        for (LeaveAttachment file : attachments) {
+            request.addFile(file.originalName(), file.storedName(), file.contentType(), file.size());
+        }
+        request = repository.saveAndFlush(request);
         var after = audit.snapshot(request);
         if (resolved.basis() != null) {
             after.put("applicationSemesterId", resolved.basis().getId());
@@ -108,7 +124,7 @@ public class LeaveRequestService {
         audit.record(request.getId(), "LEAVE_REQUEST", null, after, "LEAVE_CREATED", "휴·복학 신청", actor, context);
         var response = LeaveRequestResponseDTO.from(request);
         idempotency.complete(reserved, response);
-        return response;
+        return new LeaveRequestCreationResult(response, true);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)

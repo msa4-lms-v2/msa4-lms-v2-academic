@@ -100,7 +100,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         var first = create("lv-create");
         assertThat(first.status()).isEqualTo(LeaveRequestStatus.PENDING);
         assertThat(first.returnYear()).isEqualTo((short) 2092);
-        assertThat(application.create(general(), null, "lv-create", STUDENT, CONTEXT)).isEqualTo(first);
+        assertThat(application.create(general(), List.of(), "lv-create", STUDENT, CONTEXT)).isEqualTo(first);
         assertThat(count("academic_requests")).isEqualTo(1);
         assertThat(count("audit_logs")).isEqualTo(1);
         assertThatThrownBy(() -> create("lv-duplicate")).isInstanceOf(LeaveRequestConflictException.class);
@@ -124,10 +124,10 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(count("academic_status_histories")).isEqualTo(1);
         assertThat(approve(id, "lv-approve")).isEqualTo(result);
         assertThat(count("academic_status_histories")).isEqualTo(1);
-        assertThatThrownBy(() -> application.create(returnBody((short) 2091, (byte) 2), null, "lv-early", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(returnBody((short) 2091, (byte) 2), List.of(), "lv-early", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         // 클라이언트가 군복학을 보내도 실제 일반휴학 근거에서 일반복학으로 판별합니다.
-        var returning = application.create(returnBody((short) 2092, (byte) 1), null, "lv-return", STUDENT, CONTEXT);
+        var returning = application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
         assertThat(returning.requestType()).isEqualTo(LeaveRequestType.GENERAL_RETURN);
         assertThat(returning.reason()).isEqualTo("복학");
         approve(returning.id(), "lv-return-approve");
@@ -138,20 +138,20 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test void militaryUsesApplicationTermPlusFourAndDoesNotRecalculateOnApproval() {
-        var first = application.create(military(), pdf(), "lv-military", STUDENT, CONTEXT);
+        var first = application.create(military(), List.of(pdf()), "lv-military", STUDENT, CONTEXT);
         assertThat(first.returnYear()).isEqualTo((short) 2092);
         assertThat(first.returnSemester()).isEqualTo((byte) 1);
         assertThat(first.reason()).isEqualTo("군입대");
-        assertThat(application.create(military(), pdf(), "lv-military", STUDENT, CONTEXT)).isEqualTo(first);
+        assertThat(application.create(military(), List.of(pdf()), "lv-military", STUDENT, CONTEXT)).isEqualTo(first);
         verify(storage, times(1)).uploadEvidence(anyString(), any());
         jdbc.update("UPDATE semesters SET is_current=0 WHERE id=280001");
         jdbc.update("UPDATE semesters SET is_current=1 WHERE id=280002");
         var approved = approve(first.id(), "lv-military-approve");
         assertThat(approved.returnSemester()).isEqualTo((byte) 1);
-        var returning = application.create(returnBody((short) 2092, (byte) 1), null, "lv-return", STUDENT, CONTEXT);
+        var returning = application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
         assertThat(returning.requestType()).isEqualTo(LeaveRequestType.MILITARY_RETURN);
         approve(returning.id(), "lv-return-approve");
-        assertThatThrownBy(() -> application.create(military(), pdf(), "lv-military-again", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-military-again", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         assertThat(jdbc.queryForObject("SELECT JSON_EXTRACT(after_value,'$.applicationSemesterId') FROM audit_logs "
                 + "WHERE actor_id=280011 AND action='LEAVE_CREATED' AND target_id=?", String.class, first.id())).isEqualTo("280001");
@@ -159,10 +159,10 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
 
     @Test void missingCurrentTermAndUnprovenMigratedLeaveFailClosed() {
         jdbc.update("UPDATE semesters SET is_current=0 WHERE id=280001");
-        assertThatThrownBy(() -> application.create(military(), pdf(), "lv-no-current", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-no-current", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         jdbc.update("UPDATE students SET academic_status='ON_LEAVE' WHERE id=280001");
-        assertThatThrownBy(() -> application.create(returnBody((short) 2092, (byte) 1), null, "lv-no-origin", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-no-origin", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         verifyNoInteractions(storage);
     }
@@ -202,17 +202,40 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test void pdfValidationPrecedesUploadAndChangedFileCannotReplay() {
-        assertThatThrownBy(() -> application.create(military(), null, "lv-no-pdf", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(), "lv-no-pdf", STUDENT, CONTEXT))
                 .isInstanceOf(InvalidFileException.class);
         var invalid = new MockMultipartFile("file", "fake.pdf", "application/pdf", "not pdf".getBytes(StandardCharsets.UTF_8));
-        assertThatThrownBy(() -> application.create(military(), invalid, "lv-fake", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(invalid), "lv-fake", STUDENT, CONTEXT))
                 .isInstanceOf(InvalidFileException.class);
+        assertThatThrownBy(() -> application.create(military(), List.of(pdf("first.pdf"), pdf("second.pdf")),
+                "lv-military-too-many", STUDENT, CONTEXT)).isInstanceOf(InvalidFileException.class);
         verifyNoInteractions(storage);
-        application.create(military(), pdf(), "lv-file", STUDENT, CONTEXT);
+        application.create(military(), List.of(pdf()), "lv-file", STUDENT, CONTEXT);
         var changed = new MockMultipartFile("file", "proof.pdf", "application/pdf", "%PDF-1.7 other".getBytes(StandardCharsets.UTF_8));
-        assertThatThrownBy(() -> application.create(military(), changed, "lv-file", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(changed), "lv-file", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         verify(storage, times(1)).uploadEvidence(anyString(), any());
+    }
+
+    @Test void generalLeaveStoresListsAndDownloadsEachFile() {
+        var result = application.create(general(), List.of(pdf("first.pdf"), pdf("second.pdf")),
+                "lv-multiple-files", STUDENT, CONTEXT);
+
+        assertThat(result.files()).extracting("originalName").containsExactly("first.pdf", "second.pdf");
+        assertThat(result.attachmentOriginalName()).isEqualTo("first.pdf");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM leave_request_files WHERE request_id=?",
+                Integer.class, result.id())).isEqualTo(2);
+        assertThat(application.download(result.id(), result.files().get(1).id(), STUDENT).bytes())
+                .startsWith("%PDF".getBytes(StandardCharsets.UTF_8));
+        verify(storage, times(2)).uploadEvidence(anyString(), any());
+    }
+
+    @Test void evidenceListRejectsMoreThanFiveFilesBeforeUpload() {
+        assertThatThrownBy(() -> application.create(general(), List.of(
+                pdf("1.pdf"), pdf("2.pdf"), pdf("3.pdf"), pdf("4.pdf"), pdf("5.pdf"), pdf("6.pdf")),
+                "lv-too-many-files", STUDENT, CONTEXT))
+                .isInstanceOf(InvalidFileException.class);
+        verifyNoInteractions(storage);
     }
 
     @Test void failedApprovalAuditRollsBackStateHistoryAndKey() {
@@ -256,11 +279,11 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test void withdrawalKeepsApprovedLeaveAndItsFile() {
-        var leave = application.create(military(), pdf(), "lv-file", STUDENT, CONTEXT);
+        var leave = application.create(military(), List.of(pdf()), "lv-file", STUDENT, CONTEXT);
         approve(leave.id(), "lv-approve");
         finalApprove(advisorApprovedWithdrawal(), "lv-final");
         assertThat(service.get(leave.id(), STUDENT).status()).isEqualTo(LeaveRequestStatus.APPROVED);
-        assertThat(application.download(leave.id(), ADMIN).bytes()).startsWith("%PDF".getBytes(StandardCharsets.UTF_8));
+        assertThat(application.downloadFirst(leave.id(), ADMIN).bytes()).startsWith("%PDF".getBytes(StandardCharsets.UTF_8));
         verify(storage, never()).delete(anyString());
         assertThat(count("academic_status_histories")).isEqualTo(2);
     }
@@ -368,7 +391,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test void attachmentIsAuthorizedAndStoredKeyNeverAppearsInResponse() throws Exception {
-        long id = application.create(military(),pdf(),"lv-file",STUDENT,CONTEXT).id();
+        long id = application.create(military(), List.of(pdf()), "lv-file", STUDENT, CONTEXT).id();
         mvc.perform(get(URL+"/"+id).header("X-User-Id",STUDENT.id()).header("X-User-Role","STUDENT"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.attachmentStoredName").doesNotExist());
         mvc.perform(get(URL+"/"+id+"/attachment").header("X-User-Id",OTHER.id()).header("X-User-Role","STUDENT"))
@@ -384,7 +407,9 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['post']['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['post']['requestBody']['content']['multipart/form-data']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/status']['patch']['responses']['409']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/attachment']['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['post']['requestBody']['content']['multipart/form-data']['schema']['properties']['files']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/files/{fileId}']['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/attachment']['get']['deprecated']").value(true))
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-request-periods/{id}']['put']['operationId']").value("updateLeaveRequestPeriod"))
                 .andExpect(jsonPath("$['paths']['/api/academic/withdrawals']['post']['responses']['201']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['LeaveRequestCreateRequestDTO']['properties']['returnYear']").exists())
@@ -435,9 +460,27 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         service.changeStatus(first.id(), new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.CANCELLED,"취소"),
                 "lv-cancel",STUDENT,CONTEXT);
         jdbc.update("DELETE FROM leave_request_periods WHERE semester_id=280002");
-        assertThatThrownBy(() -> application.create(military(), pdf(), "lv-no-period", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-no-period", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         verifyNoInteractions(storage);
+    }
+
+    @Test void multipleFileMigrationPreservesLegacyAttachmentAndIsIdempotent() {
+        jdbc.update("INSERT INTO academic_requests (student_id,request_type,reason,target_year,target_semester,status,"
+                + "attachment_original_name,attachment_stored_name,attachment_content_type,attachment_size) "
+                + "VALUES (280001,'GENERAL_LEAVE','기존 신청',2090,2,'PENDING','legacy.pdf',"
+                + "'leave-requests/280011/legacy.pdf','application/pdf',1024)");
+        long requestId = jdbc.queryForObject("SELECT id FROM academic_requests WHERE student_id=280001", Long.class);
+        var migration = new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                new org.springframework.core.io.ClassPathResource("migration/20260902_create_leave_request_files.sql"));
+
+        migration.execute(jdbc.getDataSource());
+        migration.execute(jdbc.getDataSource());
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM leave_request_files WHERE request_id=?",
+                Integer.class, requestId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT original_name FROM leave_request_files WHERE request_id=?",
+                String.class, requestId)).isEqualTo("legacy.pdf");
     }
 
     private LeaveRequestCreateRequestDTO general() {
@@ -450,10 +493,14 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         return new LeaveRequestCreateRequestDTO(LeaveRequestType.MILITARY_RETURN,null,year,term,null,null);
     }
     private MockMultipartFile pdf() {
-        return new MockMultipartFile("file","proof.pdf","application/pdf","%PDF-1.7 test".getBytes(StandardCharsets.UTF_8));
+        return pdf("proof.pdf");
+    }
+    private MockMultipartFile pdf(String filename) {
+        return new MockMultipartFile("files", filename, "application/pdf",
+                "%PDF-1.7 test".getBytes(StandardCharsets.UTF_8));
     }
     private LeaveRequestResponseDTO create(String key) {
-        return application.create(general(),null,key,STUDENT,CONTEXT);
+        return application.create(general(), List.of(), key, STUDENT, CONTEXT);
     }
     private LeaveRequestResponseDTO approve(long id,String key) {
         return service.changeStatus(id,new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED,null),key,ADMIN,CONTEXT);

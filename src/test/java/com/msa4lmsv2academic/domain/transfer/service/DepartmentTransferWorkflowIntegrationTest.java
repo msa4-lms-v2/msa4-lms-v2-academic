@@ -51,16 +51,13 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("INSERT INTO colleges (id,code,name,active) VALUES (295001,'TR-COL','전과대학',1)");
         jdbc.update("INSERT INTO departments (id,code,college_id,name,active) VALUES "
                 + "(295001,'951',295001,'출발학과',1),(295002,'952',295001,'희망학과',1),(295003,'953',295001,'복수전공학과',1)");
-        jdbc.update("INSERT INTO majors (id,department_id,code,name,active) VALUES "
-                + "(295001,295001,'TR-SRC','출발전공',1),(295002,295002,'TR-DST','희망전공',1),"
-                + "(295003,295003,'TR-DBL','복수전공',1)");
         jdbc.update("INSERT INTO users (id,name,role,status) VALUES "
                 + "(295011,'전과학생','STUDENT','ACTIVE'),(295012,'다른학생','STUDENT','ACTIVE'),"
                 + "(295013,'관리자','ADMIN','ACTIVE'),(295014,'기존지도교수','PROFESSOR','ACTIVE')");
         jdbc.update("INSERT INTO professors (id,version,user_id,hire_year,department_id) VALUES (295001,0,295014,2020,295001)");
-        jdbc.update("INSERT INTO students (id,user_id,department_id,major_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
-                + "(295001,295011,295001,295001,295003,2,2025,'ENROLLED',295001),"
-                + "(295002,295012,295001,295001,NULL,2,2025,'ENROLLED',295001)");
+        jdbc.update("INSERT INTO students (id,user_id,department_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
+                + "(295001,295011,295001,295003,2,2025,'ENROLLED',295001),"
+                + "(295002,295012,295001,NULL,2,2025,'ENROLLED',295001)");
         jdbc.update("INSERT INTO semesters (id,academic_year,term,start_date,end_date,enrollment_start_at,enrollment_end_at,is_current) "
                 + "VALUES (295001,2027,'FIRST','2027-03-02','2027-06-18','2027-02-10 09:00:00','2027-02-14 18:00:00',0)");
         LocalDateTime now = DepartmentTransferPolicy.now().withNano(0);
@@ -129,9 +126,8 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 new DepartmentTransferReviewRequestDTO(AcademicChangeRequestStatus.APPROVED, null),
                 "transfer-approve", ADMIN, CONTEXT);
         assertThat(approved.status()).isEqualTo(AcademicChangeRequestStatus.APPROVED);
-        var row = jdbc.queryForMap("SELECT department_id,major_id,double_major_id,advisor_id FROM students WHERE id=295001");
+        var row = jdbc.queryForMap("SELECT department_id,double_major_id,advisor_id FROM students WHERE id=295001");
         assertThat(((Number) row.get("department_id")).longValue()).isEqualTo(295002L);
-        assertThat(((Number) row.get("major_id")).longValue()).isEqualTo(295002L);
         assertThat(((Number) row.get("double_major_id")).longValue()).isEqualTo(295003L);
         assertThat(row.get("advisor_id")).isNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE actor_id=295013 "
@@ -141,11 +137,11 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     @Test
     void staleSourceAffiliationAndDoubleMajorCollisionFailClosed() {
         var created = create("transfer-create");
-        jdbc.update("UPDATE students SET department_id=295003,major_id=295003,double_major_id=NULL WHERE id=295001");
+        jdbc.update("UPDATE students SET department_id=295003,double_major_id=NULL WHERE id=295001");
         assertThatThrownBy(() -> service.review(created.id(),
                 new DepartmentTransferReviewRequestDTO(AcademicChangeRequestStatus.APPROVED, null),
                 "transfer-stale", ADMIN, CONTEXT)).isInstanceOf(DepartmentTransferConflictException.class);
-        jdbc.update("UPDATE students SET department_id=295001,major_id=295001,double_major_id=295002 WHERE id=295001");
+        jdbc.update("UPDATE students SET department_id=295001,double_major_id=295002 WHERE id=295001");
         assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"),
                 pdf("성적증명서.pdf"), "transfer-double-major", STUDENT, CONTEXT))
                 .isInstanceOf(DepartmentTransferConflictException.class);
@@ -196,6 +192,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/documents/{documentType}']['get']['responses']['200']['content']['application/pdf']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/department-transfer-periods/{periodId}/status']['patch']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['required']").isArray())
+                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['targetMajorId']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['documents']").exists());
@@ -207,7 +204,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     private DepartmentTransferCreateRequestDTO body() {
-        return new DepartmentTransferCreateRequestDTO(295002L, 295002L, 295001L);
+        return new DepartmentTransferCreateRequestDTO(295002L, 295001L);
     }
 
     private MockMultipartFile pdf(String filename) {
@@ -230,7 +227,6 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("DELETE FROM students WHERE id IN (295001,295002)");
         jdbc.update("DELETE FROM professors WHERE id=295001");
         jdbc.update("DELETE FROM users WHERE id BETWEEN 295011 AND 295014");
-        jdbc.update("DELETE FROM majors WHERE id BETWEEN 295001 AND 295003");
         jdbc.update("DELETE FROM departments WHERE id BETWEEN 295001 AND 295003");
         jdbc.update("DELETE FROM colleges WHERE id=295001");
         jdbc.update("DELETE FROM semesters WHERE id=295001");

@@ -76,8 +76,8 @@ public class DoubleMajorController {
     }
 
     @Operation(operationId = "createDoubleMajorRequest", summary = "복수전공 신청",
-            description = "STUDENT 전용. 복수전공이 없는 재학생이 현재 열린 단일 모집 회차에서 주전공과 다른 활성 전공을 "
-                    + "신청합니다. 희망 학기는 받지 않으며 승인 시 즉시 반영합니다. 자기소개서·학업계획서·성적증명서 "
+            description = "STUDENT 전용. 복수전공이 없는 재학생이 현재 열린 단일 모집 회차에서 현재 소속과 다른 활성 학과를 "
+                    + "신청합니다. 희망 학기는 받지 않으며 승인 시 즉시 반영합니다. 자기소개서·학업계획서 "
                     + "PDF가 각각 필수이고 파일당 10MB 이하입니다. 모집요강 확인과 버튼 활성화는 Client가 담당합니다.")
     @ApiResponse(responseCode = "201", description = "00: 신청 생성 또는 저장된 성공 응답 재생")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -91,16 +91,13 @@ public class DoubleMajorController {
             @Parameter(description = "학업계획서 PDF(필수, 10MB 이하)", required = true,
                     schema = @Schema(type = "string", format = "binary"))
             @RequestPart("studyPlan") MultipartFile studyPlan,
-            @Parameter(description = "성적증명서 PDF(필수, 10MB 이하)", required = true,
-                    schema = @Schema(type = "string", format = "binary"))
-            @RequestPart("transcript") MultipartFile transcript,
-            @Parameter(description = "1~100자의 공백 없는 요청별 키. JSON과 세 파일이 동일한 완료 요청만 24시간 재생",
+            @Parameter(description = "1~100자의 공백 없는 요청별 키. JSON과 두 파일이 동일한 완료 요청만 24시간 재생",
                     required = true, schema = @Schema(minLength = 1, maxLength = 100),
                     example = "double-major-request-001")
             @RequestHeader(value = "Idempotency-Key", required = false) String key,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor,
             HttpServletRequest httpRequest) {
-        var response = applicationService.create(request, selfIntroduction, studyPlan, transcript, key, actor,
+        var response = applicationService.create(request, selfIntroduction, studyPlan, key, actor,
                 DepartmentTransferAuditContext.from(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }
@@ -125,7 +122,7 @@ public class DoubleMajorController {
 
     @Operation(operationId = "reviewDoubleMajorRequest", summary = "복수전공 신청 승인·반려",
             description = "ADMIN 전용. PENDING 신청만 처리합니다. 승인 시 학생이 재학 중이고 복수전공이 아직 없으며 "
-                    + "희망 전공이 활성이고 현재 주전공과 다른지 다시 확인한 뒤 students.double_major_id에 즉시 반영합니다. "
+                    + "희망 학과가 활성이고 현재 소속 학과와 다른지 다시 확인한 뒤 students.double_major_id에 즉시 반영합니다. "
                     + "반려는 사유가 필수이고 학생 전공을 변경하지 않습니다.")
     @ApiResponse(responseCode = "200", description = "00: 승인·반려 성공 또는 저장된 성공 응답 재생")
     @PatchMapping("/{requestId}/review")
@@ -151,7 +148,7 @@ public class DoubleMajorController {
     @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
     public ResponseEntity<byte[]> download(
             @Parameter(description = "복수전공 신청 식별자", example = "1") @Positive @PathVariable Long requestId,
-            @Parameter(description = "SELF_INTRODUCTION, STUDY_PLAN, TRANSCRIPT", example = "SELF_INTRODUCTION")
+            @Parameter(description = "SELF_INTRODUCTION 또는 STUDY_PLAN", example = "SELF_INTRODUCTION")
             @PathVariable TransferDocumentType documentType,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor) {
         var download = applicationService.download(requestId, documentType, actor);

@@ -10,10 +10,6 @@ public record DepartmentTransferCreateRequestDTO(
                 requiredMode = Schema.RequiredMode.REQUIRED)
         Long targetDepartmentId,
         @NotNull @Positive
-        @Schema(description = "희망 주전공 ID. 희망 학과 소속의 활성 전공이어야 합니다.", example = "31",
-                requiredMode = Schema.RequiredMode.REQUIRED)
-        Long targetMajorId,
-        @NotNull @Positive
         @Schema(description = "적용 희망 학기 ID. 활성 접수 기간이 등록되어 있어야 합니다.", example = "23",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         Long targetSemesterId

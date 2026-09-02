@@ -52,7 +52,7 @@ public class AccountProvisioningController {
                             schema = @Schema(implementation = StudentProvisioningRequestDTO.class),
                             examples = @ExampleObject(
                                     name = "학생 프로비저닝",
-                                    value = "{\"userId\":1,\"name\":\"홍길동\",\"email\":\"student@example.com\",\"phoneNumber\":\"010-1234-5678\",\"address\":\"서울특별시\",\"departmentId\":5,\"majorId\":1,\"admissionYear\":2026}"
+                                    value = "{\"userId\":1,\"name\":\"홍길동\",\"email\":\"student@example.com\",\"phoneNumber\":\"010-1234-5678\",\"address\":\"서울특별시\",\"departmentId\":5,\"admissionYear\":2026}"
                             )
                     )
             )
