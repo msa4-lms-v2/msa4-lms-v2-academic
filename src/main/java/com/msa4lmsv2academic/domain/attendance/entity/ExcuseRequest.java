@@ -99,4 +99,23 @@ public class ExcuseRequest {
     public static ExcuseRequest create(Enrollment enrollment, LocalDate lectureDate, byte period, String reason) {
         return new ExcuseRequest(enrollment, lectureDate, period, reason);
     }
+
+    public void replaceAttachment(
+            String originalName,
+            String storedName,
+            String contentType,
+            Long size
+    ) {
+        if (status != ExcuseRequestStatus.PENDING) {
+            throw new IllegalStateException("처리 대기 상태인 공결 신청의 증빙만 변경할 수 있습니다.");
+        }
+        this.attachmentOriginalName = originalName;
+        this.attachmentStoredName = storedName;
+        this.attachmentContentType = contentType;
+        this.attachmentSize = size;
+    }
+
+    public boolean hasAttachment() {
+        return attachmentStoredName != null && !attachmentStoredName.isBlank();
+    }
 }

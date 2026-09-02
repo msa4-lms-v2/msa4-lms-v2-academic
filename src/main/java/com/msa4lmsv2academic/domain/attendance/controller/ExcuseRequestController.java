@@ -4,7 +4,9 @@ import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseRequestCreateRequestDTO;
+import com.msa4lmsv2academic.domain.attendance.response.ExcuseAttachmentResponseDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestResponseDTO;
+import com.msa4lmsv2academic.domain.attendance.service.ExcuseAttachmentService;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseRequestService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -16,15 +18,26 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Attendance Excuses", description = "학생 공결 신청 및 처리 API")
 @RestController
@@ -33,6 +46,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExcuseRequestController {
 
     private final ExcuseRequestService excuseRequestService;
+    private final ExcuseAttachmentService excuseAttachmentService;
 
     @Operation(
             summary = "공결 신청",
@@ -57,5 +71,82 @@ public class ExcuseRequestController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GlobalResponseDTO.success(excuseRequestService.create(request, currentUser)));
+    }
+
+    @Operation(
+            operationId = "uploadExcuseAttachment",
+            summary = "공결 증빙 등록·교체",
+            description = "학생 본인이 처리 대기 상태인 공결 신청에 10MB 이하 PDF 증빙을 등록하거나 교체합니다. "
+                    + "확장자, application/pdf MIME 타입과 PDF 시그니처를 모두 검증합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponse(responseCode = "200", description = "공결 증빙 등록·교체 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.FILE_ERROR,
+            CustomResponseCode.FILE_SIZE_EXCEEDED,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
+    @PutMapping(value = "/{requestId}/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<GlobalResponseDTO<ExcuseAttachmentResponseDTO>> uploadAttachment(
+            @Parameter(description = "공결 신청 ID", example = "31")
+            @Positive @PathVariable Long requestId,
+            @Parameter(description = "10MB 이하 PDF", required = true,
+                    schema = @Schema(type = "string", format = "binary"))
+            @RequestPart("file") MultipartFile file,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(excuseAttachmentService.upload(
+                requestId,
+                file,
+                currentUser,
+                httpRequest.getHeader("X-Request-Id"),
+                httpRequest.getRemoteAddr()
+        )));
+    }
+
+    @Operation(
+            operationId = "downloadExcuseAttachment",
+            summary = "공결 증빙 다운로드",
+            description = "학생 본인, 해당 강의 담당 교수 또는 관리자가 권한 확인 후 공결 PDF 증빙을 다운로드합니다. "
+                    + "MinIO 저장 키와 내부 URL은 공개하지 않습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "PDF 파일",
+            content = @Content(mediaType = MediaType.APPLICATION_PDF_VALUE,
+                    schema = @Schema(type = "string", format = "binary"))
+    )
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.FILE_ERROR,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
+    @GetMapping("/{requestId}/attachment")
+    @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @Parameter(description = "공결 신청 ID", example = "31")
+            @Positive @PathVariable Long requestId,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        var download = excuseAttachmentService.download(requestId, currentUser);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.originalName(), StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(download.content());
     }
 }
