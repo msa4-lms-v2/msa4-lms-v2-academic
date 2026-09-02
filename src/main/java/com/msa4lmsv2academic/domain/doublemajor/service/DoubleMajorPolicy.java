@@ -42,10 +42,10 @@ public class DoubleMajorPolicy {
     }
 
     public void validateCreate(DoubleMajorCreateRequestDTO body) {
-        if (body == null || body.targetMajorId() == null) {
+        if (body == null || body.targetDepartmentId() == null) {
             throw new InvalidDoubleMajorRequestException("희망 복수전공이 필요합니다.");
         }
-        requireId(body.targetMajorId());
+        requireId(body.targetDepartmentId());
     }
 
     public void validatePeriod(DoubleMajorPeriodSaveRequestDTO body) {

@@ -1,9 +1,7 @@
 package com.msa4lmsv2academic.domain.provisioning.service;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
-import com.msa4lmsv2academic.domain.organization.repository.MajorRepository;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.professor.repository.ProfessorRepository;
 import com.msa4lmsv2academic.domain.provisioning.request.ProfessorProvisioningRequestDTO;
@@ -25,7 +23,6 @@ public class AccountProvisioningService {
 
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
-    private final MajorRepository majorRepository;
     private final StudentRepository studentRepository;
     private final ProfessorRepository professorRepository;
 
@@ -48,12 +45,6 @@ public class AccountProvisioningService {
                         request.departmentId()
                 );
 
-        // 전공 조회 및 검증
-        Major major = findAndValidateMajor(
-                request.majorId(),
-                department
-        );
-
         // Academic users 저장
         User user = User.provision(
                 request.userId(),
@@ -70,7 +61,6 @@ public class AccountProvisioningService {
         Student student = Student.create(
                 user,
                 department,
-                major,
                 (byte) 1,
                 request.admissionYear(),
                 null
@@ -192,42 +182,6 @@ public class AccountProvisioningService {
         }
 
         return department;
-    }
-
-    /*
-     * 전공 조회 및 검증
-     */
-    private Major findAndValidateMajor(
-            Long majorId,
-            Department department
-    ) {
-        // 전공은 현재 선택값
-        if (majorId == null) {
-            return null;
-        }
-
-        Major major = majorRepository.findById(majorId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "존재하지 않는 전공입니다."
-                        )
-                );
-
-        if (!major.isActive()) {
-            throw new IllegalStateException(
-                    "비활성화된 전공입니다."
-            );
-        }
-
-        if (!major.getDepartment()
-                .getId()
-                .equals(department.getId())) {
-            throw new IllegalArgumentException(
-                    "선택한 학과에 속하지 않은 전공입니다."
-            );
-        }
-
-        return major;
     }
 
     /*

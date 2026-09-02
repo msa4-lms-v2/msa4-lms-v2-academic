@@ -14,12 +14,8 @@ public record DepartmentTransferResponseDTO(
         @Schema(description = "학생명", example = "김학생") String studentName,
         @Schema(description = "신청 당시 학과 ID", example = "10") Long sourceDepartmentId,
         @Schema(description = "신청 당시 학과명", example = "컴퓨터공학과") String sourceDepartmentName,
-        @Schema(description = "신청 당시 주전공 ID, 미배정이면 null", example = "11") Long sourceMajorId,
-        @Schema(description = "신청 당시 주전공명, 미배정이면 null", example = "소프트웨어전공") String sourceMajorName,
         @Schema(description = "희망 학과 ID", example = "20") Long targetDepartmentId,
         @Schema(description = "희망 학과명", example = "경영학과") String targetDepartmentName,
-        @Schema(description = "희망 주전공 ID", example = "31") Long targetMajorId,
-        @Schema(description = "희망 주전공명", example = "경영학전공") String targetMajorName,
         @Schema(description = "적용 희망 학기 ID", example = "23") Long targetSemesterId,
         @Schema(description = "적용 희망 학년도", example = "2027") short targetAcademicYear,
         @Schema(description = "적용 희망 학기", example = "FIRST") SemesterTerm targetTerm,
@@ -36,19 +32,14 @@ public record DepartmentTransferResponseDTO(
         @Schema(description = "최종 변경 시각(KST)", example = "2026-12-01T10:30:00") LocalDateTime updatedAt
 ) {
     public static DepartmentTransferResponseDTO from(AcademicChangeRequest request) {
-        var sourceMajor = request.getSourceMajor();
         return new DepartmentTransferResponseDTO(
                 request.getId(),
                 request.getStudent().getId(),
                 request.getStudent().getUser().getName(),
                 request.getSourceDepartment().getId(),
                 request.getSourceDepartment().getName(),
-                sourceMajor == null ? null : sourceMajor.getId(),
-                sourceMajor == null ? null : sourceMajor.getName(),
                 request.getTargetDepartment().getId(),
                 request.getTargetDepartment().getName(),
-                request.getTargetMajor().getId(),
-                request.getTargetMajor().getName(),
                 request.getTargetSemester().getId(),
                 request.getTargetSemester().getAcademicYear(),
                 request.getTargetSemester().getTerm(),

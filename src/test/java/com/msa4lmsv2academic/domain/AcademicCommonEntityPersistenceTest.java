@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.msa4lmsv2academic.domain.organization.entity.College;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -37,7 +36,7 @@ class AcademicCommonEntityPersistenceTest extends MySqlIntegrationTest {
         User studentUser = User.synchronize(
                 10002L, "학생", null, null, null, UserRole.STUDENT, UserStatus.ACTIVE
         );
-        Student student = Student.create(studentUser, department, null, (byte) 1, (short) 2026, professor);
+        Student student = Student.create(studentUser, department, (byte) 1, (short) 2026, professor);
 
         entityManager.persist(college);
         entityManager.persist(department);
@@ -48,7 +47,6 @@ class AcademicCommonEntityPersistenceTest extends MySqlIntegrationTest {
         entityManager.flush();
 
         assertThat(professor.getHireYear()).isNull();
-        assertThat(student.getMajor()).isNull();
         assertThat(studentUser.getCreatedAt()).isNotNull();
         assertThat(studentUser.getUpdatedAt()).isNotNull();
     }
@@ -57,20 +55,18 @@ class AcademicCommonEntityPersistenceTest extends MySqlIntegrationTest {
     void rejectsSamePrimaryAndDoubleMajorAtDatabaseBoundary() {
         College college = College.create("204", "경영대학", true);
         Department department = Department.create("204", college, "경영학과", true);
-        Major major = Major.create(department, "BUS-MAJOR", "경영학", true);
         User studentUser = User.synchronize(
                 10003L, "복수전공학생", null, null, null, UserRole.STUDENT, UserStatus.ACTIVE
         );
-        Student student = Student.create(studentUser, department, major, (byte) 2, (short) 2025, null);
+        Student student = Student.create(studentUser, department, (byte) 2, (short) 2025, null);
 
         entityManager.persist(college);
         entityManager.persist(department);
-        entityManager.persist(major);
         entityManager.persist(studentUser);
         entityManager.persist(student);
         entityManager.flush();
 
-        student.assignDoubleMajor(major);
+        student.assignDoubleMajor(department);
 
         assertThatThrownBy(entityManager::flush)
                 .isInstanceOf(PersistenceException.class);

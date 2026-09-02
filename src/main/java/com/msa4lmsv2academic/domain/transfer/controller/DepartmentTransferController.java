@@ -75,8 +75,8 @@ public class DepartmentTransferController {
     }
 
     @Operation(operationId = "createDepartmentTransferRequest", summary = "전과 신청",
-            description = "STUDENT 전용. 재학생이 활성 접수 기간에 현재와 다른 활성 학과와 그 소속 활성 전공을 신청합니다. "
-                    + "현재 복수전공과 같은 전공은 차단합니다. 자기소개서·학업계획서·성적증명서 PDF가 각각 필수이며 "
+            description = "STUDENT 전용. 재학생이 활성 접수 기간에 현재와 다른 활성 학과를 신청합니다. "
+                    + "현재 복수전공과 같은 학과는 차단합니다. 자기소개서·학업계획서·성적증명서 PDF가 각각 필수이며 "
                     + "파일당 10MB 이하입니다. 모집요강 확인과 버튼 활성화는 Client가 담당합니다.")
     @ApiResponse(responseCode = "201", description = "00: 신청 생성 또는 저장된 성공 응답 재생")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -124,7 +124,7 @@ public class DepartmentTransferController {
 
     @Operation(operationId = "reviewDepartmentTransferRequest", summary = "전과 신청 승인·반려",
             description = "ADMIN 전용. PENDING 신청만 처리합니다. 승인 시 학생이 여전히 재학 중이고 신청 당시 소속과 "
-                    + "일치하는지, 희망 학과·전공과 복수전공 충돌이 없는지 다시 확인합니다. 승인 즉시 학과·주전공을 "
+                    + "일치하는지, 희망 학과와 복수전공 충돌이 없는지 다시 확인합니다. 승인 즉시 소속 학과를 "
                     + "변경하고 기존 지도교수를 해제하며, 운영상 현재 학기 종료 후 다음 학기 시작 전에 처리해야 합니다. "
                     + "반려는 사유가 필수이고 학적을 변경하지 않습니다.")
     @ApiResponse(responseCode = "200", description = "00: 승인·반려 성공 또는 저장된 성공 응답 재생")

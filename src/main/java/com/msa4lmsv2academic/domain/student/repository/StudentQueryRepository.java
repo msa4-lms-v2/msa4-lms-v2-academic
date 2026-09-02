@@ -8,7 +8,7 @@ import static com.msa4lmsv2academic.domain.student.entity.QStudent.student;
 import static com.msa4lmsv2academic.domain.user.entity.QUser.user;
 
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
-import com.msa4lmsv2academic.domain.organization.entity.QMajor;
+import com.msa4lmsv2academic.domain.organization.entity.QDepartment;
 import com.msa4lmsv2academic.domain.professor.entity.QProfessor;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
@@ -67,8 +67,7 @@ public class StudentQueryRepository {
 
     public StudentSearchResult search(StudentSearchCondition condition) {
         BooleanBuilder predicates = searchPredicates(condition);
-        QMajor primaryMajor = new QMajor("studentSearchPrimaryMajor");
-        QMajor doubleMajor = new QMajor("studentSearchDoubleMajor");
+        QDepartment doubleMajor = new QDepartment("studentSearchDoubleMajor");
         QProfessor advisor = new QProfessor("studentSearchAdvisor");
         QUser advisorUser = new QUser("studentSearchAdvisorUser");
 
@@ -76,7 +75,6 @@ public class StudentQueryRepository {
                 .selectFrom(student)
                 .join(student.user, user).fetchJoin()
                 .join(student.department).fetchJoin()
-                .leftJoin(student.major, primaryMajor).fetchJoin()
                 .leftJoin(student.doubleMajor, doubleMajor).fetchJoin()
                 .leftJoin(student.advisor, advisor).fetchJoin()
                 .leftJoin(advisor.user, advisorUser).fetchJoin()

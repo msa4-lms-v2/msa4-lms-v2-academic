@@ -23,9 +23,7 @@ public class DepartmentTransferAuditService {
         value.put("studentId", request.getStudent().getId());
         value.put("requestType", request.getRequestType());
         value.put("sourceDepartmentId", request.getSourceDepartment().getId());
-        value.put("sourceMajorId", request.getSourceMajor() == null ? null : request.getSourceMajor().getId());
         value.put("targetDepartmentId", request.getTargetDepartment().getId());
-        value.put("targetMajorId", request.getTargetMajor().getId());
         value.put("targetSemesterId", request.getTargetSemester() == null ? null : request.getTargetSemester().getId());
         value.put("requestPeriodId", request.getRequestPeriod() == null ? null : request.getRequestPeriod().getId());
         value.put("status", request.getStatus());
@@ -47,7 +45,6 @@ public class DepartmentTransferAuditService {
     public Map<String, Object> affiliation(Student student) {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("departmentId", student.getDepartment().getId());
-        value.put("majorId", student.getMajor() == null ? null : student.getMajor().getId());
         value.put("doubleMajorId", student.getDoubleMajor() == null ? null : student.getDoubleMajor().getId());
         value.put("advisorId", student.getAdvisor() == null ? null : student.getAdvisor().getId());
         return value;

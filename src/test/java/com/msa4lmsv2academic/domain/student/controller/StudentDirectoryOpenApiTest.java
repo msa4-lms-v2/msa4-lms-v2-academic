@@ -44,12 +44,18 @@ class StudentDirectoryOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(schema + "['studentId']").exists())
                 .andExpect(jsonPath(schema + "['userId']").exists())
                 .andExpect(jsonPath(schema + "['departmentName']").exists())
+                .andExpect(jsonPath(schema + "['majorId']").doesNotExist())
+                .andExpect(jsonPath(schema + "['majorName']").doesNotExist())
                 .andExpect(jsonPath(schema + "['doubleMajorName']").exists())
                 .andExpect(jsonPath(schema + "['academicStatus']").exists())
                 .andExpect(jsonPath(schema + "['advisorName']").exists())
                 .andExpect(jsonPath(schema + "['email']").doesNotExist())
                 .andExpect(jsonPath(schema + "['phoneNumber']").doesNotExist())
                 .andExpect(jsonPath(schema + "['address']").doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['StudentProfileResponseDTO']['properties']['majorName']")
+                        .doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['StudentProvisioningRequestDTO']['properties']['majorId']")
+                        .doesNotExist())
                 .andExpect(jsonPath("$['components']['securitySchemes']['bearerAuth']").exists());
     }
 }

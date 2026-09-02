@@ -26,7 +26,6 @@ public class DoubleMajorApplicationService {
     public DoubleMajorResponseDTO create(DoubleMajorCreateRequestDTO body,
                                          MultipartFile selfIntroduction,
                                          MultipartFile studyPlan,
-                                         MultipartFile transcript,
                                          String key,
                                          CurrentUser actor,
                                          DepartmentTransferAuditContext context) {
@@ -35,11 +34,9 @@ public class DoubleMajorApplicationService {
         idempotency.validateKey(key);
         validator.validateRequired(selfIntroduction);
         validator.validateRequired(studyPlan);
-        validator.validateRequired(transcript);
         List<TypedFile> files = List.of(
                 new TypedFile(TransferDocumentType.SELF_INTRODUCTION, selfIntroduction),
-                new TypedFile(TransferDocumentType.STUDY_PLAN, studyPlan),
-                new TypedFile(TransferDocumentType.TRANSCRIPT, transcript));
+                new TypedFile(TransferDocumentType.STUDY_PLAN, studyPlan));
         String hash = requestHash(body, files);
         var replay = service.preflight(body, key, hash, actor);
         if (replay.isPresent()) return replay.orElseThrow();

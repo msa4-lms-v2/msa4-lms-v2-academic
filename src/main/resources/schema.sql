@@ -91,20 +91,6 @@ CREATE TABLE IF NOT EXISTS departments (
     INDEX idx_departments_college_id (college_id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS majors (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    department_id BIGINT NOT NULL,
-    code VARCHAR(20) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    active TINYINT(1) NOT NULL DEFAULT 1,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_majors_code UNIQUE (code),
-    CONSTRAINT fk_majors_department
-        FOREIGN KEY (department_id) REFERENCES departments (id)
-        ON DELETE RESTRICT,
-    INDEX idx_majors_department_id (department_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS professors (
     id BIGINT NOT NULL AUTO_INCREMENT,
     version BIGINT NOT NULL DEFAULT 0,
@@ -126,7 +112,6 @@ CREATE TABLE IF NOT EXISTS students (
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     department_id BIGINT NOT NULL,
-    major_id BIGINT NULL,
     double_major_id BIGINT NULL,
     grade_level TINYINT NOT NULL,
     admission_year SMALLINT NOT NULL,
@@ -134,25 +119,21 @@ CREATE TABLE IF NOT EXISTS students (
     advisor_id BIGINT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_students_user_id UNIQUE (user_id),
-    CONSTRAINT ck_students_distinct_majors
-        CHECK (major_id IS NULL OR double_major_id IS NULL OR major_id <> double_major_id),
+    CONSTRAINT ck_students_distinct_departments
+        CHECK (double_major_id IS NULL OR department_id <> double_major_id),
     CONSTRAINT fk_students_user
         FOREIGN KEY (user_id) REFERENCES users (id)
         ON DELETE RESTRICT,
     CONSTRAINT fk_students_department
         FOREIGN KEY (department_id) REFERENCES departments (id)
         ON DELETE RESTRICT,
-    CONSTRAINT fk_students_major
-        FOREIGN KEY (major_id) REFERENCES majors (id)
-        ON DELETE RESTRICT,
     CONSTRAINT fk_students_double_major
-        FOREIGN KEY (double_major_id) REFERENCES majors (id)
+        FOREIGN KEY (double_major_id) REFERENCES departments (id)
         ON DELETE RESTRICT,
     CONSTRAINT fk_students_advisor
         FOREIGN KEY (advisor_id) REFERENCES professors (id)
         ON DELETE RESTRICT,
     INDEX idx_students_department_id (department_id),
-    INDEX idx_students_major_id (major_id),
     INDEX idx_students_double_major_id (double_major_id),
     INDEX idx_students_advisor_id (advisor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -798,6 +779,21 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     CONSTRAINT ck_academic_requests_return_semester CHECK (return_semester IS NULL OR return_semester IN (1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 휴·복학 신청별 최대 5개 PDF 증빙 메타데이터. 기존 academic_requests.attachment_*는 호환용으로 유지합니다.
+CREATE TABLE IF NOT EXISTS leave_request_files (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    request_id BIGINT NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    stored_name VARCHAR(500) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    size BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_leave_request_files_request (request_id),
+    CONSTRAINT fk_leave_request_files_request FOREIGN KEY (request_id)
+        REFERENCES academic_requests (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 학기별 수강신청 기간과 분리한 휴·복학 접수/승인 기간. semester_id는 적용 학기입니다.
 CREATE TABLE IF NOT EXISTS leave_request_periods (
     id BIGINT NOT NULL AUTO_INCREMENT,
@@ -845,9 +841,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     student_id BIGINT NOT NULL,
     request_type VARCHAR(20) NOT NULL,
     source_department_id BIGINT NOT NULL,
-    source_major_id BIGINT NULL,
     target_department_id BIGINT NOT NULL,
-    target_major_id BIGINT NOT NULL,
     target_semester_id BIGINT NULL,
     request_period_id BIGINT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
@@ -870,9 +864,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     INDEX idx_academic_change_requests_period (request_period_id),
     CONSTRAINT fk_academic_change_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_source_department FOREIGN KEY (source_department_id) REFERENCES departments (id) ON DELETE RESTRICT,
-    CONSTRAINT fk_academic_change_requests_source_major FOREIGN KEY (source_major_id) REFERENCES majors (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_department FOREIGN KEY (target_department_id) REFERENCES departments (id) ON DELETE RESTRICT,
-    CONSTRAINT fk_academic_change_requests_target_major FOREIGN KEY (target_major_id) REFERENCES majors (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_semester FOREIGN KEY (target_semester_id) REFERENCES semesters (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_period FOREIGN KEY (request_period_id) REFERENCES academic_change_request_periods (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
@@ -882,7 +874,8 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     ),
     CONSTRAINT ck_academic_change_requests_target_scope CHECK (
         (request_type = 'TRANSFER_DEPARTMENT' AND target_semester_id IS NOT NULL)
-        OR (request_type = 'DOUBLE_MAJOR' AND target_semester_id IS NULL AND request_period_id IS NOT NULL)
+        OR (request_type = 'DOUBLE_MAJOR'
+            AND target_semester_id IS NULL AND request_period_id IS NOT NULL)
     ),
     CONSTRAINT ck_academic_change_requests_status CHECK (
         status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')
@@ -901,7 +894,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 전과/복수전공 신청의 필수 PDF 3종 메타데이터. 실제 파일은 비공개 MinIO에 저장합니다.
+-- 전과 PDF 3종과 복수전공 PDF 2종 메타데이터. 실제 파일은 비공개 MinIO에 저장합니다.
 CREATE TABLE IF NOT EXISTS academic_change_request_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
     request_id BIGINT NOT NULL,

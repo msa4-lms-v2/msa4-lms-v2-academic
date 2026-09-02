@@ -26,9 +26,6 @@ public record StudentProvisioningRequestDTO(
         @Positive
         Long departmentId,
 
-        @Positive
-        Long majorId,
-
         @NotNull
         Short admissionYear
 ) {

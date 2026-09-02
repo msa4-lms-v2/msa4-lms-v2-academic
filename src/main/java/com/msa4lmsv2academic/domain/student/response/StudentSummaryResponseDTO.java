@@ -11,13 +11,9 @@ public record StudentSummaryResponseDTO(
         @Schema(description = "학생 이름", example = "김학생") String name,
         @Schema(description = "소속 학과 ID", example = "3") Long departmentId,
         @Schema(description = "소속 학과명", example = "컴퓨터공학과") String departmentName,
-        @Schema(description = "주전공 ID. 주전공이 배정되지 않은 경우 null", example = "7", nullable = true)
-        Long majorId,
-        @Schema(description = "주전공명. 주전공이 배정되지 않은 경우 null", example = "소프트웨어전공",
-                nullable = true) String majorName,
-        @Schema(description = "복수전공 ID. 복수전공이 없는 경우 null", example = "12", nullable = true)
+        @Schema(description = "복수전공 학과 ID. 복수전공이 없는 경우 null", example = "12", nullable = true)
         Long doubleMajorId,
-        @Schema(description = "복수전공명. 복수전공이 없는 경우 null", example = "경영학전공", nullable = true)
+        @Schema(description = "복수전공 학과명. 복수전공이 없는 경우 null", example = "경영학과", nullable = true)
         String doubleMajorName,
         @Schema(description = "현재 학년", example = "2") byte gradeLevel,
         @Schema(description = "입학 연도", example = "2025") short admissionYear,
@@ -35,8 +31,6 @@ public record StudentSummaryResponseDTO(
                 student.getUser().getName(),
                 student.getDepartment().getId(),
                 student.getDepartment().getName(),
-                student.getMajor() == null ? null : student.getMajor().getId(),
-                student.getMajor() == null ? null : student.getMajor().getName(),
                 student.getDoubleMajor() == null ? null : student.getDoubleMajor().getId(),
                 student.getDoubleMajor() == null ? null : student.getDoubleMajor().getName(),
                 student.getGradeLevel(),

@@ -281,7 +281,7 @@ class AcademicStatusHistoryControllerTest extends MySqlIntegrationTest {
     @Test
     void currentAffiliationControlsScopeAndDisplayWithoutRewritingHistory() throws Exception {
         Student target = entityManager.find(Student.class, sameDepartment.getId());
-        target.changeAffiliation(entityManager.find(Department.class, otherDepartment.getId()), null);
+        target.changeAffiliation(entityManager.find(Department.class, otherDepartment.getId()));
         entityManager.flush();
         entityManager.clear();
         mvc.perform(get(PATH).headers(headers(PROFESSOR_USER_ID, "PROFESSOR"))
@@ -359,7 +359,7 @@ class AcademicStatusHistoryControllerTest extends MySqlIntegrationTest {
     }
 
     private Student student(long userId, String name, Department affiliation, Professor advisor, AcademicStatus status) {
-        Student student = Student.create(user(userId, name, UserRole.STUDENT), affiliation, null, (byte) 2,
+        Student student = Student.create(user(userId, name, UserRole.STUDENT), affiliation, (byte) 2,
                 (short) 2025, advisor);
         student.changeAcademicStatus(status);
         entityManager.persist(student);

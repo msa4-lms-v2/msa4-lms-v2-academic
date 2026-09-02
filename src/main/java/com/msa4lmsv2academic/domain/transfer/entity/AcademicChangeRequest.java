@@ -1,7 +1,6 @@
 package com.msa4lmsv2academic.domain.transfer.entity;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
-import com.msa4lmsv2academic.domain.organization.entity.Major;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -41,15 +40,9 @@ public class AcademicChangeRequest {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "source_department_id", nullable = false)
     private Department sourceDepartment;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source_major_id")
-    private Major sourceMajor;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "target_department_id", nullable = false)
     private Department targetDepartment;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "target_major_id", nullable = false)
-    private Major targetMajor;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_semester_id")
     private Semester targetSemester;
@@ -82,31 +75,27 @@ public class AcademicChangeRequest {
     @LastModifiedDate @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static AcademicChangeRequest createTransfer(Student student, Department targetDepartment, Major targetMajor,
+    public static AcademicChangeRequest createTransfer(Student student, Department targetDepartment,
                                                        Semester targetSemester,
                                                        AcademicChangeRequestPeriod requestPeriod) {
         AcademicChangeRequest request = new AcademicChangeRequest();
         request.student = student;
         request.requestType = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
         request.sourceDepartment = student.getDepartment();
-        request.sourceMajor = student.getMajor();
         request.targetDepartment = targetDepartment;
-        request.targetMajor = targetMajor;
         request.targetSemester = targetSemester;
         request.requestPeriod = requestPeriod;
         request.status = AcademicChangeRequestStatus.PENDING;
         return request;
     }
 
-    public static AcademicChangeRequest createDoubleMajor(Student student, Major targetMajor,
+    public static AcademicChangeRequest createDoubleMajor(Student student, Department targetDepartment,
                                                            AcademicChangeRequestPeriod requestPeriod) {
         AcademicChangeRequest request = new AcademicChangeRequest();
         request.student = student;
         request.requestType = AcademicChangeRequestType.DOUBLE_MAJOR;
         request.sourceDepartment = student.getDepartment();
-        request.sourceMajor = student.getMajor();
-        request.targetDepartment = targetMajor.getDepartment();
-        request.targetMajor = targetMajor;
+        request.targetDepartment = targetDepartment;
         request.requestPeriod = requestPeriod;
         request.status = AcademicChangeRequestStatus.PENDING;
         return request;

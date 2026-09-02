@@ -14,12 +14,12 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByUserId(Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from Student s join fetch s.user left join fetch s.department left join fetch s.major "
+    @Query("select s from Student s join fetch s.user left join fetch s.department "
             + "left join fetch s.doubleMajor left join fetch s.advisor where s.user.id = :userId")
     Optional<Student> findByUserIdForUpdate(Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from Student s join fetch s.user left join fetch s.department left join fetch s.major "
+    @Query("select s from Student s join fetch s.user left join fetch s.department "
             + "left join fetch s.doubleMajor left join fetch s.advisor where s.id = :studentId")
     Optional<Student> findByIdForUpdate(Long studentId);
 
