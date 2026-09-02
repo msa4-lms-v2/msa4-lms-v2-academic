@@ -1,0 +1,21 @@
+spring:
+  sql:
+    init:
+      mode: always
+      data-locations: classpath*:dummy/*.sql
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true
+    display-request-duration: true
+
+logging:
+  level:
+    com.msa4lmsv2academic: debug

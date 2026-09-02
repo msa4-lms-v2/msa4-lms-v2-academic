@@ -1,0 +1,92 @@
+package com.msa4lmsv2academic.domain;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.msa4lmsv2academic.domain.course.entity.CompletionType;
+import com.msa4lmsv2academic.domain.course.entity.Course;
+import com.msa4lmsv2academic.domain.enrollment.entity.Enrollment;
+import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
+import com.msa4lmsv2academic.domain.enrollment.entity.GradeStatus;
+import com.msa4lmsv2academic.domain.graduation.entity.GraduationRequirement;
+import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
+import com.msa4lmsv2academic.domain.lecture.entity.LectureStatus;
+import com.msa4lmsv2academic.domain.organization.entity.College;
+import com.msa4lmsv2academic.domain.organization.entity.Department;
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
+import com.msa4lmsv2academic.domain.semester.entity.Semester;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
+import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
+import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.domain.user.entity.User;
+import com.msa4lmsv2academic.domain.user.entity.UserRole;
+import com.msa4lmsv2academic.domain.user.entity.UserStatus;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class AcademicCommonEntityTest {
+
+    @Test
+    void userRolesMatchAcademicContract() {
+        assertThat(UserRole.values()).containsExactly(
+                UserRole.STUDENT,
+                UserRole.PROFESSOR,
+                UserRole.ADMIN
+        );
+    }
+
+    @Test
+    void confirmedErdRelationshipsAreConnected() {
+        College college = College.create("ENG", "공과대학", true);
+        Department department = Department.create("100", college, "컴퓨터공학과", true);
+        User professorUser = User.synchronize(10L, "교수", "professor@test.com", null, null,
+                UserRole.PROFESSOR, UserStatus.ACTIVE);
+        Professor professor = Professor.create(professorUser, null, department);
+        User studentUser = User.synchronize(20L, "학생", "student@test.com", null, null,
+                UserRole.STUDENT, UserStatus.ACTIVE);
+        Student student = Student.create(studentUser, department, (byte) 4, (short) 2022,
+                professor);
+        Semester semester = Semester.create((short) 2026, SemesterTerm.FIRST,
+                LocalDate.of(2026, 3, 2), LocalDate.of(2026, 6, 19),
+                LocalDateTime.of(2026, 2, 16, 9, 0), LocalDateTime.of(2026, 2, 20, 18, 0), true);
+        Course course = Course.create(department, "CSE101", "프로그래밍", (byte) 3, null,
+                CompletionType.MAJOR_REQUIRED);
+        Lecture lecture = Lecture.create(semester, course, professor, "01", 30, "A101",
+                LectureStatus.OPEN, 30, 30, 20, 20, "강의계획");
+        Enrollment enrollment = Enrollment.create(student, lecture, LocalDateTime.of(2026, 8, 10, 9, 0));
+        GraduationRequirement requirement = GraduationRequirement.create(department, (short) 2022,
+                60, 30, 130, List.of("CSE101"));
+
+        assertThat(student.getDepartment()).isSameAs(department);
+        assertThat(student.getAcademicStatus()).isEqualTo(AcademicStatus.ENROLLED);
+        assertThat(professor.getHireYear()).isNull();
+        assertThat(course.getTargetGrade()).isNull();
+        assertThat(semester.isCurrent()).isTrue();
+        assertThat(lecture.getCourse()).isSameAs(course);
+        assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
+        assertThat(enrollment.getGradeStatus()).isEqualTo(GradeStatus.DRAFT);
+        assertThat(requirement.getRequiredCourses()).containsExactly("CSE101");
+
+        enrollment.cancel();
+
+        assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.CANCELLED);
+    }
+
+    @Test
+    void nullableErdFieldsAndAccountSynchronizationAreSupported() {
+        User user = User.provision(30L, "관리자", null, null, null, null);
+        College college = College.create("ETC", "기타대학", true);
+        Department department = Department.create("105", college, "자유전공학부", true);
+        GraduationRequirement requirement = GraduationRequirement.create(
+                department, (short) 2026, 30, 30, 120, null
+        );
+
+        user.synchronizeAccount(UserRole.ADMIN, UserStatus.LOCKED);
+
+        assertThat(user.getEmail()).isNull();
+        assertThat(user.getRole()).isEqualTo(UserRole.ADMIN);
+        assertThat(user.getStatus()).isEqualTo(UserStatus.LOCKED);
+        assertThat(requirement.getRequiredCourses()).isNull();
+    }
+}
