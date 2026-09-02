@@ -41,4 +41,26 @@ class ExcuseRequestOpenApiTest extends MySqlIntegrationTest {
                         .value("2026-09-01"))
                 .andExpect(jsonPath(requestSchema + "['properties']['reason']['maxLength']").value(500));
     }
+
+    @Test
+    void generatedOpenApiContainsExcuseAttachmentContract() throws Exception {
+        String attachmentPath = "$['paths']['/api/academic/attendance/excuses/{requestId}/attachment']";
+
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(attachmentPath + "['put']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(attachmentPath + "['put']['requestBody']['content']['multipart/form-data']")
+                        .exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['200']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['400']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['401']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['403']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['404']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['409']").exists())
+                .andExpect(jsonPath(attachmentPath + "['put']['responses']['413']").exists())
+                .andExpect(jsonPath(attachmentPath + "['get']").exists())
+                .andExpect(jsonPath(attachmentPath + "['get']['responses']['200']['content']['application/pdf']")
+                        .exists());
+    }
 }
