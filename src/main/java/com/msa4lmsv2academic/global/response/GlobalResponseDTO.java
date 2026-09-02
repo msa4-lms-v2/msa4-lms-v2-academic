@@ -21,6 +21,10 @@ public record GlobalResponseDTO<T>(
         return from(code, data);
     }
 
+    public static <T> GlobalResponseDTO<T> fail(CustomResponseCode code, String message, T data) {
+        return new GlobalResponseDTO<>(code.getCode(), message, data);
+    }
+
     private static <T> GlobalResponseDTO<T> from(CustomResponseCode code, T data) {
         return new GlobalResponseDTO<>(code.getCode(), code.getMessage(), data);
     }

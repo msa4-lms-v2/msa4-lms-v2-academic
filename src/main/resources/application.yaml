@@ -46,7 +46,7 @@ spring:
 
 attendance:
   qr:
-    base-url: ${ATTENDANCE_QR_BASE_URL:http://localhost:3000/attendance/check-in}
+    base-url: ${ATTENDANCE_QR_BASE_URL:http://localhost:5173/attendance/check-in}
 
 minio:
   endpoint: ${MINIO_ENDPOINT}

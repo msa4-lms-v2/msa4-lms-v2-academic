@@ -14,6 +14,7 @@ import com.msa4lmsv2academic.domain.lecture.entity.LectureSchedule;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureRepository;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureScheduleRepository;
 import com.msa4lmsv2academic.global.error.ProfessorLectureAccessDeniedException;
+import com.msa4lmsv2academic.global.error.InvalidAttendanceSessionException;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
@@ -51,7 +52,7 @@ public class AttendanceSessionService {
                         request.classId(),
                         currentUser.id()
                 )
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new InvalidAttendanceSessionException(
                         "현재 학기에 담당하는 강의를 찾을 수 없습니다."
                 ));
 
@@ -62,7 +63,7 @@ public class AttendanceSessionService {
             case WEDNESDAY -> LectureDayOfWeek.WED;
             case THURSDAY -> LectureDayOfWeek.THU;
             case FRIDAY -> LectureDayOfWeek.FRI;
-            case SATURDAY, SUNDAY -> throw new IllegalStateException(
+            case SATURDAY, SUNDAY -> throw new InvalidAttendanceSessionException(
                     "주말에는 예정된 강의를 찾을 수 없습니다."
             );
         };
@@ -75,11 +76,11 @@ public class AttendanceSessionService {
                 );
 
         if (schedules.isEmpty()) {
-            throw new IllegalStateException("오늘 예정된 강의가 없습니다.");
+            throw new InvalidAttendanceSessionException("오늘 예정된 강의가 없습니다.");
         }
 
         if (schedules.size() > 1) {
-            throw new IllegalStateException(
+            throw new InvalidAttendanceSessionException(
                     "오늘 동일 강의의 시간표가 여러 개라 교시를 자동으로 결정할 수 없습니다."
             );
         }
@@ -148,7 +149,7 @@ public class AttendanceSessionService {
                         currentUser.id()
                 )
                 .orElseThrow(() ->
-                        new IllegalStateException(
+                        new InvalidAttendanceSessionException(
                                 "QR을 발급할 수 있는 출석 세션이 아닙니다."
                         )
                 );
@@ -163,7 +164,7 @@ public class AttendanceSessionService {
             CurrentUser currentUser
     ) {
             AttendanceSession session = attendanceSessionRepository.findById(sessionId)
-                    .orElseThrow(() -> new IllegalArgumentException("출석 세션을 찾을 수 없습니다."));
+                    .orElseThrow(() -> new InvalidAttendanceSessionException("출석 세션을 찾을 수 없습니다."));
 
         Long professorUserId =
                 session.getLecture()
@@ -175,7 +176,11 @@ public class AttendanceSessionService {
             throw new ProfessorLectureAccessDeniedException();
         }
 
-        session.close(LocalDateTime.now());
+        try {
+            session.close(LocalDateTime.now());
+        } catch (IllegalStateException exception) {
+            throw new InvalidAttendanceSessionException(exception.getMessage());
+        }
 
         return AttendanceSessionCloseResponseDTO.from(session);
     }
