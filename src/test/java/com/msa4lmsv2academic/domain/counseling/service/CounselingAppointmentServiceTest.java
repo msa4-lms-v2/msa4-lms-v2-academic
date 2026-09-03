@@ -20,6 +20,7 @@ import com.msa4lmsv2academic.domain.counseling.repository.CounselorAvailabilityR
 import com.msa4lmsv2academic.domain.counseling.request.CounselingAppointmentCreateRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingAppointmentStatusRequestDTO;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
+import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.global.error.CounselingAccessDeniedException;
@@ -65,7 +66,8 @@ class CounselingAppointmentServiceTest {
                 availabilityRepository,
                 participantQueryRepository,
                 auditLogService,
-                notificationService
+                notificationService,
+                new CounselingPolicy()
         );
     }
 
@@ -295,6 +297,7 @@ class CounselingAppointmentServiceTest {
         User user = mock(User.class);
         lenient().when(student.getId()).thenReturn(studentId);
         lenient().when(student.getUser()).thenReturn(user);
+        lenient().when(student.getAcademicStatus()).thenReturn(AcademicStatus.ENROLLED);
         lenient().when(user.getId()).thenReturn(userId);
         lenient().when(user.getName()).thenReturn(name);
         return student;

@@ -25,6 +25,7 @@ public class AttendanceCheckInService {
     private final AttendanceQrService attendanceQrService;
     private final EnrollmentRepository enrollmentRepository;
     private final AttendanceRepository attendanceRepository;
+    private final AttendancePolicy attendancePolicy;
 
     @Transactional(rollbackFor = Exception.class)
     public AttendanceCheckInResponseDTO checkIn(
@@ -56,6 +57,8 @@ public class AttendanceCheckInService {
                 EnrollmentStatus.ACTIVE
         )
                 .orElseThrow(() -> new IllegalStateException("해당 강의의 수강생이 아닙니다."));
+
+        attendancePolicy.requireCheckInAllowed(enrollment.getStudent().getAcademicStatus());
 
 
         // 이미 출석했는지 확인

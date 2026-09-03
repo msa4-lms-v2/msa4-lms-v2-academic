@@ -9,7 +9,6 @@ import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.enrollment.service.EnrollmentExcuseEligibilityService;
 import com.msa4lmsv2academic.domain.lecture.entity.LectureDayOfWeek;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
-import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.global.error.DuplicateExcuseRequestException;
 import com.msa4lmsv2academic.global.error.EnrollmentNotFoundException;
 import com.msa4lmsv2academic.global.error.ExcuseRequestAccessDeniedException;
@@ -34,6 +33,7 @@ public class ExcuseRequestService {
 
     private final ExcuseRequestRepository excuseRequestRepository;
     private final EnrollmentExcuseEligibilityService enrollmentEligibilityService;
+    private final AttendancePolicy attendancePolicy;
 
     @Transactional
     public ExcuseRequestResponseDTO create(
@@ -84,9 +84,7 @@ public class ExcuseRequestService {
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
             throw new InvalidExcuseRequestException("활성 상태인 수강에만 공결을 신청할 수 있습니다.");
         }
-        if (enrollment.getStudent().getAcademicStatus() != AcademicStatus.ENROLLED) {
-            throw new InvalidExcuseRequestException("재학 상태인 학생만 공결을 신청할 수 있습니다.");
-        }
+        attendancePolicy.requireExcuseRequestAllowed(enrollment.getStudent().getAcademicStatus());
     }
 
     private void validateLectureDate(Semester semester, LocalDate lectureDate) {

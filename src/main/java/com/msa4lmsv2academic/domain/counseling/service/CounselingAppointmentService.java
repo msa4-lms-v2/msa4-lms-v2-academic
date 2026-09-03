@@ -52,6 +52,7 @@ public class CounselingAppointmentService {
     private final CounselingParticipantQueryRepository participantQueryRepository;
     private final AuditLogService auditLogService;
     private final CounselingNotificationService notificationService;
+    private final CounselingPolicy counselingPolicy;
 
     public PageResponseDTO<CounselingAppointmentResponseDTO> search(
             CounselingAppointmentSearchRequestDTO request,
@@ -99,6 +100,7 @@ public class CounselingAppointmentService {
 
         Student student = participantQueryRepository.findStudentByUserIdForUpdate(currentUser.id())
                 .orElseThrow(() -> new CounselingParticipantNotFoundException("학생 정보를 찾을 수 없습니다."));
+        counselingPolicy.requireAppointmentAllowed(student.getAcademicStatus());
         Professor professor = participantQueryRepository.findProfessorById(request.professorId())
                 .orElseThrow(() -> new CounselingParticipantNotFoundException("교수 정보를 찾을 수 없습니다."));
 
