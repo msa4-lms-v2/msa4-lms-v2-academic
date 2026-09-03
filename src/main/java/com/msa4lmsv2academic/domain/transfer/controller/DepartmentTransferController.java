@@ -76,7 +76,7 @@ public class DepartmentTransferController {
 
     @Operation(operationId = "createDepartmentTransferRequest", summary = "전과 신청",
             description = "STUDENT 전용. 재학생이 활성 접수 기간에 현재와 다른 활성 학과를 신청합니다. "
-                    + "현재 복수전공과 같은 학과는 차단합니다. 자기소개서·학업계획서·성적증명서 PDF가 각각 필수이며 "
+                    + "현재 복수전공과 같은 학과는 차단합니다. 자기소개서·학업계획서 PDF가 각각 필수이며 "
                     + "파일당 10MB 이하입니다. 모집요강 확인과 버튼 활성화는 Client가 담당합니다.")
     @ApiResponse(responseCode = "201", description = "00: 신청 생성 또는 저장된 성공 응답 재생")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -90,15 +90,12 @@ public class DepartmentTransferController {
             @Parameter(description = "학업계획서 PDF(필수, 10MB 이하)", required = true,
                     schema = @Schema(type = "string", format = "binary"))
             @RequestPart("studyPlan") MultipartFile studyPlan,
-            @Parameter(description = "성적증명서 PDF(필수, 10MB 이하)", required = true,
-                    schema = @Schema(type = "string", format = "binary"))
-            @RequestPart("transcript") MultipartFile transcript,
-            @Parameter(description = "1~100자의 공백 없는 요청별 키. JSON과 세 파일이 동일한 완료 요청만 24시간 재생",
+            @Parameter(description = "1~100자의 공백 없는 요청별 키. JSON과 두 파일이 동일한 완료 요청만 24시간 재생",
                     required = true, schema = @Schema(minLength = 1, maxLength = 100), example = "transfer-request-001")
             @RequestHeader(value = "Idempotency-Key", required = false) String key,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor,
             HttpServletRequest httpRequest) {
-        var response = applicationService.create(request, selfIntroduction, studyPlan, transcript, key, actor,
+        var response = applicationService.create(request, selfIntroduction, studyPlan, key, actor,
                 DepartmentTransferAuditContext.from(httpRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(GlobalResponseDTO.success(response));
     }

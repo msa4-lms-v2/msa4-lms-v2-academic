@@ -894,7 +894,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 전과 PDF 3종과 복수전공 PDF 2종 메타데이터. 실제 파일은 비공개 MinIO에 저장합니다.
+-- 전과와 복수전공 PDF 2종 메타데이터. TRANSCRIPT는 기존 데이터 호환을 위해 허용합니다.
 CREATE TABLE IF NOT EXISTS academic_change_request_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
     request_id BIGINT NOT NULL,
