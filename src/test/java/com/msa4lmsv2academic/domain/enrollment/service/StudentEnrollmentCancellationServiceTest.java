@@ -16,6 +16,7 @@ import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentHistoryRepos
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentRepository;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
+import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.global.error.EnrollmentApplicationRejectedException;
 import com.msa4lmsv2academic.global.error.EnrollmentCancellationAccessDeniedException;
@@ -38,6 +39,7 @@ class StudentEnrollmentCancellationServiceTest {
     private EnrollmentHistoryRepository historyRepository;
     private StudentEnrollmentCancellationService service;
     private Enrollment enrollment;
+    private Student student;
     private Semester semester;
     private CurrentUser currentUser;
 
@@ -49,12 +51,14 @@ class StudentEnrollmentCancellationServiceTest {
         service = new StudentEnrollmentCancellationService(
                 queryRepository,
                 enrollmentRepository,
-                historyRepository
+                historyRepository,
+                new EnrollmentAcademicStatusValidator()
         );
-        Student student = mock(Student.class);
+        student = mock(Student.class);
         Lecture lecture = mock(Lecture.class);
         semester = mock(Semester.class);
         when(student.getId()).thenReturn(STUDENT_ID);
+        when(student.getAcademicStatus()).thenReturn(AcademicStatus.ENROLLED);
         when(lecture.getId()).thenReturn(LECTURE_ID);
         when(lecture.getSemester()).thenReturn(semester);
         enrollment = Enrollment.create(student, lecture, LocalDateTime.of(2026, 8, 20, 9, 0));
@@ -112,6 +116,17 @@ class StudentEnrollmentCancellationServiceTest {
     void rejectsProfessorRole() {
         assertThatThrownBy(() -> service.cancel(ENROLLMENT_ID, new CurrentUser(USER_ID, "PROFESSOR")))
                 .isInstanceOf(EnrollmentCancellationAccessDeniedException.class);
+    }
+
+    @Test
+    void rejectsCancellationWhenStudentIsNotEnrolled() {
+        when(student.getAcademicStatus()).thenReturn(AcademicStatus.ON_LEAVE);
+        openEnrollmentPeriod();
+
+        assertThatThrownBy(() -> service.cancel(ENROLLMENT_ID, currentUser))
+                .isInstanceOf(EnrollmentApplicationRejectedException.class)
+                .hasMessageContaining("휴학 상태");
+        verify(enrollmentRepository, never()).saveAndFlush(any());
     }
 
     private void openEnrollmentPeriod() {

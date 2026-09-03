@@ -57,6 +57,7 @@ public class StudentInfoChangeRequestService {
     private final FileStorageService fileStorageService;
     private final ProfileFileValidator profileFileValidator;
     private final ProfileChangeValidator profileChangeValidator;
+    private final StudentInfoChangePolicy studentInfoChangePolicy;
     private final AuditLogService auditLogService;
 
     public PageResponseDTO<StudentInfoChangeRequestResponseDTO> search(
@@ -111,6 +112,7 @@ public class StudentInfoChangeRequestService {
 
         Student student = studentRepository.findByUserId(currentUser.id())
                 .orElseThrow(StudentNotFoundException::new);
+        studentInfoChangePolicy.requireRequestAllowed(student.getAcademicStatus());
         ProfileChangeValues values = profileChangeValidator.resolve(
                 student.getUser(),
                 createDTO.newName(),
