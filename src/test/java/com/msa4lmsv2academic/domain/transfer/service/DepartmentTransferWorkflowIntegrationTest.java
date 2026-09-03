@@ -76,34 +76,32 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void createReplaysSameThreeFilesAndExposesOnlyMetadata() {
+    void createReplaysSameTwoFilesAndExposesOnlyMetadata() {
         var created = create("transfer-create");
         assertThat(created.status()).isEqualTo(AcademicChangeRequestStatus.PENDING);
         assertThat(created.sourceDepartmentName()).isEqualTo("출발학과");
         assertThat(created.targetDepartmentName()).isEqualTo("희망학과");
         assertThat(created.documents()).extracting(item -> item.documentType())
-                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN,
-                        TransferDocumentType.TRANSCRIPT);
+                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
         assertThat(create("transfer-create")).isEqualTo(created);
-        verify(storage, times(3)).uploadEvidence(anyString(), any());
+        verify(storage, times(2)).uploadEvidence(anyString(), any());
         assertThat(count("academic_change_requests", "student_id")).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM academic_change_request_files WHERE request_id=?",
-                Integer.class, created.id())).isEqualTo(3);
+                Integer.class, created.id())).isEqualTo(2);
         var detail = service.get(created.id(), STUDENT);
         assertThat(detail.id()).isEqualTo(created.id());
         assertThat(detail.status()).isEqualTo(created.status());
         assertThat(detail.documents()).extracting(item -> item.documentType())
-                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN,
-                        TransferDocumentType.TRANSCRIPT);
+                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
         assertThatThrownBy(() -> service.get(created.id(), OTHER))
                 .isInstanceOf(DepartmentTransferAccessDeniedException.class);
-        var download = application.download(created.id(), TransferDocumentType.TRANSCRIPT, STUDENT);
-        assertThat(download.originalName()).isEqualTo("성적증명서.pdf");
+        var download = application.download(created.id(), TransferDocumentType.STUDY_PLAN, STUDENT);
+        assertThat(download.originalName()).isEqualTo("학업계획서.pdf");
     }
 
     @Test
-    void allThreeValidPdfFilesAreRequiredBeforeRemoteUpload() {
-        assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"), null,
+    void bothValidPdfFilesAreRequiredBeforeRemoteUpload() {
+        assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), null,
                 "transfer-missing", STUDENT, CONTEXT)).isInstanceOf(RuntimeException.class);
         verifyNoInteractions(storage);
     }
@@ -114,7 +112,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         var cancelled = service.cancel(first.id(), new DepartmentTransferCancelRequestDTO("진로 재검토"),
                 "transfer-cancel", STUDENT, CONTEXT);
         assertThat(cancelled.status()).isEqualTo(AcademicChangeRequestStatus.CANCELLED);
-        assertThat(cancelled.documents()).hasSize(3);
+        assertThat(cancelled.documents()).hasSize(2);
         assertThat(create("transfer-reapply").id()).isNotEqualTo(first.id());
         verify(storage, never()).delete(anyString());
     }
@@ -143,7 +141,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 "transfer-stale", ADMIN, CONTEXT)).isInstanceOf(DepartmentTransferConflictException.class);
         jdbc.update("UPDATE students SET department_id=295001,double_major_id=295002 WHERE id=295001");
         assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"),
-                pdf("성적증명서.pdf"), "transfer-double-major", STUDENT, CONTEXT))
+                "transfer-double-major", STUDENT, CONTEXT))
                 .isInstanceOf(DepartmentTransferConflictException.class);
     }
 
@@ -195,11 +193,13 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['targetMajorId']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['reason']").doesNotExist())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['requestBody']"
+                        + "['content']['multipart/form-data']['schema']['properties']['transcript']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['documents']").exists());
     }
 
     private DepartmentTransferResponseDTO create(String key) {
-        return application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"), pdf("성적증명서.pdf"),
+        return application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"),
                 key, STUDENT, CONTEXT);
     }
 

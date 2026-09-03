@@ -15,8 +15,11 @@ import com.msa4lmsv2academic.domain.user.repository.UserRepository;
 import com.msa4lmsv2academic.global.error.*;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DepartmentTransferService {
     private static final AcademicChangeRequestType TYPE = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
+    private static final Set<TransferDocumentType> REQUIRED_DOCUMENT_TYPES =
+            EnumSet.of(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
     private static final String CREATE_ENDPOINT = "POST /api/academic/department-transfer-requests";
     private final AcademicChangeRequestRepository repository;
     private final AcademicChangeRequestFileRepository fileRepository;
@@ -90,9 +95,10 @@ public class DepartmentTransferService {
                 DepartmentTransferResponseDTO.class);
         if (replay.isPresent()) return new DepartmentTransferCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body, true);
-        if (documents == null || documents.size() != TransferDocumentType.values().length
-                || documents.stream().map(StoredTransferDocument::type).distinct().count() != TransferDocumentType.values().length) {
-            throw new InvalidDepartmentTransferRequestException("자기소개서·학업계획서·성적증명서 PDF가 모두 필요합니다.");
+        if (documents == null || documents.size() != REQUIRED_DOCUMENT_TYPES.size()
+                || !documents.stream().map(StoredTransferDocument::type).collect(Collectors.toSet())
+                        .equals(REQUIRED_DOCUMENT_TYPES)) {
+            throw new InvalidDepartmentTransferRequestException("자기소개서·학업계획서 PDF가 모두 필요합니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
