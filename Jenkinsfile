@@ -5,7 +5,7 @@ pipeline {
         REGISTRY = '192.168.0.5:6901'
         IMAGE_NAME = 'msa4/team3/academic'
         MANIFEST_REPO = 'https://github.com/msa4-lms-v2/msa4-lms-v2-k8s-manifests.git'
-        MANIFEST_PATH = 'msa4/team3/academic'
+        MANIFEST_PATH = 'academic'
     }
 
     stages {
