@@ -118,4 +118,25 @@ public class ExcuseRequest {
     public boolean hasAttachment() {
         return attachmentStoredName != null && !attachmentStoredName.isBlank();
     }
+
+    public void approve() {
+        validatePending();
+        this.status = ExcuseRequestStatus.APPROVED;
+        this.rejectReason = null;
+    }
+
+    public void reject(String rejectReason) {
+        validatePending();
+        if (rejectReason == null || rejectReason.isBlank()) {
+            throw new IllegalArgumentException("반려 사유는 필수입니다.");
+        }
+        this.status = ExcuseRequestStatus.REJECTED;
+        this.rejectReason = rejectReason.trim();
+    }
+
+    private void validatePending() {
+        if (status != ExcuseRequestStatus.PENDING) {
+            throw new IllegalStateException("처리 대기 상태인 공결 신청만 승인하거나 반려할 수 있습니다.");
+        }
+    }
 }

@@ -63,4 +63,25 @@ class ExcuseRequestOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(attachmentPath + "['get']['responses']['200']['content']['application/pdf']")
                         .exists());
     }
+
+    @Test
+    void generatedOpenApiContainsProfessorExcuseReviewContract() throws Exception {
+        String path = "$['paths']['/api/academic/attendance/excuses/{requestId}']['patch']";
+        String requestSchema = "$['components']['schemas']['ExcuseReviewRequestDTO']";
+
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(path).exists())
+                .andExpect(jsonPath(path + "['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(path + "['parameters'][?(@.name == 'Idempotency-Key')].required")
+                        .value(hasItems(true)))
+                .andExpect(jsonPath(path + "['responses']['200']").exists())
+                .andExpect(jsonPath(path + "['responses']['400']").exists())
+                .andExpect(jsonPath(path + "['responses']['401']").exists())
+                .andExpect(jsonPath(path + "['responses']['403']").exists())
+                .andExpect(jsonPath(path + "['responses']['404']").exists())
+                .andExpect(jsonPath(path + "['responses']['409']").exists())
+                .andExpect(jsonPath(requestSchema + "['required']").value(hasItems("status")))
+                .andExpect(jsonPath(requestSchema + "['properties']['rejectReason']['maxLength']").value(500));
+    }
 }
