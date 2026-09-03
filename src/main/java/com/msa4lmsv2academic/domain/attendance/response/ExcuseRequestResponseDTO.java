@@ -26,8 +26,14 @@ public record ExcuseRequestResponseDTO(
         @Schema(description = "처리 상태", example = "PENDING")
         ExcuseRequestStatus status,
 
+        @Schema(description = "반려 사유. 반려되지 않았다면 null입니다.", example = "증빙 자료를 확인할 수 없습니다.")
+        String rejectReason,
+
         @Schema(description = "신청 시각", example = "2026-09-02T10:30:00")
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+
+        @Schema(description = "마지막 변경 시각", example = "2026-09-02T14:10:00")
+        LocalDateTime updatedAt
 ) {
 
     public static ExcuseRequestResponseDTO from(ExcuseRequest request) {
@@ -38,7 +44,9 @@ public record ExcuseRequestResponseDTO(
                 request.getPeriod(),
                 request.getReason(),
                 request.getStatus(),
-                request.getCreatedAt()
+                request.getRejectReason(),
+                request.getCreatedAt(),
+                request.getUpdatedAt()
         );
     }
 }
