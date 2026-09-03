@@ -4,10 +4,12 @@ import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseRequestCreateRequestDTO;
+import com.msa4lmsv2academic.domain.attendance.request.ExcuseReviewRequestDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseAttachmentResponseDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestResponseDTO;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseAttachmentService;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseRequestService;
+import com.msa4lmsv2academic.domain.attendance.service.ExcuseReviewService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,10 +32,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,6 +51,7 @@ public class ExcuseRequestController {
 
     private final ExcuseRequestService excuseRequestService;
     private final ExcuseAttachmentService excuseAttachmentService;
+    private final ExcuseReviewService excuseReviewService;
 
     @Operation(
             summary = "공결 신청",
@@ -71,6 +76,47 @@ public class ExcuseRequestController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GlobalResponseDTO.success(excuseRequestService.create(request, currentUser)));
+    }
+
+    @Operation(
+            operationId = "reviewExcuseRequest",
+            summary = "담당 교수 공결 승인·반려",
+            description = "담당 교수가 처리 대기 상태인 본인 강의의 공결 신청을 승인하거나 반려합니다. "
+                    + "반려 사유, 변경 전후 상태, 처리자와 처리시각을 감사 이력으로 남깁니다. "
+                    + "Idempotency-Key는 공백 없는 1~100자이며 논리적으로 같은 처리의 재시도에는 같은 키를 사용합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponse(responseCode = "200", description = "공결 처리 성공 또는 저장된 성공 응답 재생")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.NOT_FOUND_DATA,
+            CustomResponseCode.DUPLICATE_DATA,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
+    @PatchMapping("/{requestId}")
+    @PreAuthorize("hasRole('PROFESSOR')")
+    public ResponseEntity<GlobalResponseDTO<ExcuseRequestResponseDTO>> review(
+            @Parameter(description = "공결 신청 ID", example = "301")
+            @Positive(message = "requestId는 양수여야 합니다.") @PathVariable Long requestId,
+            @Parameter(description = "논리적으로 같은 처리의 재시도에는 같은 키 사용", required = true,
+                    example = "06a6de23-1d84-4778-9bf5-9719b163a44f",
+                    schema = @Schema(type = "string", minLength = 1, maxLength = 100))
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody ExcuseReviewRequestDTO request,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(excuseReviewService.review(
+                requestId,
+                request,
+                idempotencyKey,
+                currentUser,
+                httpRequest.getHeader("X-Request-Id"),
+                httpRequest.getRemoteAddr()
+        ));
     }
 
     @Operation(
