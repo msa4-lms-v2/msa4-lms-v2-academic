@@ -1,7 +1,5 @@
 package com.msa4lmsv2academic.global.outbox;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.msa4lmsv2academic.domain.outbox.entity.OutboxEvent;
 import com.msa4lmsv2academic.domain.outbox.repository.OutboxEventRepository;
 import java.time.LocalDateTime;
@@ -13,6 +11,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
@@ -32,7 +32,7 @@ public class OutboxWorker {
     );
 
     private final OutboxEventRepository outboxEventRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<Object, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelayString = "${academic.outbox.poll-interval-ms:2000}")
@@ -53,13 +53,17 @@ public class OutboxWorker {
             log.warn("알 수 없는 outbox event_type={} (id={})", event.getEventType(), event.getId());
             return;
         }
+        String value;
         try {
-            String value = objectMapper.writeValueAsString(event.getPayload());
-            kafkaTemplate.send(topic, String.valueOf(event.getAggregateId()), value).get();
-            event.complete(now);
-        } catch (JsonProcessingException exception) {
+            value = objectMapper.writeValueAsString(event.getPayload());
+        } catch (JacksonException exception) {
             event.giveUp("PAYLOAD_SERIALIZATION_FAILED");
             log.error("outbox payload 직렬화 실패 (id={})", event.getId(), exception);
+            return;
+        }
+        try {
+            kafkaTemplate.send(topic, String.valueOf(event.getAggregateId()), value).get();
+            event.complete(now);
         } catch (Exception exception) {
             retryOrGiveUp(event, now, exception);
         }
