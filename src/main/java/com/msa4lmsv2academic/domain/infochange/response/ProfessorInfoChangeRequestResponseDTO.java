@@ -27,7 +27,7 @@ public record ProfessorInfoChangeRequestResponseDTO(
         @Schema(description = "본인 취소 시각", nullable = true) LocalDateTime cancelledAt,
         @Schema(description = "생성 시각") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각") LocalDateTime updatedAt,
-        @Schema(description = "증빙 PDF 목록. 목록 응답에서는 null", nullable = true)
+        @Schema(description = "증빙 PDF/JPEG/PNG/GIF/WebP/HWP/HWPX 목록. 목록 응답에서는 null", nullable = true)
         List<ProfessorInfoChangeRequestFileResponseDTO> files
 ) {
     public static ProfessorInfoChangeRequestResponseDTO summary(ProfessorInfoChangeRequest request) {
