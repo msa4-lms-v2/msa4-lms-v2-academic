@@ -4,13 +4,17 @@ import com.msa4lmsv2academic.global.config.openapi.CustomApiResponse;
 import com.msa4lmsv2academic.global.response.CustomResponseCode;
 
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseRequestCreateRequestDTO;
+import com.msa4lmsv2academic.domain.attendance.request.ExcuseRequestSearchRequestDTO;
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseReviewRequestDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseAttachmentResponseDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestResponseDTO;
+import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestStatusResponseDTO;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseAttachmentService;
+import com.msa4lmsv2academic.domain.attendance.service.ExcuseRequestQueryService;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseRequestService;
 import com.msa4lmsv2academic.domain.attendance.service.ExcuseReviewService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +28,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,7 +36,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +51,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Attendance Excuses", description = "학생 공결 신청 및 처리 API")
+@Validated
 @RestController
 @RequestMapping("/api/academic/attendance/excuses")
 @RequiredArgsConstructor
@@ -52,6 +60,32 @@ public class ExcuseRequestController {
     private final ExcuseRequestService excuseRequestService;
     private final ExcuseAttachmentService excuseAttachmentService;
     private final ExcuseReviewService excuseReviewService;
+    private final ExcuseRequestQueryService excuseRequestQueryService;
+
+    @Operation(
+            operationId = "searchExcuseRequests",
+            summary = "공결 처리 상태 조회",
+            description = "학생은 본인이 신청한 공결, 교수는 본인이 담당하는 강의의 공결, 관리자는 전체 공결을 "
+                    + "신청 시각과 ID 내림차순으로 조회합니다. 상태를 생략하면 모든 상태를 조회하며, "
+                    + "결과가 없으면 빈 items와 totalCount 0을 반환합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponse(responseCode = "200", description = "공결 처리 상태 조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.INVALID_PARAMETER,
+            CustomResponseCode.DATABASE_ERROR,
+            CustomResponseCode.SYSTEM_ERROR
+    })
+    @GetMapping
+    @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<ExcuseRequestStatusResponseDTO>>> search(
+            @ParameterObject @Valid @ModelAttribute ExcuseRequestSearchRequestDTO request,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(excuseRequestQueryService.search(request, currentUser)));
+    }
 
     @Operation(
             summary = "공결 신청",

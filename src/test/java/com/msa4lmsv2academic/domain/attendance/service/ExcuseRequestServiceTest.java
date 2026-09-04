@@ -23,6 +23,7 @@ import com.msa4lmsv2academic.domain.lecture.entity.LectureDayOfWeek;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.global.error.AttendanceStateConflictException;
 import com.msa4lmsv2academic.global.error.DuplicateExcuseRequestException;
 import com.msa4lmsv2academic.global.error.EnrollmentNotFoundException;
 import com.msa4lmsv2academic.global.error.ExcuseRequestAccessDeniedException;
@@ -58,7 +59,11 @@ class ExcuseRequestServiceTest {
     void setUp() {
         excuseRequestRepository = mock(ExcuseRequestRepository.class);
         enrollmentEligibilityService = mock(EnrollmentExcuseEligibilityService.class);
-        service = new ExcuseRequestService(excuseRequestRepository, enrollmentEligibilityService);
+        service = new ExcuseRequestService(
+                excuseRequestRepository,
+                enrollmentEligibilityService,
+                new AttendancePolicy()
+        );
 
         enrollment = mock(Enrollment.class);
         student = mock(Student.class);
@@ -142,7 +147,7 @@ class ExcuseRequestServiceTest {
         when(enrollment.getStatus()).thenReturn(EnrollmentStatus.ACTIVE);
         when(student.getAcademicStatus()).thenReturn(AcademicStatus.ON_LEAVE);
         assertThatThrownBy(() -> service.create(request(today, (byte) 1, "진료"), currentUser))
-                .isInstanceOf(InvalidExcuseRequestException.class)
+                .isInstanceOf(AttendanceStateConflictException.class)
                 .hasMessageContaining("재학 상태");
     }
 

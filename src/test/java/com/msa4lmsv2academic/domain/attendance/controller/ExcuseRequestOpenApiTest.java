@@ -20,6 +20,26 @@ class ExcuseRequestOpenApiTest extends MySqlIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    void generatedOpenApiContainsExcuseStatusQueryContract() throws Exception {
+        String path = "$['paths']['/api/academic/attendance/excuses']['get']";
+        String responseSchema = "$['components']['schemas']['ExcuseRequestStatusResponseDTO']";
+
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(path).exists())
+                .andExpect(jsonPath(path + "['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath(path + "['responses']['200']").exists())
+                .andExpect(jsonPath(path + "['responses']['400']").exists())
+                .andExpect(jsonPath(path + "['responses']['401']").exists())
+                .andExpect(jsonPath(path + "['responses']['403']").exists())
+                .andExpect(jsonPath(path + "['parameters'][?(@.name == 'status')]").exists())
+                .andExpect(jsonPath(responseSchema + "['properties']['studentName']").exists())
+                .andExpect(jsonPath(responseSchema + "['properties']['courseName']").exists())
+                .andExpect(jsonPath(responseSchema + "['properties']['rejectReason']").exists())
+                .andExpect(jsonPath(responseSchema + "['properties']['attachmentOriginalName']").exists());
+    }
+
+    @Test
     void generatedOpenApiContainsExcuseApplicationContract() throws Exception {
         String path = "$['paths']['/api/academic/attendance/excuses']['post']";
         String requestSchema = "$['components']['schemas']['ExcuseRequestCreateRequestDTO']";

@@ -16,6 +16,6 @@ public final class GraduationCreditGradePolicy {
     }
 
     public static boolean isPassing(String letterGrade) {
-        return PASSING_GRADES.contains(letterGrade);
+        return letterGrade != null && PASSING_GRADES.contains(letterGrade);
     }
 }

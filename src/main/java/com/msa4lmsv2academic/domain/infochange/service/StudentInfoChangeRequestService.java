@@ -14,6 +14,7 @@ import com.msa4lmsv2academic.domain.infochange.request.InfoChangeRequestSearchRe
 import com.msa4lmsv2academic.domain.infochange.request.StudentInfoChangeRequestCreateDTO;
 import com.msa4lmsv2academic.domain.infochange.response.StudentInfoChangeRequestFileResponseDTO;
 import com.msa4lmsv2academic.domain.infochange.response.StudentInfoChangeRequestResponseDTO;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -48,6 +49,8 @@ public class StudentInfoChangeRequestService {
     private static final String PROFILE_IMAGE_PATH_PREFIX = "student-info-change/profile-images";
     private static final String ATTACHMENT_PATH_PREFIX = "student-info-change/attachments";
     private static final String TARGET_TYPE = "STUDENT_PROFILE_CHANGE_REQUEST";
+    private static final String AGGREGATE_TYPE_STUDENT = "STUDENT";
+    private static final String EVENT_STUDENT_SNAPSHOT_CHANGED = "StudentSnapshotChanged";
 
     private final StudentInfoChangeRequestRepository requestRepository;
     private final StudentInfoChangeRequestQueryRepository requestQueryRepository;
@@ -57,7 +60,9 @@ public class StudentInfoChangeRequestService {
     private final FileStorageService fileStorageService;
     private final ProfileFileValidator profileFileValidator;
     private final ProfileChangeValidator profileChangeValidator;
+    private final StudentInfoChangePolicy studentInfoChangePolicy;
     private final AuditLogService auditLogService;
+    private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<StudentInfoChangeRequestResponseDTO> search(
             InfoChangeRequestSearchRequestDTO request,
@@ -111,6 +116,7 @@ public class StudentInfoChangeRequestService {
 
         Student student = studentRepository.findByUserId(currentUser.id())
                 .orElseThrow(StudentNotFoundException::new);
+        studentInfoChangePolicy.requireRequestAllowed(student.getAcademicStatus());
         ProfileChangeValues values = profileChangeValidator.resolve(
                 student.getUser(),
                 createDTO.newName(),
@@ -162,7 +168,8 @@ public class StudentInfoChangeRequestService {
 
         try {
             request.approve(reviewer, LocalDateTime.now());
-            request.getStudent().getUser().applyProfileChange(
+            Student student = request.getStudent();
+            student.getUser().applyProfileChange(
                     request.getNewName(),
                     request.getNewPhoneNumber(),
                     request.getNewEmail(),
@@ -170,6 +177,16 @@ public class StudentInfoChangeRequestService {
                     request.getNewProfileImageKey()
             );
             StudentInfoChangeRequest saved = requestRepository.saveAndFlush(request);
+            if (request.getNewName() != null) {
+                student.bumpSnapshotVersion();
+                outboxEventService.record(
+                        AGGREGATE_TYPE_STUDENT,
+                        student.getId(),
+                        EVENT_STUDENT_SNAPSHOT_CHANGED,
+                        studentSnapshotPayload(student),
+                        student.getSnapshotVersion()
+                );
+            }
             recordAudit(
                     currentUser.id(),
                     "STUDENT_PROFILE_CHANGE_APPROVED",
@@ -364,5 +381,15 @@ public class StudentInfoChangeRequestService {
 
     private String normalizeNullable(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private Map<String, Object> studentSnapshotPayload(Student student) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("studentId", student.getId());
+        payload.put("userId", student.getUser().getId());
+        payload.put("displayName", student.getUser().getName());
+        payload.put("departmentName", student.getDepartment().getName());
+        payload.put("sourceVersion", student.getSnapshotVersion());
+        return payload;
     }
 }

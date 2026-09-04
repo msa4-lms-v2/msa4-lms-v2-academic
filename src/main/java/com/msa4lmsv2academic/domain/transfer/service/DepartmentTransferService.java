@@ -2,6 +2,7 @@ package com.msa4lmsv2academic.domain.transfer.service;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentQueryRepository;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
 import com.msa4lmsv2academic.domain.student.entity.Student;
@@ -15,8 +16,12 @@ import com.msa4lmsv2academic.domain.user.repository.UserRepository;
 import com.msa4lmsv2academic.global.error.*;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +34,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DepartmentTransferService {
     private static final AcademicChangeRequestType TYPE = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
+    private static final Set<TransferDocumentType> REQUIRED_DOCUMENT_TYPES =
+            EnumSet.of(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
     private static final String CREATE_ENDPOINT = "POST /api/academic/department-transfer-requests";
+    private static final String AGGREGATE_TYPE_STUDENT = "STUDENT";
+    private static final String EVENT_STUDENT_SNAPSHOT_CHANGED = "StudentSnapshotChanged";
     private final AcademicChangeRequestRepository repository;
     private final AcademicChangeRequestFileRepository fileRepository;
     private final AcademicChangeRequestPeriodRepository periodRepository;
@@ -41,6 +50,7 @@ public class DepartmentTransferService {
     private final DepartmentTransferPolicy policy;
     private final DepartmentTransferIdempotencyService idempotency;
     private final DepartmentTransferAuditService audit;
+    private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<DepartmentTransferResponseDTO> search(DepartmentTransferSearchRequestDTO filter,
                                                                  CurrentUser actor, Pageable pageable) {
@@ -90,9 +100,10 @@ public class DepartmentTransferService {
                 DepartmentTransferResponseDTO.class);
         if (replay.isPresent()) return new DepartmentTransferCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body, true);
-        if (documents == null || documents.size() != TransferDocumentType.values().length
-                || documents.stream().map(StoredTransferDocument::type).distinct().count() != TransferDocumentType.values().length) {
-            throw new InvalidDepartmentTransferRequestException("자기소개서·학업계획서·성적증명서 PDF가 모두 필요합니다.");
+        if (documents == null || documents.size() != REQUIRED_DOCUMENT_TYPES.size()
+                || !documents.stream().map(StoredTransferDocument::type).collect(Collectors.toSet())
+                        .equals(REQUIRED_DOCUMENT_TYPES)) {
+            throw new InvalidDepartmentTransferRequestException("자기소개서·학업계획서 PDF가 모두 필요합니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
@@ -174,7 +185,15 @@ public class DepartmentTransferService {
             request.approve(processor, now);
             student.changeAffiliation(request.getTargetDepartment());
             student.clearAdvisor();
+            student.bumpSnapshotVersion();
             repository.flush();
+            outboxEventService.record(
+                    AGGREGATE_TYPE_STUDENT,
+                    student.getId(),
+                    EVENT_STUDENT_SNAPSHOT_CHANGED,
+                    studentSnapshotPayload(student),
+                    student.getSnapshotVersion()
+            );
             audit.record(student.getId(), "STUDENT_AFFILIATION", beforeAffiliation, audit.affiliation(student),
                     "STUDENT_TRANSFER_APPLIED", "관리자 전과 승인", actor, context);
         } else {
@@ -219,6 +238,16 @@ public class DepartmentTransferService {
             throw new DepartmentTransferConflictException("현재는 전과 접수 기간이 아닙니다.");
         }
         return new ResolvedCreation(targetDepartment, targetSemester, configured);
+    }
+
+    private Map<String, Object> studentSnapshotPayload(Student student) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("studentId", student.getId());
+        payload.put("userId", student.getUser().getId());
+        payload.put("displayName", student.getUser().getName());
+        payload.put("departmentName", student.getDepartment().getName());
+        payload.put("sourceVersion", student.getSnapshotVersion());
+        return payload;
     }
 
     private void validateApproval(Student student, AcademicChangeRequest request) {

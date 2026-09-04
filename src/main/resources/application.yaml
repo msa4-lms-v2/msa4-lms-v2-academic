@@ -44,6 +44,17 @@ spring:
     deserialization:
       fail-on-unknown-properties: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:112.222.157.156:6301}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+
+academic:
+  outbox:
+    poll-interval-ms: ${ACADEMIC_OUTBOX_POLL_INTERVAL_MS:2000}
+
 attendance:
   qr:
     base-url: ${ATTENDANCE_QR_BASE_URL:http://localhost:5173/attendance/check-in}

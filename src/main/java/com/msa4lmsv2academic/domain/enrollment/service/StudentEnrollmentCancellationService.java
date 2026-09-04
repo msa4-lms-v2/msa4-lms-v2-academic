@@ -11,6 +11,7 @@ import com.msa4lmsv2academic.domain.enrollment.response.EnrollmentApplicationRea
 import com.msa4lmsv2academic.domain.enrollment.response.StudentEnrollmentCancellationResponseDTO;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.global.error.EnrollmentApplicationRejectedException;
+import com.msa4lmsv2academic.global.error.EnrollmentAcademicStatusNotAllowedException;
 import com.msa4lmsv2academic.global.error.EnrollmentCancellationAccessDeniedException;
 import com.msa4lmsv2academic.global.error.EnrollmentNotFoundException;
 import com.msa4lmsv2academic.global.error.InvalidEnrollmentCancellationRequestException;
@@ -30,12 +31,14 @@ public class StudentEnrollmentCancellationService {
     private final EnrollmentCancellationQueryRepository queryRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentHistoryRepository historyRepository;
+    private final EnrollmentAcademicStatusValidator academicStatusValidator;
 
     @Transactional
     public StudentEnrollmentCancellationResponseDTO cancel(Long enrollmentId, CurrentUser currentUser) {
         validateRequest(enrollmentId, currentUser);
         Enrollment enrollment = queryRepository.findOwnedEnrollmentForUpdate(enrollmentId, currentUser.id())
                 .orElseThrow(EnrollmentNotFoundException::new);
+        validateAcademicStatus(enrollment);
         validateActive(enrollment);
         LocalDateTime cancelledAt = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         validateCancellationPeriod(enrollment.getLecture().getSemester(), cancelledAt);
@@ -58,6 +61,19 @@ public class StudentEnrollmentCancellationService {
     private void validateActive(Enrollment enrollment) {
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
             reject(EnrollmentCancellationRejectionReason.ENROLLMENT_ALREADY_CANCELLED);
+        }
+    }
+
+    private void validateAcademicStatus(Enrollment enrollment) {
+        try {
+            academicStatusValidator.validate(enrollment.getStudent().getAcademicStatus());
+        } catch (EnrollmentAcademicStatusNotAllowedException exception) {
+            throw new EnrollmentApplicationRejectedException(List.of(
+                    EnrollmentApplicationReasonResponseDTO.from(
+                            exception.getReason().name(),
+                            exception.getReason().getMessage()
+                    )
+            ));
         }
     }
 
