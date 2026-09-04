@@ -50,6 +50,11 @@ public class Student {
     @EqualsAndHashCode.Include
     private Long id;
 
+    // Kafka StudentSnapshotChanged 이벤트의 sourceVersion 채번용 카운터.
+    // 이름 변경은 연관된 User만 dirty해져 JPA @Version이 자동으로 안 올라가므로 수동 카운터를 둔다.
+    @Column(name = "snapshot_version", nullable = false)
+    private long snapshotVersion;
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -84,6 +89,7 @@ public class Student {
         this.admissionYear = admissionYear;
         this.academicStatus = AcademicStatus.ENROLLED;
         this.advisor = advisor;
+        this.snapshotVersion = 1L;
     }
 
     public static Student create(User user, Department department, byte gradeLevel,
@@ -105,5 +111,9 @@ public class Student {
 
     public void assignDoubleMajor(Department doubleMajor) {
         this.doubleMajor = doubleMajor;
+    }
+
+    public void bumpSnapshotVersion() {
+        this.snapshotVersion++;
     }
 }

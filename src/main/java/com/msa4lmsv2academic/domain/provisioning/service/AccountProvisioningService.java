@@ -2,6 +2,7 @@ package com.msa4lmsv2academic.domain.provisioning.service;
 
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.professor.repository.ProfessorRepository;
 import com.msa4lmsv2academic.domain.provisioning.request.ProfessorProvisioningRequestDTO;
@@ -13,6 +14,8 @@ import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.repository.UserRepository;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AccountProvisioningService {
 
+    private static final String AGGREGATE_TYPE_STUDENT = "STUDENT";
+    private static final String EVENT_STUDENT_SNAPSHOT_CHANGED = "StudentSnapshotChanged";
+
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final StudentRepository studentRepository;
     private final ProfessorRepository professorRepository;
+    private final OutboxEventService outboxEventService;
 
     /*
      * 학생 프로비저닝
@@ -68,6 +75,14 @@ public class AccountProvisioningService {
 
         Student savedStudent =
                 studentRepository.saveAndFlush(student);
+
+        outboxEventService.record(
+                AGGREGATE_TYPE_STUDENT,
+                savedStudent.getId(),
+                EVENT_STUDENT_SNAPSHOT_CHANGED,
+                studentSnapshotPayload(savedStudent),
+                savedStudent.getSnapshotVersion()
+        );
 
         // 학번 생성
         String studentNumber = generateStudentNumber(
@@ -230,5 +245,15 @@ public class AccountProvisioningService {
                 departmentCode,
                 professorId
         );
+    }
+
+    private Map<String, Object> studentSnapshotPayload(Student student) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("studentId", student.getId());
+        payload.put("userId", student.getUser().getId());
+        payload.put("displayName", student.getUser().getName());
+        payload.put("departmentName", student.getDepartment().getName());
+        payload.put("sourceVersion", student.getSnapshotVersion());
+        return payload;
     }
 }

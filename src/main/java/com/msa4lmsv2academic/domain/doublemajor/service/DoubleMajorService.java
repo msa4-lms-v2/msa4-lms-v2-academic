@@ -5,6 +5,7 @@ import com.msa4lmsv2academic.domain.doublemajor.request.*;
 import com.msa4lmsv2academic.domain.doublemajor.response.DoubleMajorResponseDTO;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentQueryRepository;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.transfer.entity.*;
@@ -28,6 +29,8 @@ import org.springframework.transaction.annotation.*;
 public class DoubleMajorService {
     private static final AcademicChangeRequestType TYPE = AcademicChangeRequestType.DOUBLE_MAJOR;
     private static final String CREATE_ENDPOINT = "POST /api/academic/double-major-requests";
+    private static final String AGGREGATE_TYPE_STUDENT = "STUDENT";
+    private static final String EVENT_STUDENT_SNAPSHOT_CHANGED = "StudentSnapshotChanged";
     private final AcademicChangeRequestRepository repository;
     private final AcademicChangeRequestFileRepository fileRepository;
     private final AcademicChangeRequestPeriodRepository periodRepository;
@@ -38,6 +41,7 @@ public class DoubleMajorService {
     private final DoubleMajorPolicy policy;
     private final DepartmentTransferIdempotencyService idempotency;
     private final DepartmentTransferAuditService audit;
+    private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<DoubleMajorResponseDTO> search(DoubleMajorSearchRequestDTO filter,
                                                            CurrentUser actor, Pageable pageable) {
@@ -171,7 +175,15 @@ public class DoubleMajorService {
             Map<String, Object> beforeAffiliation = audit.affiliation(student);
             request.approve(processor, now);
             student.assignDoubleMajor(request.getTargetDepartment());
+            student.bumpSnapshotVersion();
             repository.flush();
+            outboxEventService.record(
+                    AGGREGATE_TYPE_STUDENT,
+                    student.getId(),
+                    EVENT_STUDENT_SNAPSHOT_CHANGED,
+                    studentSnapshotPayload(student),
+                    student.getSnapshotVersion()
+            );
             audit.record(student.getId(), "STUDENT_AFFILIATION", beforeAffiliation, audit.affiliation(student),
                     "STUDENT_DOUBLE_MAJOR_ASSIGNED", "관리자 복수전공 승인", actor, context);
         } else {
@@ -205,6 +217,16 @@ public class DoubleMajorService {
         if (periods.isEmpty()) throw new DoubleMajorConflictException("현재는 복수전공 접수 기간이 아닙니다.");
         if (periods.size() > 1) throw new DoubleMajorConflictException("동시에 열린 복수전공 모집 기간이 여러 개입니다.");
         return new ResolvedCreation(targetDepartment, periods.getFirst());
+    }
+
+    private Map<String, Object> studentSnapshotPayload(Student student) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("studentId", student.getId());
+        payload.put("userId", student.getUser().getId());
+        payload.put("displayName", student.getUser().getName());
+        payload.put("departmentName", student.getDepartment().getName());
+        payload.put("sourceVersion", student.getSnapshotVersion());
+        return payload;
     }
 
     private void validateApproval(Student student, AcademicChangeRequest request) {

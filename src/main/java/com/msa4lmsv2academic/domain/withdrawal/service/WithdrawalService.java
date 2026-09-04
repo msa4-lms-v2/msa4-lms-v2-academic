@@ -3,6 +3,7 @@ package com.msa4lmsv2academic.domain.withdrawal.service;
 import com.msa4lmsv2academic.domain.leaverequest.service.LeaveAuditContext;
 import com.msa4lmsv2academic.domain.dismissal.service.DismissalWithdrawalGuard;
 import com.msa4lmsv2academic.domain.leaverequest.service.LeaveWithdrawalCancellationService;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -32,6 +33,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +54,8 @@ public class WithdrawalService {
             WithdrawalStatus.PENDING,
             WithdrawalStatus.ADVISOR_APPROVED
     );
+    private static final String AGGREGATE_TYPE_WITHDRAWAL = "WITHDRAWAL";
+    private static final String EVENT_WITHDRAWAL_APPROVED = "WithdrawalApproved";
 
     private final WithdrawalRequestRepository withdrawalRepository;
     private final AcademicStatusHistoryRepository historyRepository;
@@ -61,6 +65,7 @@ public class WithdrawalService {
     private final WithdrawalAuditService auditService;
     private final LeaveWithdrawalCancellationService leaveCancellationService;
     private final DismissalWithdrawalGuard dismissalGuard;
+    private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<WithdrawalResponseDTO> search(
             WithdrawalSearchRequestDTO request,
@@ -283,6 +288,13 @@ public class WithdrawalService {
                 request.approve(processor, effectiveDate, now);
                 student.changeAcademicStatus(AcademicStatus.WITHDRAWN);
                 withdrawalRepository.flush();
+                outboxEventService.record(
+                        AGGREGATE_TYPE_WITHDRAWAL,
+                        request.getId(),
+                        EVENT_WITHDRAWAL_APPROVED,
+                        withdrawalApprovedPayload(request),
+                        request.getVersion()
+                );
                 historyRepository.saveAndFlush(AcademicStatusHistory.withdrawalApproved(
                         student, previousStatus, processor, request.getId()
                 ));
@@ -399,6 +411,15 @@ public class WithdrawalService {
 
     private WithdrawalResponseDTO toResponse(WithdrawalRequest request) {
         return WithdrawalResponseDTO.from(request);
+    }
+
+    private Map<String, Object> withdrawalApprovedPayload(WithdrawalRequest request) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("withdrawalId", request.getId());
+        payload.put("studentId", request.getStudent().getId());
+        payload.put("effectiveDate", request.getEffectiveDate().toString());
+        payload.put("sourceVersion", request.getVersion());
+        return payload;
     }
 
     private LocalDate requiredEffectiveDate(LocalDate effectiveDate) {

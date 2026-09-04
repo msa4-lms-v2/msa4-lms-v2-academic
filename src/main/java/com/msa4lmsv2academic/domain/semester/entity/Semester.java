@@ -37,6 +37,10 @@ public class Semester {
     @EqualsAndHashCode.Include
     private Long id;
 
+    // Kafka SemesterCreated 이벤트의 sourceVersion. 학기는 생성 후 이 이벤트가 다루는 필드가 안 바뀌므로 항상 1로 고정.
+    @Column(name = "snapshot_version", nullable = false)
+    private long snapshotVersion;
+
     @Column(name = "academic_year", nullable = false)
     private short academicYear;
 
@@ -68,6 +72,7 @@ public class Semester {
         this.enrollmentStartAt = enrollmentStartAt;
         this.enrollmentEndAt = enrollmentEndAt;
         this.current = current;
+        this.snapshotVersion = 1L;
     }
 
     public static Semester create(short academicYear, SemesterTerm term, LocalDate startDate, LocalDate endDate,
