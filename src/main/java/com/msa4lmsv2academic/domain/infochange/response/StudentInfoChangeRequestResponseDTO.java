@@ -34,7 +34,7 @@ public record StudentInfoChangeRequestResponseDTO(
         )
         List<String> changedFields,
         @Schema(description = "증빙 첨부파일 수", example = "2") long attachmentCount,
-        @Schema(description = "증빙 PDF/JPEG/PNG 목록. 목록 응답에서는 null", nullable = true)
+        @Schema(description = "증빙 PDF/JPEG/PNG/GIF/WebP/HWP/HWPX 목록. 목록 응답에서는 null", nullable = true)
         List<StudentInfoChangeRequestFileResponseDTO> files
 ) {
     public static StudentInfoChangeRequestResponseDTO summary(

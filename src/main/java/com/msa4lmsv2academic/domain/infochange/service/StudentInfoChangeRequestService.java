@@ -108,7 +108,7 @@ public class StudentInfoChangeRequestService {
             String ipAddress
     ) {
         validateRole(currentUser, "STUDENT");
-        profileFileValidator.validateStudent(createDTO.profileImage(), createDTO.attachments());
+        profileFileValidator.validate(createDTO.profileImage(), createDTO.attachments());
 
         Student student = studentRepository.findByUserId(currentUser.id())
                 .orElseThrow(StudentNotFoundException::new);

@@ -33,6 +33,12 @@ class ProfileInfoChangeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(studentRequests + "['get']").exists())
                 .andExpect(jsonPath(studentRequests + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(studentRequests + "['post']['responses']['413']").exists())
+                .andExpect(jsonPath(studentRequests + "['post']['description']").value(
+                        org.hamcrest.Matchers.allOf(
+                                containsStringIgnoringCase("HWP/HWPX"),
+                                containsStringIgnoringCase("WebP")
+                        )
+                ))
                 .andExpect(jsonPath(
                         "$['components']['schemas']['StudentInfoChangeRequestResponseDTO']['properties']['changedFields']"
                 ).exists())
@@ -44,6 +50,12 @@ class ProfileInfoChangeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(professorRequests + "['get']").exists())
                 .andExpect(jsonPath(professorRequests + "['post']['responses']['201']").exists())
                 .andExpect(jsonPath(professorRequests + "['post']['responses']['413']").exists())
+                .andExpect(jsonPath(professorRequests + "['post']['description']").value(
+                        org.hamcrest.Matchers.allOf(
+                                containsStringIgnoringCase("HWP/HWPX"),
+                                containsStringIgnoringCase("WebP")
+                        )
+                ))
                 .andExpect(jsonPath(
                         "$['paths']['/api/academic/professor-info-change-requests/{requestId}/cancel']['patch']"
                 ).exists())

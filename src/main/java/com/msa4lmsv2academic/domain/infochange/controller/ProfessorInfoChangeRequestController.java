@@ -74,7 +74,8 @@ public class ProfessorInfoChangeRequestController {
     @Operation(
             operationId = "getProfessorProfileChangeRequest",
             summary = "교수 프로필 변경 신청 상세 조회",
-            description = "PROFESSOR 본인 또는 ADMIN이 신청 상세와 증빙 PDF의 1일 유효 임시 URL을 조회합니다.",
+            description = "PROFESSOR 본인 또는 ADMIN이 신청 상세와 증빙 PDF·래스터 이미지·HWP/HWPX의 "
+                    + "1일 유효 임시 URL을 조회합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "200", description = "조회 성공")
@@ -100,8 +101,10 @@ public class ProfessorInfoChangeRequestController {
             operationId = "createProfessorProfileChangeRequest",
             summary = "교수 프로필 변경 신청",
             description = "PROFESSOR가 이름·전화번호·이메일·주소·프로필 이미지 중 실제로 달라지는 항목을 신청합니다. "
-                    + "프로필 이미지는 JPEG/PNG 5MB 이하, 증빙은 PDF 파일당 10MB 이하·최대 5개이며 전체 요청은 "
-                    + "20MB 이하여야 합니다. 처리 대기 신청은 한 건만 허용됩니다.",
+                    + "프로필 이미지는 JPEG/PNG/GIF/WebP 5MB 이하, 증빙은 같은 이미지와 PDF/HWP/HWPX "
+                    + "파일당 10MB 이하·최대 5개이며 전체 요청은 "
+                    + "20MB 이하여야 합니다. 확장자·MIME 타입·실제 파일 형식을 모두 검증하고, 처리 대기 신청은 "
+                    + "한 건만 허용됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "201", description = "신청 생성 성공")
