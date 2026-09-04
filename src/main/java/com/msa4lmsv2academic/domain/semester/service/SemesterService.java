@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.semester.service;
 
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
+import com.msa4lmsv2academic.domain.outbox.service.OutboxEventService;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.repository.SemesterQueryRepository;
 import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
@@ -30,10 +31,13 @@ public class SemesterService {
     private static final String TARGET_TYPE = "SEMESTER";
     private static final String CREATE_ACTION = "SEMESTER_CREATE";
     private static final String CURRENT_UNSET_ACTION = "SEMESTER_CURRENT_UNSET";
+    private static final String AGGREGATE_TYPE_SEMESTER = "SEMESTER";
+    private static final String EVENT_SEMESTER_CREATED = "SemesterCreated";
 
     private final SemesterRepository semesterRepository;
     private final SemesterQueryRepository semesterQueryRepository;
     private final AuditLogService auditLogService;
+    private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<SemesterResponseDTO> searchSemesters(SemesterSearchRequestDTO request) {
         int page = request.resolvedPage();
@@ -96,6 +100,13 @@ public class SemesterService {
                 null,
                 normalizeNullable(requestId),
                 normalizeNullable(ipAddress)
+        );
+        outboxEventService.record(
+                AGGREGATE_TYPE_SEMESTER,
+                savedSemester.getId(),
+                EVENT_SEMESTER_CREATED,
+                semesterSnapshotPayload(savedSemester),
+                savedSemester.getSnapshotVersion()
         );
         return SemesterResponseDTO.from(savedSemester);
     }
@@ -160,5 +171,15 @@ public class SemesterService {
             return null;
         }
         return value;
+    }
+
+    private Map<String, Object> semesterSnapshotPayload(Semester semester) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("semesterId", semester.getId());
+        payload.put("displayName", semester.getAcademicYear() + "-" + semester.getTerm().name());
+        payload.put("startDate", semester.getStartDate().toString());
+        payload.put("endDate", semester.getEndDate().toString());
+        payload.put("sourceVersion", semester.getSnapshotVersion());
+        return payload;
     }
 }

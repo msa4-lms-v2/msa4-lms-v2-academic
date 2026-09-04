@@ -52,6 +52,15 @@ public class SecurityConfig {
 
                     auth.requestMatchers(SWAGGER_PATHS).permitAll();
                     auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
+                    // Kafka 24시간 보관을 넘긴 gap 백필용 시스템 요청 - X-User-Id/X-User-Role 없이 온다.
+                    // 이 Pod가 외부에 직접 노출되지 않는다는 전제(NetworkPolicy)로만 접근을 제한한다.
+                    auth.requestMatchers(
+                            HttpMethod.GET,
+                            "/api/academic/students/*/snapshot",
+                            "/api/academic/students/by-user/*/snapshot",
+                            "/api/academic/catalog/semesters/*/snapshot",
+                            "/api/academic/withdrawals/*/snapshot"
+                    ).permitAll();
                     auth.anyRequest().authenticated();
                 })
                 .exceptionHandling(handling -> handling
