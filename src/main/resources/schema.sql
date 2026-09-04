@@ -35,6 +35,27 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     INDEX idx_audit_logs_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    event_id CHAR(36) NOT NULL,
+    aggregate_type VARCHAR(50) NOT NULL,
+    aggregate_id BIGINT NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    payload JSON NOT NULL,
+    source_version BIGINT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    attempts INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME NOT NULL,
+    locked_by VARCHAR(100) NULL,
+    locked_until DATETIME NULL,
+    last_error_code VARCHAR(100) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_outbox_events_event_id UNIQUE (event_id),
+    INDEX idx_outbox_events_status_next_attempt (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS notices (
     id BIGINT NOT NULL AUTO_INCREMENT,
     title VARCHAR(100) NOT NULL,
@@ -110,6 +131,7 @@ CREATE TABLE IF NOT EXISTS professors (
 
 CREATE TABLE IF NOT EXISTS students (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    snapshot_version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
     department_id BIGINT NOT NULL,
     double_major_id BIGINT NULL,
@@ -264,6 +286,7 @@ CREATE TABLE IF NOT EXISTS counseling_notifications (
 
 CREATE TABLE IF NOT EXISTS semesters (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    snapshot_version BIGINT NOT NULL DEFAULT 1,
     academic_year SMALLINT NOT NULL,
     term VARCHAR(20) NOT NULL,
     start_date DATE NOT NULL,
