@@ -6,7 +6,6 @@ import com.msa4lmsv2academic.global.response.CustomResponseCode;
 import com.msa4lmsv2academic.domain.doublemajor.request.*;
 import com.msa4lmsv2academic.domain.doublemajor.response.DoubleMajorResponseDTO;
 import com.msa4lmsv2academic.domain.doublemajor.service.*;
-import com.msa4lmsv2academic.domain.transfer.entity.TransferDocumentType;
 import com.msa4lmsv2academic.domain.transfer.service.DepartmentTransferAuditContext;
 import com.msa4lmsv2academic.global.response.*;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -144,15 +143,14 @@ public class DoubleMajorController {
                     + "Academic이 비공개 MinIO 파일을 전달합니다.")
     @ApiResponse(responseCode = "200", description = "PDF 파일(공통 JSON 응답 미사용)",
             content = @Content(mediaType = "application/pdf", schema = @Schema(type = "string", format = "binary")))
-    @GetMapping("/{requestId}/documents/{documentType}")
+    @GetMapping("/{requestId}/files/{fileId}")
     @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
     public ResponseEntity<byte[]> download(
             @Parameter(description = "복수전공 신청 식별자", example = "1") @Positive @PathVariable Long requestId,
-            @Parameter(description = "SELF_INTRODUCTION 또는 STUDY_PLAN", example = "SELF_INTRODUCTION")
-            @PathVariable TransferDocumentType documentType,
+            @Parameter(description = "첨부파일 ID", example = "1") @Positive @PathVariable Long fileId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor) {
-        var download = applicationService.download(requestId, documentType, actor);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
+        var download = applicationService.download(requestId, fileId, actor);
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(download.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(download.originalName(), StandardCharsets.UTF_8).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")

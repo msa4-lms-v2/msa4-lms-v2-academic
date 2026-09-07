@@ -1,14 +1,17 @@
 package com.msa4lmsv2academic.domain.transfer.service;
 
-import com.msa4lmsv2academic.domain.transfer.entity.TransferDocumentType;
 import com.msa4lmsv2academic.domain.transfer.request.DepartmentTransferCreateRequestDTO;
 import com.msa4lmsv2academic.domain.transfer.response.DepartmentTransferResponseDTO;
-import com.msa4lmsv2academic.global.file.*;
+import com.msa4lmsv2academic.global.file.EvidenceDownload;
+import com.msa4lmsv2academic.global.file.FileStorageException;
+import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Comparator;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,34 +24,27 @@ public class DepartmentTransferApplicationService {
     private final DepartmentTransferService service;
     private final DepartmentTransferPolicy policy;
     private final DepartmentTransferIdempotencyService idempotency;
-    private final EvidenceFileValidator validator;
+    private final DepartmentTransferFileValidator validator;
     private final FileStorageService storage;
 
     public DepartmentTransferResponseDTO create(DepartmentTransferCreateRequestDTO body,
-                                                MultipartFile selfIntroduction,
-                                                MultipartFile studyPlan,
-                                                String key,
-                                                CurrentUser actor,
+                                                List<MultipartFile> files, String key, CurrentUser actor,
                                                 DepartmentTransferAuditContext context) {
         policy.requireRole(actor, "STUDENT");
         policy.validateCreate(body);
         idempotency.validateKey(key);
-        validator.validateRequired(selfIntroduction);
-        validator.validateRequired(studyPlan);
-        List<TypedFile> files = List.of(
-                new TypedFile(TransferDocumentType.SELF_INTRODUCTION, selfIntroduction),
-                new TypedFile(TransferDocumentType.STUDY_PLAN, studyPlan));
-        String hash = requestHash(body, files);
+        List<MultipartFile> validatedFiles = validator.validate(files);
+        String hash = requestHash(body, validatedFiles);
         var replay = service.preflight(body, key, hash, actor);
         if (replay.isPresent()) return replay.orElseThrow();
 
         List<StoredTransferDocument> uploaded = new ArrayList<>();
         try {
-            for (TypedFile item : files) {
-                MultipartFile file = item.file();
-                String storedName = storage.uploadEvidence(
-                        "department-transfer-requests/" + actor.id() + "/" + item.type().name().toLowerCase(), file);
-                uploaded.add(new StoredTransferDocument(item.type(), file.getOriginalFilename(), storedName,
+            for (int index = 0; index < validatedFiles.size(); index++) {
+                MultipartFile file = validatedFiles.get(index);
+                String storedName = storage.upload(
+                        "department-transfer-requests/" + actor.id() + "/file-" + (index + 1), file);
+                uploaded.add(new StoredTransferDocument(file.getOriginalFilename(), storedName,
                         file.getContentType(), file.getSize()));
             }
             DepartmentTransferCreationResult result = service.create(body, uploaded, key, hash, actor, context);
@@ -60,16 +56,17 @@ public class DepartmentTransferApplicationService {
         }
     }
 
-    public EvidenceDownload download(Long id, TransferDocumentType documentType, CurrentUser actor) {
-        StoredTransferDocument document = service.document(id, documentType, actor);
-        return new EvidenceDownload(document.originalName(), storage.download(document.storedName()));
+    public EvidenceDownload download(Long id, Long fileId, CurrentUser actor) {
+        StoredTransferDocument document = service.document(id, fileId, actor);
+        return new EvidenceDownload(document.originalName(), storage.download(document.storedName()),
+                document.contentType());
     }
 
-    private String requestHash(DepartmentTransferCreateRequestDTO body, List<TypedFile> files) {
+    private String requestHash(DepartmentTransferCreateRequestDTO body, List<MultipartFile> files) {
         var payload = new LinkedHashMap<String, Object>();
         payload.put("request", body);
-        for (TypedFile item : files) {
-            MultipartFile file = item.file();
+        List<Map<String, Object>> fileMetadata = new ArrayList<>();
+        for (MultipartFile file : files) {
             var metadata = new LinkedHashMap<String, Object>();
             metadata.put("filename", file.getOriginalFilename());
             metadata.put("contentType", file.getContentType());
@@ -79,8 +76,10 @@ public class DepartmentTransferApplicationService {
             } catch (IOException exception) {
                 throw new FileStorageException("전과 제출 서류를 읽을 수 없습니다.", exception);
             }
-            payload.put(item.type().name(), metadata);
+            fileMetadata.add(metadata);
         }
+        fileMetadata.sort(Comparator.comparing(item -> item.get("sha256").toString()));
+        payload.put("files", fileMetadata);
         return idempotency.hash(payload);
     }
 
@@ -94,6 +93,4 @@ public class DepartmentTransferApplicationService {
             }
         }
     }
-
-    private record TypedFile(TransferDocumentType type, MultipartFile file) { }
 }

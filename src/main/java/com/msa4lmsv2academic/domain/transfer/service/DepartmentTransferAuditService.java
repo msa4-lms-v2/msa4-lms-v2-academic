@@ -27,14 +27,18 @@ public class DepartmentTransferAuditService {
         value.put("targetSemesterId", request.getTargetSemester() == null ? null : request.getTargetSemester().getId());
         value.put("requestPeriodId", request.getRequestPeriod() == null ? null : request.getRequestPeriod().getId());
         value.put("status", request.getStatus());
+        value.put("advisorReviewedBy", request.getAdvisorReviewedBy() == null
+                ? null : request.getAdvisorReviewedBy().getId());
+        value.put("advisorReviewedAt", request.getAdvisorReviewedAt());
+        value.put("advisorRejectReason", request.getAdvisorRejectReason());
         value.put("rejectReason", request.getRejectReason());
         value.put("processedBy", request.getProcessedBy() == null ? null : request.getProcessedBy().getId());
         value.put("processedAt", request.getProcessedAt());
         value.put("cancelReason", request.getCancelReason());
         value.put("cancelledBy", request.getCancelledBy() == null ? null : request.getCancelledBy().getId());
         value.put("cancelledAt", request.getCancelledAt());
-        value.put("documents", request.getFiles().stream().map(file -> Map.of(
-                "documentType", file.getDocumentType(),
+        value.put("files", request.getFiles().stream().map(file -> Map.of(
+                "fileId", file.getId(),
                 "originalName", file.getOriginalName(),
                 "storedName", file.getStoredName(),
                 "contentType", file.getContentType(),
