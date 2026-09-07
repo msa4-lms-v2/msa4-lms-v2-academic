@@ -26,10 +26,10 @@ public record ProfessorInfoChangeRequestCreateDTO(
         @Size(max = 255)
         String newAddress,
 
-        @Schema(description = "변경할 프로필 사진(JPEG 또는 PNG, 최대 5MB)", nullable = true)
+        @Schema(description = "변경할 프로필 사진(JPEG/PNG/GIF/WebP, 최대 5MB)", nullable = true)
         MultipartFile profileImage,
 
-        @Schema(description = "증빙 PDF(파일당 최대 10MB, 최대 5개)", nullable = true)
+        @Schema(description = "증빙 PDF, 래스터 이미지 또는 HWP/HWPX(파일당 최대 10MB, 최대 5개)", nullable = true)
         List<MultipartFile> attachments,
 
         @Schema(description = "변경 신청 사유", example = "연락처 변경", maxLength = 500)
