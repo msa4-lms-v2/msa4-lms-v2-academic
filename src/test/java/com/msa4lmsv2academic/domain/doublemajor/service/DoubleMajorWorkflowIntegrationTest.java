@@ -83,8 +83,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(created.status()).isEqualTo(AcademicChangeRequestStatus.PENDING);
         assertThat(created.targetDepartmentName()).isEqualTo("복수전공학과");
         assertThat(created.requestPeriodId()).isNotNull();
-        assertThat(created.documents()).extracting(item -> item.documentType())
-                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
+        assertThat(created.files()).hasSize(2);
         assertThat(create("double-major-create")).isEqualTo(created);
         verify(storage, times(2)).uploadEvidence(anyString(), any());
         var row = jdbc.queryForMap("SELECT target_department_id,target_semester_id,request_period_id "
@@ -94,7 +93,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(row.get("target_semester_id")).isNull();
         assertThat(row.get("request_period_id")).isNotNull();
         assertThatThrownBy(() -> service.get(created.id(), OTHER)).isInstanceOf(DoubleMajorAccessDeniedException.class);
-        assertThat(application.download(created.id(), TransferDocumentType.STUDY_PLAN, STUDENT).originalName())
+        assertThat(application.download(created.id(), created.files().get(1).id(), STUDENT).originalName())
                 .isEqualTo("학업계획서.pdf");
     }
 
@@ -111,7 +110,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
         var cancelled = service.cancel(first.id(), new DoubleMajorCancelRequestDTO("진로 재검토"),
                 "double-major-cancel", STUDENT, CONTEXT);
         assertThat(cancelled.status()).isEqualTo(AcademicChangeRequestStatus.CANCELLED);
-        assertThat(cancelled.documents()).hasSize(2);
+        assertThat(cancelled.files()).hasSize(2);
         assertThat(create("double-major-reapply").id()).isNotEqualTo(first.id());
         verify(storage, never()).delete(anyString());
     }
@@ -173,7 +172,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
                         .value("createDoubleMajorRequest"))
                 .andExpect(jsonPath("$['paths']['/api/academic/double-major-requests']['post']['responses']['201']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/double-major-requests/{requestId}/review']['patch']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/double-major-requests/{requestId}/documents/{documentType}']['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/double-major-requests/{requestId}/files/{fileId}']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/double-major-periods/{periodId}/status']['patch']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/double-major-requests']['post']['requestBody']"
                         + "['content']['multipart/form-data']['schema']['properties']['selfIntroduction']").exists())
@@ -187,7 +186,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorCreateRequestDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['targetDepartmentId']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['targetMajorId']").doesNotExist())
-                .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['documents']").exists());
+                .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['files']").exists());
     }
 
     private DoubleMajorResponseDTO create(String key) {

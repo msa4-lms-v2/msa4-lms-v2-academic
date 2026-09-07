@@ -7,6 +7,7 @@ import com.msa4lmsv2academic.domain.transfer.request.DepartmentTransferCreateReq
 import com.msa4lmsv2academic.global.error.*;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 
@@ -16,9 +17,14 @@ public class DepartmentTransferPolicy {
         return LocalDateTime.now(ZoneId.of("Asia/Seoul"));
     }
 
+    public static LocalDate today() {
+        return LocalDate.now(ZoneId.of("Asia/Seoul"));
+    }
+
     public void requireReader(CurrentUser actor) {
-        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role()) || actor.isAdmin())) {
-            throw new DepartmentTransferAccessDeniedException("학생 본인 또는 관리자만 접근할 수 있습니다.");
+        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role())
+                || "PROFESSOR".equals(actor.role()) || actor.isAdmin())) {
+            throw new DepartmentTransferAccessDeniedException("학생, 지도교수 또는 관리자만 접근할 수 있습니다.");
         }
     }
 
@@ -42,6 +48,19 @@ public class DepartmentTransferPolicy {
     public void requirePending(AcademicChangeRequest request) {
         if (request.getStatus() != AcademicChangeRequestStatus.PENDING) {
             throw new DepartmentTransferConflictException("대기 중인 전과 신청만 처리할 수 있습니다.");
+        }
+    }
+
+    public void requireAdvisorApproved(AcademicChangeRequest request) {
+        if (request.getStatus() != AcademicChangeRequestStatus.ADVISOR_APPROVED) {
+            throw new DepartmentTransferConflictException("지도교수 승인된 전과 신청만 최종 처리할 수 있습니다.");
+        }
+    }
+
+    public void requireInProgress(AcademicChangeRequest request) {
+        if (request.getStatus() != AcademicChangeRequestStatus.PENDING
+                && request.getStatus() != AcademicChangeRequestStatus.ADVISOR_APPROVED) {
+            throw new DepartmentTransferConflictException("진행 중인 전과 신청만 취소할 수 있습니다.");
         }
     }
 

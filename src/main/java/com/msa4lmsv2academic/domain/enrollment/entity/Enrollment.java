@@ -73,4 +73,22 @@ public class Enrollment {
         }
         this.gradeStatus = GradeStatus.OPENED;
     }
+
+    public void correctOpenedGrade(BigDecimal midtermScore, BigDecimal finalScore,
+                                   BigDecimal assignmentScore, BigDecimal attendanceScore,
+                                   BigDecimal totalScore, String letterGrade) {
+        if (gradeStatus != GradeStatus.OPENED) {
+            throw new IllegalStateException("공개된 성적만 정정할 수 있습니다.");
+        }
+        if (midtermScore == null || finalScore == null || assignmentScore == null
+                || attendanceScore == null || totalScore == null || letterGrade == null) {
+            throw new IllegalArgumentException("성적 정정 시 모든 점수와 계산 결과가 필요합니다.");
+        }
+        this.midtermScore = midtermScore;
+        this.finalScore = finalScore;
+        this.assignmentScore = assignmentScore;
+        this.attendanceScore = attendanceScore;
+        this.totalScore = totalScore;
+        this.letterGrade = letterGrade;
+    }
 }

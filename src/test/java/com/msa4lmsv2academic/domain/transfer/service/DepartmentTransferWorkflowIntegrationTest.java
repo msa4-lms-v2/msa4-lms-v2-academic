@@ -14,7 +14,7 @@ import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
@@ -59,15 +59,23 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "(295001,295011,295001,295003,2,2025,'ENROLLED',295001),"
                 + "(295002,295012,295001,NULL,2,2025,'ENROLLED',295001)");
         jdbc.update("INSERT INTO semesters (id,academic_year,term,start_date,end_date,enrollment_start_at,enrollment_end_at,is_current) "
-                + "VALUES (295001,2027,'FIRST','2027-03-02','2027-06-18','2027-02-10 09:00:00','2027-02-14 18:00:00',0)");
+                + "VALUES (295000,2025,'FIRST','2025-03-02','2025-06-18','2025-02-10 09:00:00','2025-02-14 18:00:00',0),"
+                + "(295001,2027,'FIRST','2027-03-02','2027-06-18','2027-02-10 09:00:00','2027-02-14 18:00:00',0)");
+        jdbc.update("INSERT INTO courses (id,department_id,code,name,credits,target_grade,completion_type) "
+                + "VALUES (295001,295001,'TR-101','전과이수확인',3,1,'MAJOR_REQUIRED')");
+        jdbc.update("INSERT INTO lectures (id,semester_id,course_id,professor_id,section_no,capacity,classroom,status,"
+                + "midterm_ratio,final_ratio,assignment_ratio,attendance_ratio) "
+                + "VALUES (295001,295000,295001,295001,'01',30,'101','CLOSED',30,30,30,10)");
+        jdbc.update("INSERT INTO enrollments (id,student_id,lecture_id,status,enrolled_at,grade_status) "
+                + "VALUES (295001,295001,295001,'ACTIVE','2025-03-02 09:00:00','DRAFT')");
         LocalDateTime now = DepartmentTransferPolicy.now().withNano(0);
         jdbc.update("INSERT INTO academic_change_request_periods "
                         + "(semester_id,request_type,start_at,end_at,is_active) VALUES (295001,'TRANSFER_DEPARTMENT',?,?,1)",
                 now.minusDays(1), now.plusDays(1));
         AtomicInteger sequence = new AtomicInteger();
-        when(storage.uploadEvidence(anyString(), any())).thenAnswer(invocation ->
-                "department-transfer-requests/test/" + sequence.incrementAndGet() + ".pdf");
-        when(storage.download(anyString())).thenReturn("%PDF-1.7 test".getBytes(StandardCharsets.UTF_8));
+        when(storage.upload(anyString(), any())).thenAnswer(invocation ->
+                "department-transfer-requests/test/" + sequence.incrementAndGet() + ".hwp");
+        when(storage.download(anyString())).thenReturn(new byte[] {1, 2, 3});
     }
 
     @AfterEach
@@ -81,27 +89,25 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(created.status()).isEqualTo(AcademicChangeRequestStatus.PENDING);
         assertThat(created.sourceDepartmentName()).isEqualTo("출발학과");
         assertThat(created.targetDepartmentName()).isEqualTo("희망학과");
-        assertThat(created.documents()).extracting(item -> item.documentType())
-                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
+        assertThat(created.files()).hasSize(2);
         assertThat(create("transfer-create")).isEqualTo(created);
-        verify(storage, times(2)).uploadEvidence(anyString(), any());
+        verify(storage, times(2)).upload(anyString(), any());
         assertThat(count("academic_change_requests", "student_id")).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM academic_change_request_files WHERE request_id=?",
                 Integer.class, created.id())).isEqualTo(2);
         var detail = service.get(created.id(), STUDENT);
         assertThat(detail.id()).isEqualTo(created.id());
         assertThat(detail.status()).isEqualTo(created.status());
-        assertThat(detail.documents()).extracting(item -> item.documentType())
-                .containsExactly(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
+        assertThat(detail.files()).hasSize(2);
         assertThatThrownBy(() -> service.get(created.id(), OTHER))
                 .isInstanceOf(DepartmentTransferAccessDeniedException.class);
-        var download = application.download(created.id(), TransferDocumentType.STUDY_PLAN, STUDENT);
-        assertThat(download.originalName()).isEqualTo("학업계획서.pdf");
+        var download = application.download(created.id(), created.files().get(1).id(), STUDENT);
+        assertThat(download.originalName()).isEqualTo("학업계획서 양식.hwp");
     }
 
     @Test
-    void bothValidPdfFilesAreRequiredBeforeRemoteUpload() {
-        assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), null,
+    void exactlyTwoValidHwpFilesAreRequiredBeforeRemoteUpload() {
+        assertThatThrownBy(() -> application.create(body(), java.util.List.of(hwp("자기소개서 양식.hwp")),
                 "transfer-missing", STUDENT, CONTEXT)).isInstanceOf(RuntimeException.class);
         verifyNoInteractions(storage);
     }
@@ -112,7 +118,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         var cancelled = service.cancel(first.id(), new DepartmentTransferCancelRequestDTO("진로 재검토"),
                 "transfer-cancel", STUDENT, CONTEXT);
         assertThat(cancelled.status()).isEqualTo(AcademicChangeRequestStatus.CANCELLED);
-        assertThat(cancelled.documents()).hasSize(2);
+        assertThat(cancelled.files()).hasSize(2);
         assertThat(create("transfer-reapply").id()).isNotEqualTo(first.id());
         verify(storage, never()).delete(anyString());
     }
@@ -120,8 +126,12 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     @Test
     void approvalChangesAffiliationImmediatelyClearsAdvisorAndKeepsDoubleMajor() {
         var created = create("transfer-create");
-        var approved = service.review(created.id(),
-                new DepartmentTransferReviewRequestDTO(AcademicChangeRequestStatus.APPROVED, null),
+        var advisorApproved = service.reviewByAdvisor(created.id(),
+                new AdvisorDepartmentTransferReviewRequestDTO(true, null),
+                "transfer-advisor-approve", PROFESSOR, CONTEXT);
+        assertThat(advisorApproved.status()).isEqualTo(AcademicChangeRequestStatus.ADVISOR_APPROVED);
+        var approved = service.reviewByAdmin(created.id(),
+                new FinalDepartmentTransferReviewRequestDTO(true, null),
                 "transfer-approve", ADMIN, CONTEXT);
         assertThat(approved.status()).isEqualTo(AcademicChangeRequestStatus.APPROVED);
         var row = jdbc.queryForMap("SELECT department_id,double_major_id,advisor_id FROM students WHERE id=295001");
@@ -135,22 +145,34 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     @Test
     void staleSourceAffiliationAndDoubleMajorCollisionFailClosed() {
         var created = create("transfer-create");
+        service.reviewByAdvisor(created.id(), new AdvisorDepartmentTransferReviewRequestDTO(true, null),
+                "transfer-advisor-stale", PROFESSOR, CONTEXT);
         jdbc.update("UPDATE students SET department_id=295003,double_major_id=NULL WHERE id=295001");
-        assertThatThrownBy(() -> service.review(created.id(),
-                new DepartmentTransferReviewRequestDTO(AcademicChangeRequestStatus.APPROVED, null),
+        assertThatThrownBy(() -> service.reviewByAdmin(created.id(),
+                new FinalDepartmentTransferReviewRequestDTO(true, null),
                 "transfer-stale", ADMIN, CONTEXT)).isInstanceOf(DepartmentTransferConflictException.class);
         jdbc.update("UPDATE students SET department_id=295001,double_major_id=295002 WHERE id=295001");
-        assertThatThrownBy(() -> application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"),
+        assertThatThrownBy(() -> application.create(body(), java.util.List.of(
+                hwp("자기소개서 양식.hwp"), hwp("학업계획서 양식.hwp")),
                 "transfer-double-major", STUDENT, CONTEXT))
                 .isInstanceOf(DepartmentTransferConflictException.class);
     }
 
     @Test
-    void rejectionKeepsStudentAffiliationAndRequiresReason() {
+    void advisorAndAdminRejectionsRemainDistinct() {
         var created = create("transfer-create");
-        var rejected = service.review(created.id(),
-                new DepartmentTransferReviewRequestDTO(AcademicChangeRequestStatus.REJECTED, "모집 기준 미충족"),
-                "transfer-reject", ADMIN, CONTEXT);
+        var advisorRejected = service.reviewByAdvisor(created.id(),
+                new AdvisorDepartmentTransferReviewRequestDTO(false, "학업계획 보완 필요"),
+                "transfer-advisor-reject", PROFESSOR, CONTEXT);
+        assertThat(advisorRejected.status()).isEqualTo(AcademicChangeRequestStatus.ADVISOR_REJECTED);
+        assertThat(advisorRejected.advisorRejectReason()).isEqualTo("학업계획 보완 필요");
+
+        var second = create("transfer-reapply-after-advisor-reject");
+        service.reviewByAdvisor(second.id(), new AdvisorDepartmentTransferReviewRequestDTO(true, null),
+                "transfer-advisor-approve-second", PROFESSOR, CONTEXT);
+        var rejected = service.reviewByAdmin(second.id(),
+                new FinalDepartmentTransferReviewRequestDTO(false, "모집 기준 미충족"),
+                "transfer-final-reject", ADMIN, CONTEXT);
         assertThat(rejected.status()).isEqualTo(AcademicChangeRequestStatus.REJECTED);
         assertThat(rejected.rejectReason()).isEqualTo("모집 기준 미충족");
         assertThat(jdbc.queryForObject("SELECT department_id FROM students WHERE id=295001", Long.class))
@@ -178,16 +200,18 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         PageResponseDTO<?> own = service.search(new DepartmentTransferSearchRequestDTO(null, null, null, null,
                 null, null, null, null), STUDENT, PageRequest.of(0, 20));
         assertThat(own.totalCount()).isEqualTo(1);
-        assertThatThrownBy(() -> service.search(new DepartmentTransferSearchRequestDTO(null, null, null, null,
-                null, null, null, null), PROFESSOR, PageRequest.of(0, 20)))
-                .isInstanceOf(DepartmentTransferAccessDeniedException.class);
+        PageResponseDTO<?> advisorQueue = service.search(new DepartmentTransferSearchRequestDTO(null, null, null, null,
+                null, null, null, null), PROFESSOR, PageRequest.of(0, 20));
+        assertThat(advisorQueue.totalCount()).isEqualTo(1);
 
         mvc.perform(get("/api-docs")).andExpect(status().isOk())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['operationId']")
                         .value("createDepartmentTransferRequest"))
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['responses']['201']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/review']['patch']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/documents/{documentType}']['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/advisor-review']['patch']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/final-review']['patch']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/files/{fileId}']['get']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/templates/study-plan']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/department-transfer-periods/{periodId}/status']['patch']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['required']").isArray())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['targetMajorId']").doesNotExist())
@@ -195,11 +219,12 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['requestBody']"
                         + "['content']['multipart/form-data']['schema']['properties']['transcript']").doesNotExist())
-                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['documents']").exists());
+                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['files']").exists());
     }
 
     private DepartmentTransferResponseDTO create(String key) {
-        return application.create(body(), pdf("자기소개서.pdf"), pdf("학업계획서.pdf"),
+        return application.create(body(), java.util.List.of(
+                hwp("자기소개서 양식.hwp"), hwp("학업계획서 양식.hwp")),
                 key, STUDENT, CONTEXT);
     }
 
@@ -207,9 +232,15 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         return new DepartmentTransferCreateRequestDTO(295002L, 295001L);
     }
 
-    private MockMultipartFile pdf(String filename) {
-        return new MockMultipartFile("file", filename, "application/pdf",
-                "%PDF-1.7 transfer".getBytes(StandardCharsets.UTF_8));
+    private MockMultipartFile hwp(String filename) {
+        String resource = filename.startsWith("자기") ? "self-introduction.hwp" : "study-plan.hwp";
+        try (var input = getClass().getClassLoader()
+                .getResourceAsStream("templates/department-transfer/" + resource)) {
+            if (input == null) throw new IllegalStateException("테스트 HWP 양식을 찾을 수 없습니다.");
+            return new MockMultipartFile("files", filename, "application/x-hwp", input.readAllBytes());
+        } catch (IOException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private int count(String table, String column) {
@@ -224,11 +255,14 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "(SELECT id FROM academic_change_requests WHERE student_id IN (295001,295002))");
         jdbc.update("DELETE FROM academic_change_requests WHERE student_id IN (295001,295002)");
         jdbc.update("DELETE FROM academic_change_request_periods WHERE semester_id=295001");
+        jdbc.update("DELETE FROM enrollments WHERE id=295001");
+        jdbc.update("DELETE FROM lectures WHERE id=295001");
+        jdbc.update("DELETE FROM courses WHERE id=295001");
         jdbc.update("DELETE FROM students WHERE id IN (295001,295002)");
         jdbc.update("DELETE FROM professors WHERE id=295001");
         jdbc.update("DELETE FROM users WHERE id BETWEEN 295011 AND 295014");
         jdbc.update("DELETE FROM departments WHERE id BETWEEN 295001 AND 295003");
         jdbc.update("DELETE FROM colleges WHERE id=295001");
-        jdbc.update("DELETE FROM semesters WHERE id=295001");
+        jdbc.update("DELETE FROM semesters WHERE id IN (295000,295001)");
     }
 }

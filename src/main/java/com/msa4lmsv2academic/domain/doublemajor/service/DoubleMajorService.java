@@ -59,11 +59,12 @@ public class DoubleMajorService {
         return DoubleMajorResponseDTO.from(readable(id, actor));
     }
 
-    public StoredTransferDocument document(Long id, TransferDocumentType documentType, CurrentUser actor) {
+    public StoredTransferDocument document(Long id, Long fileId, CurrentUser actor) {
         readable(id, actor);
-        var file = fileRepository.findFile(id, TYPE, documentType)
+        policy.requireId(fileId);
+        var file = fileRepository.findFile(id, TYPE, fileId)
                 .orElseThrow(() -> new DoubleMajorNotFoundException("제출 서류를 찾을 수 없습니다."));
-        return new StoredTransferDocument(file.getDocumentType(), file.getOriginalName(), file.getStoredName(),
+        return new StoredTransferDocument(file.getOriginalName(), file.getStoredName(),
                 file.getContentType(), file.getSize());
     }
 
@@ -90,12 +91,7 @@ public class DoubleMajorService {
         var replay = idempotency.replay(key, actor.id(), CREATE_ENDPOINT, hash, now, DoubleMajorResponseDTO.class);
         if (replay.isPresent()) return new DoubleMajorCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body.targetDepartmentId(), true);
-        Set<TransferDocumentType> requiredTypes = EnumSet.of(
-                TransferDocumentType.SELF_INTRODUCTION,
-                TransferDocumentType.STUDY_PLAN);
-        if (documents == null || documents.size() != requiredTypes.size()
-                || !documents.stream().map(StoredTransferDocument::type).collect(java.util.stream.Collectors.toSet())
-                .equals(requiredTypes)) {
+        if (documents == null || documents.size() != 2) {
             throw new InvalidDoubleMajorRequestException("자기소개서·학업계획서 PDF가 모두 필요합니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
@@ -103,7 +99,7 @@ public class DoubleMajorService {
             AcademicChangeRequest request = AcademicChangeRequest.createDoubleMajor(student, resolved.targetDepartment(),
                     resolved.period());
             for (StoredTransferDocument document : documents) {
-                request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
+                request.addFile(AcademicChangeRequestFile.create(request, document.originalName(),
                         document.storedName(), document.contentType(), document.size()));
             }
             request = repository.saveAndFlush(request);

@@ -27,6 +27,7 @@ public class GradeIdempotencyService {
     public static final String CREATE_ENDPOINT = "POST /api/academic/grades";
     public static final String UPDATE_ENDPOINT = "PATCH /api/academic/grades";
     public static final String FINALIZE_ENDPOINT = "PATCH /api/academic/grades/classes/{classId}/status";
+    public static final String CORRECTION_ENDPOINT = "PATCH /api/academic/grades/corrections";
 
     private final AcademicIdempotencyKeyRepository keyRepository;
     private final ObjectMapper objectMapper;
