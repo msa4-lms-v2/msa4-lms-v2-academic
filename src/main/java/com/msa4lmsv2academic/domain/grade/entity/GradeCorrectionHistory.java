@@ -90,6 +90,26 @@ public class GradeCorrectionHistory {
         );
     }
 
+    public static GradeCorrectionHistory recordCorrection(
+            Enrollment enrollment,
+            String fieldChanged,
+            String previousValue,
+            String newValue,
+            User changedBy,
+            String reason,
+            LocalDateTime createdAt
+    ) {
+        return new GradeCorrectionHistory(
+                enrollment,
+                fieldChanged,
+                previousValue,
+                newValue,
+                changedBy,
+                reason,
+                createdAt
+        );
+    }
+
     public static String gradeValue(Enrollment enrollment) {
         return enrollment.getId() + ":" + enrollment.getLetterGrade();
     }
