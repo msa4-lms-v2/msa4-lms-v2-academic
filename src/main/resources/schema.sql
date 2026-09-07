@@ -868,6 +868,9 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     target_semester_id BIGINT NULL,
     request_period_id BIGINT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    advisor_reviewed_by BIGINT NULL,
+    advisor_reviewed_at DATETIME NULL,
+    advisor_reject_reason VARCHAR(500) NULL,
     reject_reason VARCHAR(500) NULL,
     processed_by BIGINT NULL,
     processed_at DATETIME NULL,
@@ -877,12 +880,13 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     active_student_id BIGINT GENERATED ALWAYS AS (
-        CASE WHEN status = 'PENDING' THEN student_id ELSE NULL END
+        CASE WHEN status IN ('PENDING', 'ADVISOR_APPROVED') THEN student_id ELSE NULL END
     ) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uk_academic_change_requests_active_type UNIQUE (request_type, active_student_id),
     INDEX idx_academic_change_requests_student_status (student_id, status),
     INDEX idx_academic_change_requests_status_created (status, created_at),
+    INDEX idx_academic_change_requests_advisor_status (advisor_reviewed_by, status),
     INDEX idx_academic_change_requests_target_semester (target_semester_id),
     INDEX idx_academic_change_requests_period (request_period_id),
     CONSTRAINT fk_academic_change_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
@@ -890,6 +894,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     CONSTRAINT fk_academic_change_requests_target_department FOREIGN KEY (target_department_id) REFERENCES departments (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_target_semester FOREIGN KEY (target_semester_id) REFERENCES semesters (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_period FOREIGN KEY (request_period_id) REFERENCES academic_change_request_periods (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_academic_change_requests_advisor_reviewer FOREIGN KEY (advisor_reviewed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_processor FOREIGN KEY (processed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT fk_academic_change_requests_canceller FOREIGN KEY (cancelled_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT ck_academic_change_requests_type CHECK (
@@ -901,11 +906,19 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
             AND target_semester_id IS NULL AND request_period_id IS NOT NULL)
     ),
     CONSTRAINT ck_academic_change_requests_status CHECK (
-        status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')
+        status IN ('PENDING', 'ADVISOR_APPROVED', 'ADVISOR_REJECTED', 'APPROVED', 'REJECTED', 'CANCELLED')
     ),
     CONSTRAINT ck_academic_change_requests_processing CHECK (
-        (status = 'PENDING' AND processed_by IS NULL AND processed_at IS NULL
+        (status = 'PENDING' AND advisor_reviewed_by IS NULL AND advisor_reviewed_at IS NULL
+            AND advisor_reject_reason IS NULL AND processed_by IS NULL AND processed_at IS NULL
             AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
+        OR (status = 'ADVISOR_APPROVED' AND advisor_reviewed_by IS NOT NULL AND advisor_reviewed_at IS NOT NULL
+            AND advisor_reject_reason IS NULL AND processed_by IS NULL AND processed_at IS NULL
+            AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
+        OR (status = 'ADVISOR_REJECTED' AND advisor_reviewed_by IS NOT NULL AND advisor_reviewed_at IS NOT NULL
+            AND advisor_reject_reason IS NOT NULL AND CHAR_LENGTH(TRIM(advisor_reject_reason)) > 0
+            AND processed_by IS NULL AND processed_at IS NULL AND reject_reason IS NULL
+            AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
         OR (status = 'APPROVED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL
             AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
         OR (status = 'REJECTED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL
@@ -917,24 +930,19 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 전과와 복수전공 PDF 2종 메타데이터. TRANSCRIPT는 기존 데이터 호환을 위해 허용합니다.
+-- 전과와 복수전공 공용 첨부파일 메타데이터. 파일 종류·이름·순서를 업무 규칙으로 판별하지 않습니다.
 CREATE TABLE IF NOT EXISTS academic_change_request_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
     request_id BIGINT NOT NULL,
-    document_type VARCHAR(30) NOT NULL,
     original_name VARCHAR(255) NOT NULL,
     stored_name VARCHAR(500) NOT NULL,
     content_type VARCHAR(100) NOT NULL,
     size BIGINT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT uk_academic_change_request_files_type UNIQUE (request_id, document_type),
     INDEX idx_academic_change_request_files_request (request_id),
     CONSTRAINT fk_academic_change_request_files_request FOREIGN KEY (request_id)
         REFERENCES academic_change_requests (id) ON DELETE RESTRICT,
-    CONSTRAINT ck_academic_change_request_files_type CHECK (
-        document_type IN ('SELF_INTRODUCTION', 'STUDY_PLAN', 'TRANSCRIPT')
-    ),
     CONSTRAINT ck_academic_change_request_files_size CHECK (size > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

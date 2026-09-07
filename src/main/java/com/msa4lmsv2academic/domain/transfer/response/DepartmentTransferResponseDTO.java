@@ -20,14 +20,17 @@ public record DepartmentTransferResponseDTO(
         @Schema(description = "적용 희망 학년도", example = "2027") short targetAcademicYear,
         @Schema(description = "적용 희망 학기", example = "FIRST") SemesterTerm targetTerm,
         @Schema(description = "처리 상태", example = "PENDING") AcademicChangeRequestStatus status,
+        @Schema(description = "지도교수 검토 사용자 ID", example = "2") Long advisorReviewedBy,
+        @Schema(description = "지도교수 검토 시각(KST)") LocalDateTime advisorReviewedAt,
+        @Schema(description = "지도교수 반려 사유") String advisorRejectReason,
         @Schema(description = "관리자 반려 사유", example = "필수 제출 서류의 내용이 확인되지 않습니다.") String rejectReason,
         @Schema(description = "처리 관리자 사용자 ID", example = "3") Long processedBy,
         @Schema(description = "처리 시각(KST)", example = "2027-02-10T10:00:00") LocalDateTime processedAt,
         @Schema(description = "학생 취소 사유", example = "진로 계획을 다시 검토하기로 했습니다.") String cancelReason,
         @Schema(description = "취소 사용자 ID", example = "1") Long cancelledBy,
         @Schema(description = "취소 시각(KST)", example = "2026-12-05T11:00:00") LocalDateTime cancelledAt,
-        @Schema(description = "필수 PDF 2종 메타데이터. 저장 키는 노출하지 않습니다.")
-        List<DepartmentTransferFileResponseDTO> documents,
+        @Schema(description = "HWP/HWPX 첨부파일 2개 메타데이터. 저장 키는 노출하지 않습니다.")
+        List<DepartmentTransferFileResponseDTO> files,
         @Schema(description = "신청 시각(KST)", example = "2026-12-01T10:30:00") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각(KST)", example = "2026-12-01T10:30:00") LocalDateTime updatedAt
 ) {
@@ -44,13 +47,16 @@ public record DepartmentTransferResponseDTO(
                 request.getTargetSemester().getAcademicYear(),
                 request.getTargetSemester().getTerm(),
                 request.getStatus(),
+                request.getAdvisorReviewedBy() == null ? null : request.getAdvisorReviewedBy().getId(),
+                request.getAdvisorReviewedAt(),
+                request.getAdvisorRejectReason(),
                 request.getRejectReason(),
                 request.getProcessedBy() == null ? null : request.getProcessedBy().getId(),
                 request.getProcessedAt(),
                 request.getCancelReason(),
                 request.getCancelledBy() == null ? null : request.getCancelledBy().getId(),
                 request.getCancelledAt(),
-                request.getFiles().stream().sorted(Comparator.comparing(f -> f.getDocumentType().name()))
+                request.getFiles().stream().sorted(Comparator.comparing(f -> f.getId() == null ? Long.MAX_VALUE : f.getId()))
                         .map(DepartmentTransferFileResponseDTO::from).toList(),
                 request.getCreatedAt(), request.getUpdatedAt());
     }

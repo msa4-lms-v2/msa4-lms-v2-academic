@@ -16,12 +16,10 @@ import com.msa4lmsv2academic.domain.user.repository.UserRepository;
 import com.msa4lmsv2academic.global.error.*;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
-import java.util.EnumSet;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
@@ -34,8 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DepartmentTransferService {
     private static final AcademicChangeRequestType TYPE = AcademicChangeRequestType.TRANSFER_DEPARTMENT;
-    private static final Set<TransferDocumentType> REQUIRED_DOCUMENT_TYPES =
-            EnumSet.of(TransferDocumentType.SELF_INTRODUCTION, TransferDocumentType.STUDY_PLAN);
+    private static final List<AcademicChangeRequestStatus> IN_PROGRESS_STATUSES =
+            List.of(AcademicChangeRequestStatus.PENDING, AcademicChangeRequestStatus.ADVISOR_APPROVED);
     private static final String CREATE_ENDPOINT = "POST /api/academic/department-transfer-requests";
     private static final String AGGREGATE_TYPE_STUDENT = "STUDENT";
     private static final String EVENT_STUDENT_SNAPSHOT_CHANGED = "StudentSnapshotChanged";
@@ -55,11 +53,14 @@ public class DepartmentTransferService {
     public PageResponseDTO<DepartmentTransferResponseDTO> search(DepartmentTransferSearchRequestDTO filter,
                                                                  CurrentUser actor, Pageable pageable) {
         policy.requireReader(actor);
-        if (!actor.isAdmin() && filter.studentId() != null) {
+        if ("STUDENT".equals(actor.role()) && filter.studentId() != null) {
             Student student = studentRepository.findByUserId(actor.id()).orElseThrow(this::studentMissing);
             if (!student.getId().equals(filter.studentId())) throw accessDenied();
         }
-        var result = queries.search(filter, actor.isAdmin() ? null : actor.id(), pageable);
+        var result = queries.search(filter,
+                "STUDENT".equals(actor.role()) ? actor.id() : null,
+                "PROFESSOR".equals(actor.role()) ? actor.id() : null,
+                pageable);
         return new PageResponseDTO<>(result.map(DepartmentTransferResponseDTO::from).getContent(),
                 result.getTotalElements(), filter.resolvedPage(), filter.resolvedSize(), result.hasNext());
     }
@@ -68,11 +69,12 @@ public class DepartmentTransferService {
         return DepartmentTransferResponseDTO.from(readable(id, actor));
     }
 
-    public StoredTransferDocument document(Long id, TransferDocumentType documentType, CurrentUser actor) {
+    public StoredTransferDocument document(Long id, Long fileId, CurrentUser actor) {
         readable(id, actor);
-        var file = fileRepository.findFile(id, TYPE, documentType)
+        policy.requireId(fileId);
+        var file = fileRepository.findFile(id, TYPE, fileId)
                 .orElseThrow(() -> new DepartmentTransferNotFoundException("제출 서류를 찾을 수 없습니다."));
-        return new StoredTransferDocument(file.getDocumentType(), file.getOriginalName(), file.getStoredName(),
+        return new StoredTransferDocument(file.getOriginalName(), file.getStoredName(),
                 file.getContentType(), file.getSize());
     }
 
@@ -100,17 +102,15 @@ public class DepartmentTransferService {
                 DepartmentTransferResponseDTO.class);
         if (replay.isPresent()) return new DepartmentTransferCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body, true);
-        if (documents == null || documents.size() != REQUIRED_DOCUMENT_TYPES.size()
-                || !documents.stream().map(StoredTransferDocument::type).collect(Collectors.toSet())
-                        .equals(REQUIRED_DOCUMENT_TYPES)) {
-            throw new InvalidDepartmentTransferRequestException("자기소개서·학업계획서 PDF가 모두 필요합니다.");
+        if (documents == null || documents.size() != 2) {
+            throw new InvalidDepartmentTransferRequestException("HWP 또는 HWPX 첨부파일이 정확히 2개 필요합니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         try {
             AcademicChangeRequest request = AcademicChangeRequest.createTransfer(student, resolved.department(),
                     resolved.semester(), resolved.period());
             for (StoredTransferDocument document : documents) {
-                request.addFile(AcademicChangeRequestFile.create(request, document.type(), document.originalName(),
+                request.addFile(AcademicChangeRequestFile.create(request, document.originalName(),
                         document.storedName(), document.contentType(), document.size()));
             }
             request = repository.saveAndFlush(request);
@@ -141,7 +141,7 @@ public class DepartmentTransferService {
         var replay = idempotency.replay(key, actor.id(), endpoint, hash, now,
                 DepartmentTransferResponseDTO.class);
         if (replay.isPresent()) return replay.orElseThrow();
-        policy.requirePending(request);
+        policy.requireInProgress(request);
         var reserved = idempotency.reserve(key, actor.id(), endpoint, hash, now);
         Map<String, Object> before = audit.snapshot(request);
         try {
@@ -158,31 +158,74 @@ public class DepartmentTransferService {
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public DepartmentTransferResponseDTO review(Long id, DepartmentTransferReviewRequestDTO body, String key,
-                                                CurrentUser actor, DepartmentTransferAuditContext context) {
-        policy.requireRole(actor, "ADMIN");
+    public DepartmentTransferResponseDTO reviewByAdvisor(Long id, AdvisorDepartmentTransferReviewRequestDTO body,
+                                                         String key, CurrentUser actor,
+                                                         DepartmentTransferAuditContext context) {
+        policy.requireRole(actor, "PROFESSOR");
         policy.requireId(id);
         if (body == null || !body.isValidDecision()) {
-            throw new InvalidDepartmentTransferRequestException("APPROVED 또는 사유가 있는 REJECTED가 필요합니다.");
+            throw new InvalidDepartmentTransferRequestException("승인 여부와 반려 시 사유가 필요합니다.");
         }
         idempotency.validateKey(key);
         Long studentId = repository.findStudentIdByIdAndType(id, TYPE).orElseThrow(this::requestMissing);
         Student student = studentRepository.findByIdForUpdate(studentId).orElseThrow(this::studentMissing);
         AcademicChangeRequest request = repository.findByIdAndTypeForUpdate(id, TYPE).orElseThrow(this::requestMissing);
-        String endpoint = "PATCH /api/academic/department-transfer-requests/" + id + "/review";
+        if (student.getAdvisor() == null || !student.getAdvisor().getUser().getId().equals(actor.id())) {
+            throw accessDenied();
+        }
+        String endpoint = "PATCH /api/academic/department-transfer-requests/" + id + "/advisor-review";
         String hash = idempotency.hash(body);
         var now = DepartmentTransferPolicy.now();
         var replay = idempotency.replay(key, actor.id(), endpoint, hash, now,
                 DepartmentTransferResponseDTO.class);
         if (replay.isPresent()) return replay.orElseThrow();
         policy.requirePending(request);
+        User reviewer = userRepository.findById(actor.id()).orElseThrow(this::userMissing);
+        var reserved = idempotency.reserve(key, actor.id(), endpoint, hash, now);
+        Map<String, Object> beforeRequest = audit.snapshot(request);
+        if (Boolean.TRUE.equals(body.approved())) {
+            request.advisorApprove(reviewer, now);
+        } else {
+            request.advisorReject(reviewer, policy.requiredReason(body.rejectReason(), 500), now);
+        }
+        repository.flush();
+        audit.record(id, "ACADEMIC_CHANGE_REQUEST", beforeRequest, audit.snapshot(request),
+                Boolean.TRUE.equals(body.approved())
+                        ? "TRANSFER_REQUEST_ADVISOR_APPROVED" : "TRANSFER_REQUEST_ADVISOR_REJECTED",
+                Boolean.TRUE.equals(body.approved()) ? "지도교수 전과 승인" : "지도교수 전과 반려",
+                actor, context);
+        var response = DepartmentTransferResponseDTO.from(request);
+        idempotency.complete(reserved, response);
+        return response;
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public DepartmentTransferResponseDTO reviewByAdmin(Long id, FinalDepartmentTransferReviewRequestDTO body,
+                                                       String key, CurrentUser actor,
+                                                       DepartmentTransferAuditContext context) {
+        policy.requireRole(actor, "ADMIN");
+        policy.requireId(id);
+        if (body == null || !body.isValidDecision()) {
+            throw new InvalidDepartmentTransferRequestException("최종 승인 여부와 반려 시 사유가 필요합니다.");
+        }
+        idempotency.validateKey(key);
+        Long studentId = repository.findStudentIdByIdAndType(id, TYPE).orElseThrow(this::requestMissing);
+        Student student = studentRepository.findByIdForUpdate(studentId).orElseThrow(this::studentMissing);
+        AcademicChangeRequest request = repository.findByIdAndTypeForUpdate(id, TYPE).orElseThrow(this::requestMissing);
+        String endpoint = "PATCH /api/academic/department-transfer-requests/" + id + "/final-review";
+        String hash = idempotency.hash(body);
+        var now = DepartmentTransferPolicy.now();
+        var replay = idempotency.replay(key, actor.id(), endpoint, hash, now,
+                DepartmentTransferResponseDTO.class);
+        if (replay.isPresent()) return replay.orElseThrow();
+        policy.requireAdvisorApproved(request);
         User processor = userRepository.findById(actor.id()).orElseThrow(this::userMissing);
         var reserved = idempotency.reserve(key, actor.id(), endpoint, hash, now);
         Map<String, Object> beforeRequest = audit.snapshot(request);
-        if (body.status() == AcademicChangeRequestStatus.APPROVED) {
+        if (Boolean.TRUE.equals(body.approved())) {
             validateApproval(student, request);
             Map<String, Object> beforeAffiliation = audit.affiliation(student);
-            request.approve(processor, now);
+            request.finalApprove(processor, now);
             student.changeAffiliation(request.getTargetDepartment());
             student.clearAdvisor();
             student.bumpSnapshotVersion();
@@ -197,13 +240,13 @@ public class DepartmentTransferService {
             audit.record(student.getId(), "STUDENT_AFFILIATION", beforeAffiliation, audit.affiliation(student),
                     "STUDENT_TRANSFER_APPLIED", "관리자 전과 승인", actor, context);
         } else {
-            request.reject(processor, policy.requiredReason(body.reason(), 500), now);
+            request.finalReject(processor, policy.requiredReason(body.rejectReason(), 500), now);
             repository.flush();
         }
         audit.record(id, "ACADEMIC_CHANGE_REQUEST", beforeRequest, audit.snapshot(request),
-                body.status() == AcademicChangeRequestStatus.APPROVED
+                Boolean.TRUE.equals(body.approved())
                         ? "TRANSFER_REQUEST_APPROVED" : "TRANSFER_REQUEST_REJECTED",
-                body.status() == AcademicChangeRequestStatus.APPROVED ? "관리자 전과 승인" : "관리자 전과 반려",
+                Boolean.TRUE.equals(body.approved()) ? "관리자 전과 최종 승인" : "관리자 전과 최종 반려",
                 actor, context);
         var response = DepartmentTransferResponseDTO.from(request);
         idempotency.complete(reserved, response);
@@ -212,8 +255,17 @@ public class DepartmentTransferService {
 
     private ResolvedCreation resolveCreation(Student student, DepartmentTransferCreateRequestDTO body, boolean lock) {
         policy.requireEnrolled(student.getAcademicStatus());
+        if (student.getGradeLevel() >= 3) {
+            throw new DepartmentTransferConflictException("3학년 1학기 전 학생만 전과를 신청할 수 있습니다.");
+        }
+        if (!queries.hasCompletedSemesterEnrollment(student.getId(), DepartmentTransferPolicy.today())) {
+            throw new DepartmentTransferConflictException("1학년 1학기 이상 이수한 학생만 전과를 신청할 수 있습니다.");
+        }
         if (repository.existsByStudentIdAndRequestTypeAndStatus(student.getId(), TYPE,
-                AcademicChangeRequestStatus.PENDING)) {
+                AcademicChangeRequestStatus.APPROVED)) {
+            throw new DepartmentTransferConflictException("재학 중 전과는 1회만 승인받을 수 있습니다.");
+        }
+        if (repository.existsByStudentIdAndRequestTypeAndStatusIn(student.getId(), TYPE, IN_PROGRESS_STATUSES)) {
             throw new DepartmentTransferConflictException("진행 중인 전과 신청이 있습니다.");
         }
         Department targetDepartment = departmentRepository.findByIdWithCollege(body.targetDepartmentId())
@@ -262,13 +314,24 @@ public class DepartmentTransferService {
                 && student.getDoubleMajor().getId().equals(request.getTargetDepartment().getId())) {
             throw new DepartmentTransferConflictException("현재 복수전공과 같은 학과로 전과할 수 없습니다.");
         }
+        if (repository.existsByStudentIdAndRequestTypeAndStatusAndIdNot(student.getId(), TYPE,
+                AcademicChangeRequestStatus.APPROVED, request.getId())) {
+            throw new DepartmentTransferConflictException("재학 중 이미 승인된 전과 이력이 있습니다.");
+        }
     }
 
     private AcademicChangeRequest readable(Long id, CurrentUser actor) {
         policy.requireReader(actor);
         policy.requireId(id);
         AcademicChangeRequest request = queries.findDetail(id).orElseThrow(this::requestMissing);
-        if (!actor.isAdmin()) requireOwner(request, actor);
+        if ("STUDENT".equals(actor.role())) {
+            requireOwner(request, actor);
+        } else if ("PROFESSOR".equals(actor.role())) {
+            if (request.getStudent().getAdvisor() == null
+                    || !request.getStudent().getAdvisor().getUser().getId().equals(actor.id())) {
+                throw accessDenied();
+            }
+        }
         return request;
     }
 

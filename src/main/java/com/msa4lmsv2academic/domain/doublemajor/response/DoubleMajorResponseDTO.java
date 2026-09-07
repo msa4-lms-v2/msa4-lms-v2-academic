@@ -27,8 +27,8 @@ public record DoubleMajorResponseDTO(
         @Schema(description = "학생 취소 사유", example = "진로 계획을 다시 검토하기로 했습니다.") String cancelReason,
         @Schema(description = "취소 사용자 ID", example = "1") Long cancelledBy,
         @Schema(description = "취소 시각(KST)", example = "2026-12-05T11:00:00") LocalDateTime cancelledAt,
-        @Schema(description = "필수 PDF 2종 메타데이터. 저장 키는 노출하지 않습니다.")
-        List<DoubleMajorFileResponseDTO> documents,
+        @Schema(description = "첨부파일 2개 메타데이터. 저장 키는 노출하지 않습니다.")
+        List<DoubleMajorFileResponseDTO> files,
         @Schema(description = "신청 시각(KST)", example = "2026-12-01T10:30:00") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각(KST)", example = "2026-12-01T10:30:00") LocalDateTime updatedAt
 ) {
@@ -55,7 +55,7 @@ public record DoubleMajorResponseDTO(
                 request.getCancelledBy() == null ? null : request.getCancelledBy().getId(),
                 request.getCancelledAt(),
                 request.getFiles().stream()
-                        .sorted(Comparator.comparing(file -> file.getDocumentType().name()))
+                        .sorted(Comparator.comparing(file -> file.getId() == null ? Long.MAX_VALUE : file.getId()))
                         .map(DoubleMajorFileResponseDTO::from).toList(),
                 request.getCreatedAt(),
                 request.getUpdatedAt());

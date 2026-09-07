@@ -25,6 +25,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Table(name = "academic_change_requests", indexes = {
         @Index(name = "idx_academic_change_requests_student_status", columnList = "student_id,status"),
         @Index(name = "idx_academic_change_requests_status_created", columnList = "status,created_at"),
+        @Index(name = "idx_academic_change_requests_advisor_status", columnList = "advisor_reviewed_by,status"),
         @Index(name = "idx_academic_change_requests_target_semester", columnList = "target_semester_id"),
         @Index(name = "idx_academic_change_requests_period", columnList = "request_period_id")
 }, uniqueConstraints = @UniqueConstraint(name = "uk_academic_change_requests_active_type",
@@ -51,6 +52,13 @@ public class AcademicChangeRequest {
     private AcademicChangeRequestPeriod requestPeriod;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private AcademicChangeRequestStatus status;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "advisor_reviewed_by")
+    private User advisorReviewedBy;
+    @Column(name = "advisor_reviewed_at")
+    private LocalDateTime advisorReviewedAt;
+    @Column(name = "advisor_reject_reason", length = 500)
+    private String advisorRejectReason;
     @Column(name = "reject_reason", length = 500)
     private String rejectReason;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -112,6 +120,36 @@ public class AcademicChangeRequest {
         processedAt = now;
     }
 
+    public void advisorApprove(User advisor, LocalDateTime now) {
+        requirePending();
+        status = AcademicChangeRequestStatus.ADVISOR_APPROVED;
+        advisorReviewedBy = advisor;
+        advisorReviewedAt = now;
+    }
+
+    public void advisorReject(User advisor, String reason, LocalDateTime now) {
+        requirePending();
+        status = AcademicChangeRequestStatus.ADVISOR_REJECTED;
+        advisorReviewedBy = advisor;
+        advisorReviewedAt = now;
+        advisorRejectReason = reason;
+    }
+
+    public void finalApprove(User processor, LocalDateTime now) {
+        requireAdvisorApproved();
+        status = AcademicChangeRequestStatus.APPROVED;
+        processedBy = processor;
+        processedAt = now;
+    }
+
+    public void finalReject(User processor, String reason, LocalDateTime now) {
+        requireAdvisorApproved();
+        status = AcademicChangeRequestStatus.REJECTED;
+        rejectReason = reason;
+        processedBy = processor;
+        processedAt = now;
+    }
+
     public void reject(User processor, String reason, LocalDateTime now) {
         requirePending();
         status = AcademicChangeRequestStatus.REJECTED;
@@ -121,7 +159,10 @@ public class AcademicChangeRequest {
     }
 
     public void cancel(User actor, String reason, LocalDateTime now) {
-        requirePending();
+        if (status != AcademicChangeRequestStatus.PENDING
+                && status != AcademicChangeRequestStatus.ADVISOR_APPROVED) {
+            throw new IllegalStateException("진행 중인 학적 변경 신청만 취소할 수 있습니다.");
+        }
         status = AcademicChangeRequestStatus.CANCELLED;
         cancelReason = reason;
         cancelledBy = actor;
@@ -131,6 +172,12 @@ public class AcademicChangeRequest {
     private void requirePending() {
         if (status != AcademicChangeRequestStatus.PENDING) {
             throw new IllegalStateException("대기 중인 학적 변경 신청만 처리할 수 있습니다.");
+        }
+    }
+
+    private void requireAdvisorApproved() {
+        if (status != AcademicChangeRequestStatus.ADVISOR_APPROVED) {
+            throw new IllegalStateException("지도교수 승인된 학적 변경 신청만 최종 처리할 수 있습니다.");
         }
     }
 }
