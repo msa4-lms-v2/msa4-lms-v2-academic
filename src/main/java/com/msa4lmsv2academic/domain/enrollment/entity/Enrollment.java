@@ -41,4 +41,36 @@ public class Enrollment {
     public void cancel() {
         this.status = EnrollmentStatus.CANCELLED;
     }
+
+    public boolean hasGradeInput() {
+        return midtermScore != null || finalScore != null || assignmentScore != null
+                || attendanceScore != null || totalScore != null || letterGrade != null;
+    }
+
+    public boolean hasCompleteGradeScores() {
+        return midtermScore != null && finalScore != null && assignmentScore != null
+                && attendanceScore != null;
+    }
+
+    public void saveDraftGrade(BigDecimal midtermScore, BigDecimal finalScore,
+                               BigDecimal assignmentScore, BigDecimal attendanceScore,
+                               BigDecimal totalScore, String letterGrade) {
+        if (gradeStatus != GradeStatus.DRAFT) {
+            throw new IllegalStateException("확정된 성적은 임시저장 방식으로 수정할 수 없습니다.");
+        }
+        this.midtermScore = midtermScore;
+        this.finalScore = finalScore;
+        this.assignmentScore = assignmentScore;
+        this.attendanceScore = attendanceScore;
+        this.totalScore = totalScore;
+        this.letterGrade = letterGrade;
+    }
+
+    public void openGrade() {
+        if (gradeStatus != GradeStatus.DRAFT || !hasCompleteGradeScores()
+                || totalScore == null || letterGrade == null) {
+            throw new IllegalStateException("모든 성적을 입력한 임시저장 상태에서만 확정할 수 있습니다.");
+        }
+        this.gradeStatus = GradeStatus.OPENED;
+    }
 }
