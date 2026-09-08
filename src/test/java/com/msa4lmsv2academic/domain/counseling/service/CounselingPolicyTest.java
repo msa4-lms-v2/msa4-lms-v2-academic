@@ -13,9 +13,9 @@ class CounselingPolicyTest {
 
     @Test
     void allowsEnrolledAndOnLeaveStudentsOnly() {
-        assertThatCode(() -> policy.requireAppointmentAllowed(AcademicStatus.ENROLLED))
+        assertThatCode(() -> policy.requireCounselingAllowed(AcademicStatus.ENROLLED))
                 .doesNotThrowAnyException();
-        assertThatCode(() -> policy.requireAppointmentAllowed(AcademicStatus.ON_LEAVE))
+        assertThatCode(() -> policy.requireCounselingAllowed(AcademicStatus.ON_LEAVE))
                 .doesNotThrowAnyException();
 
         for (AcademicStatus status : new AcademicStatus[]{
@@ -23,7 +23,7 @@ class CounselingPolicyTest {
                 AcademicStatus.WITHDRAWN,
                 AcademicStatus.DISMISSED
         }) {
-            assertThatThrownBy(() -> policy.requireAppointmentAllowed(status))
+            assertThatThrownBy(() -> policy.requireCounselingAllowed(status))
                     .isInstanceOf(CounselingStatusConflictException.class);
         }
     }
