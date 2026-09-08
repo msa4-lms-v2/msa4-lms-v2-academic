@@ -52,14 +52,16 @@ public class CounselingParticipantQueryRepository {
                 .findFirst();
     }
 
-    public Optional<Professor> findProfessorById(Long professorId) {
+    public Optional<Professor> findAdvisorByStudentUserId(Long studentUserId) {
         return entityManager.createQuery("""
-                        SELECT professor
-                        FROM Professor professor
-                        JOIN FETCH professor.user
-                        WHERE professor.id = :professorId
+                        SELECT advisor
+                        FROM Student student
+                        JOIN student.advisor advisor
+                        JOIN FETCH advisor.user
+                        JOIN FETCH advisor.department
+                        WHERE student.user.id = :studentUserId
                         """, Professor.class)
-                .setParameter("professorId", professorId)
+                .setParameter("studentUserId", studentUserId)
                 .getResultStream()
                 .findFirst();
     }

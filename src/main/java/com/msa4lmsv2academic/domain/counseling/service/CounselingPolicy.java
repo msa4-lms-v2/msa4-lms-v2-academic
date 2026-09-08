@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CounselingPolicy {
 
-    public void requireAppointmentAllowed(AcademicStatus status) {
+    public void requireCounselingAllowed(AcademicStatus status) {
         if (status != AcademicStatus.ENROLLED && status != AcademicStatus.ON_LEAVE) {
             throw new CounselingStatusConflictException(
                     "재학 또는 휴학 상태에서만 상담을 신청할 수 있습니다."
