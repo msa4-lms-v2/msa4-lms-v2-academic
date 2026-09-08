@@ -29,7 +29,7 @@ public class DepartmentTransferFileValidator {
         List<MultipartFile> present = files == null ? List.of()
                 : files.stream().filter(file -> file != null && !file.isEmpty()).toList();
         if (present.size() != 2) {
-            throw new InvalidFileException("전과 첨부파일은 HWP 또는 HWPX 형식으로 정확히 2개 필요합니다.");
+            throw new InvalidFileException("학적 변경 첨부파일은 HWP 또는 HWPX 형식으로 정확히 2개 필요합니다.");
         }
         present.forEach(this::validateOne);
         return present;
@@ -37,7 +37,7 @@ public class DepartmentTransferFileValidator {
 
     private void validateOne(MultipartFile file) {
         if (file.getSize() > MAX_SIZE) {
-            throw new FileSizeExceededException("전과 첨부파일은 파일당 10MB 이하여야 합니다.");
+            throw new FileSizeExceededException("학적 변경 첨부파일은 파일당 10MB 이하여야 합니다.");
         }
         String extension = extension(file);
         String declared = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
@@ -47,7 +47,7 @@ public class DepartmentTransferFileValidator {
         boolean hwpx = "hwpx".equals(extension) && HWPX_DECLARED_TYPES.contains(declared)
                 && "application/zip".equals(detected) && hasHwpxStructure(file);
         if (!hwp && !hwpx) {
-            throw new InvalidFileException("전과 첨부파일은 실제 HWP 또는 HWPX 형식만 허용됩니다.");
+            throw new InvalidFileException("학적 변경 첨부파일은 실제 HWP 또는 HWPX 형식만 허용됩니다.");
         }
     }
 

@@ -19,30 +19,27 @@ public class DoubleMajorApplicationService {
     private final DoubleMajorService service;
     private final DoubleMajorPolicy policy;
     private final DepartmentTransferIdempotencyService idempotency;
-    private final EvidenceFileValidator validator;
+    private final DepartmentTransferFileValidator validator;
     private final FileStorageService storage;
 
     public DoubleMajorResponseDTO create(DoubleMajorCreateRequestDTO body,
-                                         MultipartFile selfIntroduction,
-                                         MultipartFile studyPlan,
+                                         List<MultipartFile> files,
                                          String key,
                                          CurrentUser actor,
                                          DepartmentTransferAuditContext context) {
         policy.requireRole(actor, "STUDENT");
         policy.validateCreate(body);
         idempotency.validateKey(key);
-        validator.validateRequired(selfIntroduction);
-        validator.validateRequired(studyPlan);
-        List<MultipartFile> files = List.of(selfIntroduction, studyPlan);
-        String hash = requestHash(body, files);
+        List<MultipartFile> validatedFiles = validator.validate(files);
+        String hash = requestHash(body, validatedFiles);
         var replay = service.preflight(body, key, hash, actor);
         if (replay.isPresent()) return replay.orElseThrow();
 
         List<StoredTransferDocument> uploaded = new ArrayList<>();
         try {
-            for (int index = 0; index < files.size(); index++) {
-                MultipartFile file = files.get(index);
-                String storedName = storage.uploadEvidence(
+            for (int index = 0; index < validatedFiles.size(); index++) {
+                MultipartFile file = validatedFiles.get(index);
+                String storedName = storage.upload(
                         "double-major-requests/" + actor.id() + "/file-" + (index + 1), file);
                 uploaded.add(new StoredTransferDocument(file.getOriginalFilename(), storedName,
                         file.getContentType(), file.getSize()));
@@ -62,11 +59,46 @@ public class DoubleMajorApplicationService {
                 document.contentType());
     }
 
-    private String requestHash(DoubleMajorCreateRequestDTO body, List<MultipartFile> files) {
+    public DoubleMajorResponseDTO apply(Long id, List<MultipartFile> files, String key, CurrentUser actor,
+                                        DepartmentTransferAuditContext context) {
+        policy.requireRole(actor, "ADMIN");
+        policy.requireId(id);
+        idempotency.validateKey(key);
+        List<MultipartFile> validatedFiles = validator.validate(files);
+        String hash = requestHash(Map.of("operation", "APPLY"), validatedFiles);
+        var replay = service.preflightApplication(id, key, hash, actor);
+        if (replay.isPresent()) {
+            return replay.orElseThrow();
+        }
+
+        List<StoredTransferDocument> uploaded = new ArrayList<>();
+        try {
+            for (int index = 0; index < validatedFiles.size(); index++) {
+                MultipartFile file = validatedFiles.get(index);
+                String storedName = storage.upload(
+                        "double-major-requests/" + id + "/dean-stamped-file-" + (index + 1), file);
+                uploaded.add(new StoredTransferDocument(file.getOriginalFilename(), storedName,
+                        file.getContentType(), file.getSize()));
+            }
+            AcademicChangeApplicationResult<DoubleMajorResponseDTO> result =
+                    service.apply(id, uploaded, key, hash, actor, context);
+            if (!result.applied()) {
+                cleanup(uploaded);
+            } else {
+                cleanupStoredNames(result.replacedStoredNames());
+            }
+            return result.response();
+        } catch (RuntimeException exception) {
+            cleanup(uploaded);
+            throw exception;
+        }
+    }
+
+    private String requestHash(Object body, List<MultipartFile> files) {
         var payload = new LinkedHashMap<String, Object>();
         payload.put("request", body);
-        for (int index = 0; index < files.size(); index++) {
-            MultipartFile file = files.get(index);
+        List<Map<String, Object>> fileMetadata = new ArrayList<>();
+        for (MultipartFile file : files) {
             var metadata = new LinkedHashMap<String, Object>();
             metadata.put("filename", file.getOriginalFilename());
             metadata.put("contentType", file.getContentType());
@@ -76,9 +108,22 @@ public class DoubleMajorApplicationService {
             } catch (IOException exception) {
                 throw new FileStorageException("복수전공 제출 서류를 읽을 수 없습니다.", exception);
             }
-            payload.put("file" + (index + 1), metadata);
+            fileMetadata.add(metadata);
         }
+        fileMetadata.sort(Comparator.comparing(item -> item.get("sha256").toString()));
+        payload.put("files", fileMetadata);
         return idempotency.hash(payload);
+    }
+
+    private void cleanupStoredNames(List<String> storedNames) {
+        for (String storedName : storedNames) {
+            try {
+                storage.delete(storedName);
+            } catch (RuntimeException cleanupFailure) {
+                log.error("복수전공 날인본 교체 후 이전 MinIO 객체 삭제에 실패했습니다. objectKey={}",
+                        storedName, cleanupFailure);
+            }
+        }
     }
 
     private void cleanup(List<StoredTransferDocument> uploaded) {

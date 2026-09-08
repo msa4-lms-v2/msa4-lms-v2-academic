@@ -113,13 +113,6 @@ public class AcademicChangeRequest {
         files.add(file);
     }
 
-    public void approve(User processor, LocalDateTime now) {
-        requirePending();
-        status = AcademicChangeRequestStatus.APPROVED;
-        processedBy = processor;
-        processedAt = now;
-    }
-
     public void advisorApprove(User advisor, LocalDateTime now) {
         requirePending();
         status = AcademicChangeRequestStatus.ADVISOR_APPROVED;
@@ -135,9 +128,9 @@ public class AcademicChangeRequest {
         advisorRejectReason = reason;
     }
 
-    public void finalApprove(User processor, LocalDateTime now) {
+    public void apply(User processor, LocalDateTime now) {
         requireAdvisorApproved();
-        status = AcademicChangeRequestStatus.APPROVED;
+        status = AcademicChangeRequestStatus.APPLIED;
         processedBy = processor;
         processedAt = now;
     }
