@@ -34,7 +34,7 @@ class StudentGradeQueryServiceTest {
     void returnsOnlyOwnOpenedGradesAndCalculatesRetakeAwareSummaries() {
         CurrentUser student = new CurrentUser(10L, "STUDENT");
         when(queryRepository.existsStudentByUserId(10L)).thenReturn(true);
-        when(queryRepository.findOpenedGradesByStudentUserId(10L)).thenReturn(List.of(
+        when(queryRepository.findDisclosableGradesByStudentUserId(10L)).thenReturn(List.of(
                 grade(103L, 2L, (short) 2026, SemesterTerm.FIRST, "CSE200", "운영체제", "B+"),
                 grade(102L, 1L, (short) 2026, SemesterTerm.FIRST, "CSE100", "자료구조", "A"),
                 grade(101L, 1L, (short) 2025, SemesterTerm.SECOND, "CSE100", "자료구조", "C")
@@ -64,7 +64,7 @@ class StudentGradeQueryServiceTest {
     void returnsZeroSummaryAndEmptyListWhenThereAreNoOpenedGrades() {
         CurrentUser student = new CurrentUser(10L, "STUDENT");
         when(queryRepository.existsStudentByUserId(10L)).thenReturn(true);
-        when(queryRepository.findOpenedGradesByStudentUserId(10L)).thenReturn(List.of());
+        when(queryRepository.findDisclosableGradesByStudentUserId(10L)).thenReturn(List.of());
 
         var response = service.getMyGrades(null, student);
 
@@ -79,7 +79,7 @@ class StudentGradeQueryServiceTest {
     void sortsGradesByRequestedGradePointDirection() {
         CurrentUser student = new CurrentUser(10L, "STUDENT");
         when(queryRepository.existsStudentByUserId(10L)).thenReturn(true);
-        when(queryRepository.findOpenedGradesByStudentUserId(10L)).thenReturn(List.of(
+        when(queryRepository.findDisclosableGradesByStudentUserId(10L)).thenReturn(List.of(
                 grade(103L, 3L, (short) 2026, SemesterTerm.FIRST, "CSE300", "네트워크", "B+"),
                 grade(102L, 2L, (short) 2026, SemesterTerm.FIRST, "CSE200", "운영체제", "A"),
                 grade(101L, 1L, (short) 2025, SemesterTerm.SECOND, "CSE100", "자료구조", "C")

@@ -51,16 +51,34 @@ class StudentGradeQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
         insertEnrollment(98403L, STUDENT_ID, 98403L, "ACTIVE", "DRAFT", null);
         insertEnrollment(98404L, STUDENT_ID, 98403L, "CANCELLED", "OPENED", "B");
         insertEnrollment(98405L, 98402L, 98403L, "ACTIVE", "OPENED", "A+");
+        insertEnrollment(98406L, STUDENT_ID, 98403L, "ACTIVE", "OPENED", "B+");
+        insertEvaluation(98401L, 98401L);
+        insertEvaluation(98402L, 98402L);
     }
 
     @Test
-    void returnsOnlyAuthenticatedStudentsActiveOpenedGrades() {
-        List<StudentGradeQueryResult> result = repository.findOpenedGradesByStudentUserId(STUDENT_USER_ID);
+    void returnsOnlyEvaluatedActiveOpenedGradesOwnedByAuthenticatedStudent() {
+        List<StudentGradeQueryResult> result = repository.findDisclosableGradesByStudentUserId(STUDENT_USER_ID);
 
         assertThat(result).extracting(StudentGradeQueryResult::enrollmentId)
                 .containsExactly(98402L, 98401L);
         assertThat(result).extracting(StudentGradeQueryResult::letterGrade)
                 .containsExactly("A", "C");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM enrollments "
+                        + "WHERE student_id = ? AND status = 'ACTIVE' AND grade_status = 'OPENED'",
+                Long.class,
+                STUDENT_ID
+        )).isEqualTo(3L);
+    }
+
+    @Test
+    void returnsEmptyListWhenOpenedGradeExistsWithoutLectureEvaluation() {
+        jdbcTemplate.update("DELETE FROM lecture_evaluations WHERE enrollment_id IN (?, ?)", 98401L, 98402L);
+
+        List<StudentGradeQueryResult> result = repository.findDisclosableGradesByStudentUserId(STUDENT_USER_ID);
+
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -118,5 +136,15 @@ class StudentGradeQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
                 letterGrade == null ? null : new BigDecimal("90.00"),
                 letterGrade,
                 gradeStatus);
+    }
+
+    private void insertEvaluation(long id, long enrollmentId) {
+        jdbcTemplate.update("INSERT INTO lecture_evaluations "
+                        + "(id, enrollment_id, ratings, comment, submitted_at) "
+                        + "VALUES (?, ?, CAST(? AS JSON), NULL, ?)",
+                id,
+                enrollmentId,
+                "{\"CONTENT_QUALITY\":5}",
+                LocalDateTime.of(2026, 6, 10, 14, 30));
     }
 }
