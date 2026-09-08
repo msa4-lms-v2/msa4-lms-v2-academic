@@ -16,32 +16,32 @@ public interface CounselingNotificationRepository extends JpaRepository<Counseli
     boolean existsByDeduplicationKey(String deduplicationKey);
 
     @EntityGraph(attributePaths = {
-            "appointment",
-            "appointment.student",
-            "appointment.student.user",
-            "appointment.professor",
-            "appointment.professor.user",
+            "counseling",
+            "counseling.student",
+            "counseling.student.user",
+            "counseling.professor",
+            "counseling.professor.user",
             "recipient"
     })
     Page<CounselingNotification> findByRecipientId(Long recipientUserId, Pageable pageable);
 
     @EntityGraph(attributePaths = {
-            "appointment",
-            "appointment.student",
-            "appointment.student.user",
-            "appointment.professor",
-            "appointment.professor.user",
+            "counseling",
+            "counseling.student",
+            "counseling.student.user",
+            "counseling.professor",
+            "counseling.professor.user",
             "recipient"
     })
     Page<CounselingNotification> findByRecipientIdAndReadAtIsNull(Long recipientUserId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {
-            "appointment",
-            "appointment.student",
-            "appointment.student.user",
-            "appointment.professor",
-            "appointment.professor.user",
+            "counseling",
+            "counseling.student",
+            "counseling.student.user",
+            "counseling.professor",
+            "counseling.professor.user",
             "recipient"
     })
     @Query("select notification from CounselingNotification notification "

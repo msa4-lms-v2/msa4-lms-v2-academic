@@ -53,7 +53,8 @@ class WithdrawalServiceTest {
                 new WithdrawalPolicy(),
                 new WithdrawalAuditService(auditLogService),
                 mock(LeaveWithdrawalCancellationService.class),
-                mock(com.msa4lmsv2academic.domain.dismissal.service.DismissalWithdrawalGuard.class)
+                mock(com.msa4lmsv2academic.domain.dismissal.service.DismissalWithdrawalGuard.class),
+                mock(com.msa4lmsv2academic.domain.outbox.service.OutboxEventService.class)
         );
     }
 

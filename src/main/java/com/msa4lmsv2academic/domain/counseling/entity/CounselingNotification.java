@@ -39,7 +39,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
                         name = "idx_counseling_notifications_recipient_read_created",
                         columnList = "recipient_user_id, read_at, created_at"
                 ),
-                @Index(name = "idx_counseling_notifications_appointment", columnList = "appointment_id")
+                @Index(name = "idx_counseling_notifications_counseling", columnList = "counseling_id")
         }
 )
 public class CounselingNotification {
@@ -50,8 +50,8 @@ public class CounselingNotification {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "appointment_id", nullable = false)
-    private CounselingAppointment appointment;
+    @JoinColumn(name = "counseling_id", nullable = false)
+    private Counseling counseling;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "recipient_user_id", nullable = false)
@@ -62,12 +62,12 @@ public class CounselingNotification {
     private CounselingNotificationType type;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "previous_status", nullable = false, length = 20)
-    private CounselingAppointmentStatus previousStatus;
+    @Column(name = "previous_status", length = 20)
+    private CounselingStatus previousStatus;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "new_status", nullable = false, length = 20)
-    private CounselingAppointmentStatus newStatus;
+    private CounselingStatus newStatus;
 
     @Column(nullable = false, length = 500)
     private String message;
@@ -83,15 +83,15 @@ public class CounselingNotification {
     private LocalDateTime createdAt;
 
     private CounselingNotification(
-            CounselingAppointment appointment,
+            Counseling counseling,
             User recipient,
             CounselingNotificationType type,
-            CounselingAppointmentStatus previousStatus,
-            CounselingAppointmentStatus newStatus,
+            CounselingStatus previousStatus,
+            CounselingStatus newStatus,
             String message,
             String deduplicationKey
     ) {
-        this.appointment = appointment;
+        this.counseling = counseling;
         this.recipient = recipient;
         this.type = type;
         this.previousStatus = previousStatus;
@@ -101,16 +101,16 @@ public class CounselingNotification {
     }
 
     public static CounselingNotification create(
-            CounselingAppointment appointment,
+            Counseling counseling,
             User recipient,
             CounselingNotificationType type,
-            CounselingAppointmentStatus previousStatus,
-            CounselingAppointmentStatus newStatus,
+            CounselingStatus previousStatus,
+            CounselingStatus newStatus,
             String message,
             String deduplicationKey
     ) {
         return new CounselingNotification(
-                appointment,
+                counseling,
                 recipient,
                 type,
                 previousStatus,

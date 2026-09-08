@@ -88,17 +88,21 @@ INSERT INTO semesters (
     end_date,
     enrollment_start_at,
     enrollment_end_at,
+    evaluation_start_at,
+    evaluation_end_at,
     is_current
 ) VALUES
-    (2025, 'FIRST', '2025-03-04', '2025-06-20', '2025-02-10 09:00:00', '2025-02-14 18:00:00', FALSE),
-    (2025, 'SECOND', '2025-09-01', '2025-12-19', '2025-08-11 09:00:00', '2025-08-15 18:00:00', FALSE),
-    (2026, 'FIRST', '2026-03-02', '2026-06-19', '2026-02-09 09:00:00', '2026-02-13 18:00:00', FALSE),
-    (2026, 'SECOND', '2026-09-01', '2026-12-18', '2026-08-10 09:00:00', '2026-08-14 18:00:00', FALSE)
+    (2025, 'FIRST', '2025-03-04', '2025-06-20', '2025-02-10 09:00:00', '2025-02-14 18:00:00', '2025-06-09 09:00:00', '2025-06-20 18:00:00', FALSE),
+    (2025, 'SECOND', '2025-09-01', '2025-12-19', '2025-08-11 09:00:00', '2025-08-15 18:00:00', '2025-12-08 09:00:00', '2025-12-19 18:00:00', FALSE),
+    (2026, 'FIRST', '2026-03-02', '2026-06-19', '2026-02-09 09:00:00', '2026-02-13 18:00:00', '2026-06-08 09:00:00', '2026-06-19 18:00:00', FALSE),
+    (2026, 'SECOND', '2026-09-01', '2026-12-18', '2026-08-10 09:00:00', '2026-08-14 18:00:00', '2026-12-07 09:00:00', '2026-12-18 18:00:00', FALSE)
 ON DUPLICATE KEY UPDATE
     start_date = VALUES(start_date),
     end_date = VALUES(end_date),
     enrollment_start_at = VALUES(enrollment_start_at),
-    enrollment_end_at = VALUES(enrollment_end_at);
+    enrollment_end_at = VALUES(enrollment_end_at),
+    evaluation_start_at = VALUES(evaluation_start_at),
+    evaluation_end_at = VALUES(evaluation_end_at);
 
 -- 현재 학기는 서비스 정책과 동일하게 하나만 유지합니다.
 UPDATE semesters SET is_current = FALSE WHERE is_current = TRUE;

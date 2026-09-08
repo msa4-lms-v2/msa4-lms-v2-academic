@@ -61,6 +61,7 @@ public class SecurityConfig {
                             "/api/academic/catalog/semesters/*/snapshot",
                             "/api/academic/withdrawals/*/snapshot"
                     ).permitAll();
+                    auth.requestMatchers(HttpMethod.GET, "/ws/notifications").permitAll();
                     auth.anyRequest().authenticated();
                 })
                 .exceptionHandling(handling -> handling

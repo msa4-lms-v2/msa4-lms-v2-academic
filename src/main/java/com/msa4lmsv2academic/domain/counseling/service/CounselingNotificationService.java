@@ -1,9 +1,10 @@
 package com.msa4lmsv2academic.domain.counseling.service;
 
-import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointment;
-import com.msa4lmsv2academic.domain.counseling.entity.CounselingAppointmentStatus;
+import com.msa4lmsv2academic.domain.counseling.entity.Counseling;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingNotification;
 import com.msa4lmsv2academic.domain.counseling.entity.CounselingNotificationType;
+import com.msa4lmsv2academic.domain.counseling.entity.CounselingStatus;
+import com.msa4lmsv2academic.domain.counseling.event.CounselingNotificationCreatedEvent;
 import com.msa4lmsv2academic.domain.counseling.repository.CounselingNotificationRepository;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingNotificationSearchRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.response.CounselingNotificationResponseDTO;
@@ -19,11 +20,13 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,125 +36,67 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CounselingNotificationService {
-
-    private final CounselingNotificationRepository notificationRepository;
+    private final CounselingNotificationRepository repository;
+    private final ApplicationEventPublisher publisher;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void createForStatusChange(
-            CounselingAppointment appointment,
-            CounselingAppointmentStatus previousStatus,
-            String professorNote
-    ) {
-        NotificationTarget target = notificationTarget(appointment, previousStatus);
-        String deduplicationKey = deduplicationKey(
-                appointment.getId(),
-                target.recipient().getId(),
-                target.type(),
-                previousStatus,
-                appointment.getStatus(),
-                professorNote
-        );
-        if (notificationRepository.existsByDeduplicationKey(deduplicationKey)) {
-            return;
-        }
+    public void createRequested(Counseling counseling) {
+        create(counseling, counseling.getProfessor().getUser(),
+                CounselingNotificationType.COUNSELING_REQUESTED, null, CounselingStatus.WAITING,
+                "새로운 온라인 상담이 신청되었습니다.", counseling.getQuestion());
+    }
 
-        notificationRepository.saveAndFlush(CounselingNotification.create(
-                appointment,
-                target.recipient(),
-                target.type(),
-                previousStatus,
-                appointment.getStatus(),
-                target.message(),
-                deduplicationKey
-        ));
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void createAnswered(Counseling counseling, CounselingStatus previous, boolean updated) {
+        create(counseling, counseling.getStudent().getUser(),
+                updated ? CounselingNotificationType.COUNSELING_ANSWER_UPDATED
+                        : CounselingNotificationType.COUNSELING_ANSWERED,
+                previous, CounselingStatus.ANSWERED,
+                updated ? "교수 상담 답변이 수정되었습니다." : "교수 상담 답변이 등록되었습니다.",
+                counseling.getAnswer());
+    }
+
+    private void create(Counseling counseling, User recipient, CounselingNotificationType type,
+                        CounselingStatus previous, CounselingStatus next, String message, String content) {
+        String key = digest(counseling.getId(), recipient.getId(), type, previous, next, content);
+        if (repository.existsByDeduplicationKey(key)) return;
+        CounselingNotification saved = repository.saveAndFlush(CounselingNotification.create(
+                counseling, recipient, type, previous, next, message, key));
+        publisher.publishEvent(new CounselingNotificationCreatedEvent(
+                recipient.getId(), CounselingNotificationResponseDTO.from(saved)));
     }
 
     public PageResponseDTO<CounselingNotificationResponseDTO> search(
-            CounselingNotificationSearchRequestDTO request,
-            CurrentUser currentUser
-    ) {
-        validateParticipant(currentUser);
+            CounselingNotificationSearchRequestDTO request, CurrentUser user) {
+        requireParticipant(user);
         int page = request.resolvedPage();
         int size = request.resolvedSize();
-        PageRequest pageable = PageRequest.of(
-                page - 1,
-                size,
-                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))
-        );
+        Pageable pageable = PageRequest.of(page - 1, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
         Page<CounselingNotification> result = request.resolvedUnreadOnly()
-                ? notificationRepository.findByRecipientIdAndReadAtIsNull(currentUser.id(), pageable)
-                : notificationRepository.findByRecipientId(currentUser.id(), pageable);
-        List<CounselingNotificationResponseDTO> items = result.getContent().stream()
-                .map(CounselingNotificationResponseDTO::from)
-                .toList();
-        return new PageResponseDTO<>(items, result.getTotalElements(), page, size, result.hasNext());
+                ? repository.findByRecipientIdAndReadAtIsNull(user.id(), pageable)
+                : repository.findByRecipientId(user.id(), pageable);
+        return new PageResponseDTO<>(result.map(CounselingNotificationResponseDTO::from).getContent(),
+                result.getTotalElements(), page, size, result.hasNext());
     }
 
     @Transactional
-    public CounselingNotificationResponseDTO markRead(Long notificationId, CurrentUser currentUser) {
-        validateParticipant(currentUser);
-        if (notificationId == null || notificationId <= 0) {
+    public CounselingNotificationResponseDTO markRead(Long id, CurrentUser user) {
+        requireParticipant(user);
+        if (id == null || id <= 0) {
             throw new InvalidCounselingRequestException("notificationId는 양수여야 합니다.");
         }
-        CounselingNotification notification = notificationRepository.findOwnedByIdForUpdate(
-                        notificationId,
-                        currentUser.id()
-                )
+        CounselingNotification notification = repository.findOwnedByIdForUpdate(id, user.id())
                 .orElseThrow(CounselingNotificationNotFoundException::new);
         notification.markRead(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
-        return CounselingNotificationResponseDTO.from(notificationRepository.saveAndFlush(notification));
+        return CounselingNotificationResponseDTO.from(repository.saveAndFlush(notification));
     }
 
-    private NotificationTarget notificationTarget(
-            CounselingAppointment appointment,
-            CounselingAppointmentStatus previousStatus
-    ) {
-        return switch (appointment.getStatus()) {
-            case CONFIRMED -> new NotificationTarget(
-                    appointment.getStudent().getUser(),
-                    CounselingNotificationType.APPOINTMENT_CONFIRMED,
-                    "상담 예약이 승인되었습니다."
-            );
-            case REJECTED -> new NotificationTarget(
-                    appointment.getStudent().getUser(),
-                    CounselingNotificationType.APPOINTMENT_REJECTED,
-                    "상담 예약이 반려되었습니다."
-            );
-            case CANCELLED -> new NotificationTarget(
-                    appointment.getProfessor().getUser(),
-                    CounselingNotificationType.APPOINTMENT_CANCELLED,
-                    "학생이 상담 예약을 취소했습니다."
-            );
-            case COMPLETED -> new NotificationTarget(
-                    appointment.getStudent().getUser(),
-                    previousStatus == CounselingAppointmentStatus.COMPLETED
-                            ? CounselingNotificationType.PROFESSOR_RESPONSE_UPDATED
-                            : CounselingNotificationType.COUNSELING_COMPLETED,
-                    previousStatus == CounselingAppointmentStatus.COMPLETED
-                            ? "교수 상담 답변이 변경되었습니다."
-                            : "교수 상담 답변이 등록되었습니다."
-            );
-            case PENDING -> throw new InvalidCounselingRequestException("대기 상태 변경 알림은 생성할 수 없습니다.");
-        };
-    }
-
-    private String deduplicationKey(
-            Long appointmentId,
-            Long recipientUserId,
-            CounselingNotificationType type,
-            CounselingAppointmentStatus previousStatus,
-            CounselingAppointmentStatus newStatus,
-            String professorNote
-    ) {
-        String source = String.join(
-                "|",
-                Objects.toString(appointmentId, ""),
-                Objects.toString(recipientUserId, ""),
-                type.name(),
-                previousStatus.name(),
-                newStatus.name(),
-                Objects.toString(professorNote, "")
-        );
+    private String digest(Long counselingId, Long recipientId, CounselingNotificationType type,
+                          CounselingStatus previous, CounselingStatus next, String content) {
+        String source = String.join("|", Objects.toString(counselingId, ""),
+                Objects.toString(recipientId, ""), type.name(), Objects.toString(previous, ""),
+                next.name(), Objects.toString(content, ""));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(source.getBytes(StandardCharsets.UTF_8)));
@@ -160,17 +105,9 @@ public class CounselingNotificationService {
         }
     }
 
-    private void validateParticipant(CurrentUser currentUser) {
-        if (currentUser == null || currentUser.id() == null
-                || !("STUDENT".equals(currentUser.role()) || "PROFESSOR".equals(currentUser.role()))) {
+    private void requireParticipant(CurrentUser user) {
+        if (user == null || user.id() == null || !Set.of("STUDENT", "PROFESSOR").contains(user.role())) {
             throw new CounselingAccessDeniedException("상담 참여자만 알림을 사용할 수 있습니다.");
         }
-    }
-
-    private record NotificationTarget(
-            User recipient,
-            CounselingNotificationType type,
-            String message
-    ) {
     }
 }

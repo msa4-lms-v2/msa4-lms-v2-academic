@@ -60,17 +60,33 @@ public class Semester {
     @Column(name = "enrollment_end_at", nullable = false)
     private LocalDateTime enrollmentEndAt;
 
+    @Column(name = "evaluation_start_at")
+    private LocalDateTime evaluationStartAt;
+
+    @Column(name = "evaluation_end_at")
+    private LocalDateTime evaluationEndAt;
+
     @Column(name = "is_current", nullable = false)
     private boolean current;
 
     private Semester(short academicYear, SemesterTerm term, LocalDate startDate, LocalDate endDate,
                      LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt, boolean current) {
+        this(academicYear, term, startDate, endDate, enrollmentStartAt, enrollmentEndAt,
+                null, null, current);
+    }
+
+    private Semester(short academicYear, SemesterTerm term, LocalDate startDate, LocalDate endDate,
+                     LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt,
+                     LocalDateTime evaluationStartAt, LocalDateTime evaluationEndAt,
+                     boolean current) {
         this.academicYear = academicYear;
         this.term = term;
         this.startDate = startDate;
         this.endDate = endDate;
         this.enrollmentStartAt = enrollmentStartAt;
         this.enrollmentEndAt = enrollmentEndAt;
+        this.evaluationStartAt = evaluationStartAt;
+        this.evaluationEndAt = evaluationEndAt;
         this.current = current;
         this.snapshotVersion = 1L;
     }
@@ -79,6 +95,20 @@ public class Semester {
                                   LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt,
                                   boolean current) {
         return new Semester(academicYear, term, startDate, endDate, enrollmentStartAt, enrollmentEndAt, current);
+    }
+
+    public static Semester create(short academicYear, SemesterTerm term, LocalDate startDate, LocalDate endDate,
+                                  LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt,
+                                  LocalDateTime evaluationStartAt, LocalDateTime evaluationEndAt,
+                                  boolean current) {
+        return new Semester(academicYear, term, startDate, endDate, enrollmentStartAt, enrollmentEndAt,
+                evaluationStartAt, evaluationEndAt, current);
+    }
+
+    public boolean isEvaluationOpenAt(LocalDateTime dateTime) {
+        return evaluationStartAt != null && evaluationEndAt != null
+                && !dateTime.isBefore(evaluationStartAt)
+                && !dateTime.isAfter(evaluationEndAt);
     }
 
     public void unsetCurrent() {
