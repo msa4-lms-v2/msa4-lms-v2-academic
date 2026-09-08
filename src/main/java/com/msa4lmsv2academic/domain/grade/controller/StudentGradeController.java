@@ -33,8 +33,8 @@ public class StudentGradeController {
     @Operation(
             operationId = "getMyGrades",
             summary = "학생 본인 성적 조회",
-            description = "로그인한 학생의 공개된 성적만 조회합니다. 학년도·학기·교과목명 필터와 정렬을 지원하며 "
-                    + "결과가 없으면 0점 요약과 빈 목록을 반환합니다.",
+            description = "로그인한 학생의 활성 수강 중 성적이 확정되고 해당 강의평가를 제출한 성적만 조회합니다. "
+                    + "학년도·학기·교과목명 필터와 정렬을 지원하며 결과가 없으면 0점 요약과 빈 목록을 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponse(responseCode = "200", description = "성적 조회 성공")

@@ -45,7 +45,7 @@ public class StudentGradeQueryService {
                 ? new StudentGradeSearchRequestDTO(null, null, null, null, null)
                 : request;
         List<StudentGradeQueryResult> allGrades = queryRepository
-                .findOpenedGradesByStudentUserId(currentUser.id());
+                .findDisclosableGradesByStudentUserId(currentUser.id());
         validateGradeValues(allGrades);
 
         Set<Long> reflectedEnrollmentIds = findLatestEnrollmentIdsByCourse(allGrades);
