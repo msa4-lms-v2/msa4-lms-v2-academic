@@ -65,7 +65,9 @@ class SemesterOpenApiTest extends MySqlIntegrationTest {
                         "startDate",
                         "endDate",
                         "enrollmentStartAt",
-                        "enrollmentEndAt"
+                        "enrollmentEndAt",
+                        "evaluationStartAt",
+                        "evaluationEndAt"
                 )))
                 .andExpect(jsonPath(
                         "$['components']['securitySchemes']['bearerAuth']"

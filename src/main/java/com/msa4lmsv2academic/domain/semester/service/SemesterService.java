@@ -80,6 +80,8 @@ public class SemesterService {
                 request.endDate(),
                 request.enrollmentStartAt(),
                 request.enrollmentEndAt(),
+                request.evaluationStartAt(),
+                request.evaluationEndAt(),
                 request.resolvedCurrent()
         );
 
@@ -137,12 +139,14 @@ public class SemesterService {
                 || request.startDate() == null
                 || request.endDate() == null
                 || request.enrollmentStartAt() == null
-                || request.enrollmentEndAt() == null) {
+                || request.enrollmentEndAt() == null
+                || request.evaluationStartAt() == null
+                || request.evaluationEndAt() == null) {
             throw new InvalidSemesterRequestException("필수 학기 등록 값이 누락되었거나 올바르지 않습니다.");
         }
         if (!request.isPeriodOrderValid()) {
             throw new InvalidSemesterRequestException(
-                    "startDate는 endDate보다 빨라야 하고 enrollmentStartAt은 enrollmentEndAt보다 빨라야 합니다."
+                    "수업·수강신청·강의평가 시작 일시는 각각 종료 일시보다 빨라야 합니다."
             );
         }
     }
@@ -162,6 +166,10 @@ public class SemesterService {
         value.put("endDate", semester.getEndDate().toString());
         value.put("enrollmentStartAt", semester.getEnrollmentStartAt().toString());
         value.put("enrollmentEndAt", semester.getEnrollmentEndAt().toString());
+        value.put("evaluationStartAt", semester.getEvaluationStartAt() == null
+                ? null : semester.getEvaluationStartAt().toString());
+        value.put("evaluationEndAt", semester.getEvaluationEndAt() == null
+                ? null : semester.getEvaluationEndAt().toString());
         value.put("isCurrent", semester.isCurrent());
         return value;
     }
