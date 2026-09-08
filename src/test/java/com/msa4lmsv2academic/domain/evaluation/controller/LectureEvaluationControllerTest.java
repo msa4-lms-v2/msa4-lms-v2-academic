@@ -3,15 +3,23 @@ package com.msa4lmsv2academic.domain.evaluation.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.msa4lmsv2academic.domain.evaluation.response.LectureEvaluationResponseDTO;
+import com.msa4lmsv2academic.domain.evaluation.response.ProfessorLectureEvaluationResponseDTO;
 import com.msa4lmsv2academic.domain.evaluation.service.LectureEvaluationService;
+import com.msa4lmsv2academic.domain.evaluation.service.ProfessorLectureEvaluationQueryService;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
+import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,6 +38,62 @@ class LectureEvaluationControllerTest extends MySqlIntegrationTest {
 
     @MockitoBean
     private LectureEvaluationService lectureEvaluationService;
+
+    @MockitoBean
+    private ProfessorLectureEvaluationQueryService professorLectureEvaluationQueryService;
+
+    @Test
+    void professorQueriesOwnedLectureEvaluationResultsWith200() throws Exception {
+        CurrentUser professor = new CurrentUser(20L, "PROFESSOR");
+        var item = new ProfessorLectureEvaluationResponseDTO(
+                21L,
+                "CSE301",
+                "소프트웨어공학",
+                "01",
+                (short) 2026,
+                SemesterTerm.FIRST,
+                40L,
+                32L,
+                new BigDecimal("80.00"),
+                true,
+                new BigDecimal("4.25"),
+                Map.of("CONTENT_QUALITY", new BigDecimal("4.30")),
+                List.of("실습 예제가 좋았습니다.")
+        );
+        when(professorLectureEvaluationQueryService.getMyResults(any(), eq(professor)))
+                .thenReturn(new PageResponseDTO<>(List.of(item), 1L, 1, 20, false));
+
+        mockMvc.perform(get("/api/academic/evaluations")
+                        .headers(gatewayHeaders(20L, "PROFESSOR"))
+                        .param("lectureId", "21")
+                        .param("academicYear", "2026")
+                        .param("term", "FIRST"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("00"))
+                .andExpect(jsonPath("$.data.items[0].lectureId").value(21))
+                .andExpect(jsonPath("$.data.items[0].responseCount").value(32))
+                .andExpect(jsonPath("$.data.items[0].overallAverage").value(4.25))
+                .andExpect(jsonPath("$.data.items[0].comments[0]").value("실습 예제가 좋았습니다."))
+                .andExpect(jsonPath("$.data.items[0].studentId").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].enrollmentId").doesNotExist());
+    }
+
+    @Test
+    void studentCannotQueryProfessorEvaluationResults() throws Exception {
+        mockMvc.perform(get("/api/academic/evaluations")
+                        .headers(gatewayHeaders(10L, "STUDENT")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("E03"));
+    }
+
+    @Test
+    void invalidProfessorEvaluationSearchConditionReturns400() throws Exception {
+        mockMvc.perform(get("/api/academic/evaluations")
+                        .headers(gatewayHeaders(20L, "PROFESSOR"))
+                        .param("page", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("E21"));
+    }
 
     @Test
     void studentSubmitsValidEvaluationWith201() throws Exception {

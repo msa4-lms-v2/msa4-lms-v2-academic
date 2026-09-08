@@ -42,4 +42,30 @@ class LectureEvaluationOpenApiTest extends MySqlIntegrationTest {
                         "$['components']['schemas']['LectureEvaluationSubmitRequestDTO']['required']"
                 ).value(hasItems("enrollmentId", "ratings")));
     }
+
+    @Test
+    void generatedOpenApiContainsProfessorEvaluationResultContract() throws Exception {
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/academic/evaluations']['get']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/academic/evaluations']['get']['operationId']"
+                ).value("getMyLectureEvaluationResults"))
+                .andExpect(jsonPath(
+                        "$['paths']['/api/academic/evaluations']['get']['security'][0]['bearerAuth']"
+                ).isArray())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/academic/evaluations']['get']['responses']['200']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ProfessorLectureEvaluationResponseDTO']['properties']"
+                                + "['questionAverages']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ProfessorLectureEvaluationResponseDTO']['properties']"
+                                + "['comments']"
+                ).exists());
+    }
 }
