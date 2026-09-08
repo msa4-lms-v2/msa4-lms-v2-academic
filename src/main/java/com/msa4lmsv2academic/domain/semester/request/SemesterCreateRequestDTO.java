@@ -37,18 +37,28 @@ public record SemesterCreateRequestDTO(
         @NotNull(message = "enrollmentEndAt은 필수입니다.")
         LocalDateTime enrollmentEndAt,
 
+        @Schema(description = "강의평가 시작 일시", example = "2026-06-08T09:00:00", format = "date-time")
+        @NotNull(message = "evaluationStartAt은 필수입니다.")
+        LocalDateTime evaluationStartAt,
+
+        @Schema(description = "강의평가 종료 일시", example = "2026-06-19T18:00:00", format = "date-time")
+        @NotNull(message = "evaluationEndAt은 필수입니다.")
+        LocalDateTime evaluationEndAt,
+
         @Schema(description = "현재 학기 여부. 생략하면 false이며, true이면 기존 현재 학기를 자동 해제합니다.",
                 example = "true", defaultValue = "false")
         Boolean isCurrent
 ) {
 
     @Schema(hidden = true)
-    @AssertTrue(message = "startDate는 endDate보다 빨라야 하고 enrollmentStartAt은 enrollmentEndAt보다 빨라야 합니다.")
+    @AssertTrue(message = "수업·수강신청·강의평가 시작 일시는 각각 종료 일시보다 빨라야 합니다.")
     public boolean isPeriodOrderValid() {
         boolean classPeriodValid = startDate == null || endDate == null || startDate.isBefore(endDate);
         boolean enrollmentPeriodValid = enrollmentStartAt == null || enrollmentEndAt == null
                 || enrollmentStartAt.isBefore(enrollmentEndAt);
-        return classPeriodValid && enrollmentPeriodValid;
+        boolean evaluationPeriodValid = evaluationStartAt == null || evaluationEndAt == null
+                || evaluationStartAt.isBefore(evaluationEndAt);
+        return classPeriodValid && enrollmentPeriodValid && evaluationPeriodValid;
     }
 
     public boolean resolvedCurrent() {

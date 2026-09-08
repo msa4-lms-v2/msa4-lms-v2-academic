@@ -22,6 +22,10 @@ public record SemesterResponseDTO(
         LocalDateTime enrollmentStartAt,
         @Schema(description = "수강신청 종료 일시", example = "2026-02-20T18:00:00", format = "date-time")
         LocalDateTime enrollmentEndAt,
+        @Schema(description = "강의평가 시작 일시", example = "2026-06-08T09:00:00", format = "date-time")
+        LocalDateTime evaluationStartAt,
+        @Schema(description = "강의평가 종료 일시", example = "2026-06-19T18:00:00", format = "date-time")
+        LocalDateTime evaluationEndAt,
         @Schema(description = "현재 학기 여부", example = "true")
         boolean isCurrent
 ) {
@@ -35,6 +39,8 @@ public record SemesterResponseDTO(
                 semester.getEndDate(),
                 semester.getEnrollmentStartAt(),
                 semester.getEnrollmentEndAt(),
+                semester.getEvaluationStartAt(),
+                semester.getEvaluationEndAt(),
                 semester.isCurrent()
         );
     }

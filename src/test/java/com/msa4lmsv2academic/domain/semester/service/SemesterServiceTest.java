@@ -120,6 +120,35 @@ class SemesterServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void createCurrentSemesterSafelyUnsetsLegacySemesterWithoutEvaluationPeriod() {
+        Semester legacyCurrent = semesterRepository.saveAndFlush(Semester.create(
+                (short) 2025,
+                SemesterTerm.SECOND,
+                LocalDate.of(2025, 9, 1),
+                LocalDate.of(2025, 12, 19),
+                LocalDateTime.of(2025, 8, 11, 9, 0),
+                LocalDateTime.of(2025, 8, 15, 18, 0),
+                true
+        ));
+
+        SemesterResponseDTO created = semesterService.createSemester(
+                request((short) 2026, SemesterTerm.FIRST, true),
+                ADMIN,
+                "request-after-migration",
+                "127.0.0.1"
+        );
+
+        assertThat(created.isCurrent()).isTrue();
+        assertThat(semesterRepository.findById(legacyCurrent.getId()).orElseThrow().isCurrent()).isFalse();
+        AuditLog unsetLog = auditLogRepository.findAll().stream()
+                .filter(log -> "SEMESTER_CURRENT_UNSET".equals(log.getAction()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(unsetLog.getBeforeValue()).containsEntry("evaluationStartAt", null);
+        assertThat(unsetLog.getBeforeValue()).containsEntry("evaluationEndAt", null);
+    }
+
+    @Test
     void createRejectsDuplicateAcademicYearAndTerm() {
         semesterService.createSemester(
                 request((short) 2026, SemesterTerm.FIRST, false), ADMIN, null, null
@@ -139,6 +168,26 @@ class SemesterServiceTest extends MySqlIntegrationTest {
                 LocalDate.of(2026, 3, 2),
                 LocalDateTime.of(2026, 2, 20, 18, 0),
                 LocalDateTime.of(2026, 2, 16, 9, 0),
+                LocalDateTime.of(2026, 6, 8, 9, 0),
+                LocalDateTime.of(2026, 6, 19, 18, 0),
+                false
+        );
+
+        assertThatThrownBy(() -> semesterService.createSemester(invalid, ADMIN, null, null))
+                .isInstanceOf(InvalidSemesterRequestException.class);
+    }
+
+    @Test
+    void createRejectsInvalidEvaluationPeriodOrder() {
+        SemesterCreateRequestDTO invalid = new SemesterCreateRequestDTO(
+                (short) 2026,
+                SemesterTerm.FIRST,
+                LocalDate.of(2026, 3, 2),
+                LocalDate.of(2026, 6, 19),
+                LocalDateTime.of(2026, 2, 16, 9, 0),
+                LocalDateTime.of(2026, 2, 20, 18, 0),
+                LocalDateTime.of(2026, 6, 19, 18, 0),
+                LocalDateTime.of(2026, 6, 8, 9, 0),
                 false
         );
 
@@ -198,6 +247,8 @@ class SemesterServiceTest extends MySqlIntegrationTest {
                 LocalDate.of(year, endMonth, 18),
                 LocalDateTime.of(year, enrollmentMonth, 16, 9, 0),
                 LocalDateTime.of(year, enrollmentMonth, 20, 18, 0),
+                LocalDateTime.of(year, endMonth, 7, 9, 0),
+                LocalDateTime.of(year, endMonth, 18, 18, 0),
                 current
         );
     }

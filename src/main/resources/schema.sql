@@ -293,12 +293,19 @@ CREATE TABLE IF NOT EXISTS semesters (
     end_date DATE NOT NULL,
     enrollment_start_at DATETIME NOT NULL,
     enrollment_end_at DATETIME NOT NULL,
+    evaluation_start_at DATETIME NULL,
+    evaluation_end_at DATETIME NULL,
     is_current TINYINT(1) NOT NULL DEFAULT 0,
     current_semester_guard TINYINT
         GENERATED ALWAYS AS (CASE WHEN is_current = 1 THEN 1 ELSE NULL END) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uk_semesters_academic_year_term UNIQUE (academic_year, term),
-    CONSTRAINT uk_semesters_single_current UNIQUE (current_semester_guard)
+    CONSTRAINT uk_semesters_single_current UNIQUE (current_semester_guard),
+    CONSTRAINT ck_semesters_evaluation_period CHECK (
+        (evaluation_start_at IS NULL AND evaluation_end_at IS NULL)
+        OR (evaluation_start_at IS NOT NULL AND evaluation_end_at IS NOT NULL
+            AND evaluation_start_at < evaluation_end_at)
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS enrollment_credit_limit_rules (
@@ -529,6 +536,19 @@ CREATE TABLE IF NOT EXISTS enrollments (
         ON DELETE RESTRICT,
     INDEX idx_enrollments_student_id (student_id),
     INDEX idx_enrollments_lecture_id (lecture_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS lecture_evaluations (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    enrollment_id BIGINT NOT NULL,
+    ratings JSON NOT NULL,
+    comment TEXT NULL,
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_lecture_evaluations_enrollment UNIQUE (enrollment_id),
+    CONSTRAINT fk_lecture_evaluations_enrollment
+        FOREIGN KEY (enrollment_id) REFERENCES enrollments (id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS excuse_requests (

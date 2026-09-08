@@ -97,6 +97,8 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$.code").value("00"))
                 .andExpect(jsonPath("$.data.academicYear").value(2026))
                 .andExpect(jsonPath("$.data.term").value("FIRST"))
+                .andExpect(jsonPath("$.data.evaluationStartAt").value("2026-06-08T09:00:00"))
+                .andExpect(jsonPath("$.data.evaluationEndAt").value("2026-06-19T18:00:00"))
                 .andExpect(jsonPath("$.data.isCurrent").value(true));
 
         assertThatAuditWasRecorded();
@@ -128,6 +130,8 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                   "endDate": "2026-03-02",
                   "enrollmentStartAt": "2026-02-20T18:00:00",
                   "enrollmentEndAt": "2026-02-16T09:00:00",
+                  "evaluationStartAt": "2026-06-19T18:00:00",
+                  "evaluationEndAt": "2026-06-08T09:00:00",
                   "isCurrent": false
                 }
                 """;
@@ -166,6 +170,8 @@ class SemesterControllerTest extends MySqlIntegrationTest {
                   "endDate": "2026-06-19",
                   "enrollmentStartAt": "2026-02-16T09:00:00",
                   "enrollmentEndAt": "2026-02-20T18:00:00",
+                  "evaluationStartAt": "2026-06-08T09:00:00",
+                  "evaluationEndAt": "2026-06-19T18:00:00",
                   "isCurrent": %s
                 }
                 """.formatted(academicYear, term, current);
