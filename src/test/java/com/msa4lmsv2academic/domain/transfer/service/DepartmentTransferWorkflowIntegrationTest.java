@@ -130,16 +130,19 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 new AdvisorDepartmentTransferReviewRequestDTO(true, null),
                 "transfer-advisor-approve", PROFESSOR, CONTEXT);
         assertThat(advisorApproved.status()).isEqualTo(AcademicChangeRequestStatus.ADVISOR_APPROVED);
-        var approved = service.reviewByAdmin(created.id(),
-                new FinalDepartmentTransferReviewRequestDTO(true, null),
-                "transfer-approve", ADMIN, CONTEXT);
-        assertThat(approved.status()).isEqualTo(AcademicChangeRequestStatus.APPROVED);
+        var applied = application.apply(created.id(), java.util.List.of(
+                        hwp("자기소개서_학장날인.hwp"), hwp("학업계획서_학장날인.hwp")),
+                "transfer-apply", ADMIN, CONTEXT);
+        assertThat(applied.status()).isEqualTo(AcademicChangeRequestStatus.APPLIED);
+        assertThat(applied.files()).extracting(file -> file.originalName())
+                .containsExactlyInAnyOrder("자기소개서_학장날인.hwp", "학업계획서_학장날인.hwp");
         var row = jdbc.queryForMap("SELECT department_id,double_major_id,advisor_id FROM students WHERE id=295001");
         assertThat(((Number) row.get("department_id")).longValue()).isEqualTo(295002L);
         assertThat(((Number) row.get("double_major_id")).longValue()).isEqualTo(295003L);
         assertThat(row.get("advisor_id")).isNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE actor_id=295013 "
-                + "AND action IN ('TRANSFER_REQUEST_APPROVED','STUDENT_TRANSFER_APPLIED')", Integer.class)).isEqualTo(2);
+                + "AND action IN ('TRANSFER_REQUEST_APPLIED','STUDENT_TRANSFER_APPLIED')", Integer.class)).isEqualTo(2);
+        verify(storage, times(2)).delete(startsWith("department-transfer-requests/test/"));
     }
 
     @Test
@@ -148,8 +151,8 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         service.reviewByAdvisor(created.id(), new AdvisorDepartmentTransferReviewRequestDTO(true, null),
                 "transfer-advisor-stale", PROFESSOR, CONTEXT);
         jdbc.update("UPDATE students SET department_id=295003,double_major_id=NULL WHERE id=295001");
-        assertThatThrownBy(() -> service.reviewByAdmin(created.id(),
-                new FinalDepartmentTransferReviewRequestDTO(true, null),
+        assertThatThrownBy(() -> application.apply(created.id(), java.util.List.of(
+                        hwp("자기소개서_학장날인.hwp"), hwp("학업계획서_학장날인.hwp")),
                 "transfer-stale", ADMIN, CONTEXT)).isInstanceOf(DepartmentTransferConflictException.class);
         jdbc.update("UPDATE students SET department_id=295001,double_major_id=295002 WHERE id=295001");
         assertThatThrownBy(() -> application.create(body(), java.util.List.of(
@@ -170,11 +173,11 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         var second = create("transfer-reapply-after-advisor-reject");
         service.reviewByAdvisor(second.id(), new AdvisorDepartmentTransferReviewRequestDTO(true, null),
                 "transfer-advisor-approve-second", PROFESSOR, CONTEXT);
-        var rejected = service.reviewByAdmin(second.id(),
-                new FinalDepartmentTransferReviewRequestDTO(false, "모집 기준 미충족"),
+        var rejected = service.rejectByAdmin(second.id(),
+                new AdminAcademicChangeRejectionRequestDTO("학장 날인 미확인"),
                 "transfer-final-reject", ADMIN, CONTEXT);
         assertThat(rejected.status()).isEqualTo(AcademicChangeRequestStatus.REJECTED);
-        assertThat(rejected.rejectReason()).isEqualTo("모집 기준 미충족");
+        assertThat(rejected.rejectReason()).isEqualTo("학장 날인 미확인");
         assertThat(jdbc.queryForObject("SELECT department_id FROM students WHERE id=295001", Long.class))
                 .isEqualTo(295001L);
     }
@@ -209,7 +212,8 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                         .value("createDepartmentTransferRequest"))
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['responses']['201']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/advisor-review']['patch']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/final-review']['patch']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/application']['patch']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/rejection']['patch']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/{requestId}/files/{fileId}']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests/templates/study-plan']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/catalog/department-transfer-periods/{periodId}/status']['patch']").exists())
