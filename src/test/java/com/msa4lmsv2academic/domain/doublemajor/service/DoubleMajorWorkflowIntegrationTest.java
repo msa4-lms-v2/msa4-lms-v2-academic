@@ -57,9 +57,9 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "(296011,'복수전공학생','STUDENT','ACTIVE'),(296012,'다른학생','STUDENT','ACTIVE'),"
                 + "(296013,'관리자','ADMIN','ACTIVE'),(296014,'지도교수','PROFESSOR','ACTIVE')");
         jdbc.update("INSERT INTO professors (id,version,user_id,hire_year,department_id) VALUES (296001,0,296014,2020,296001)");
-        jdbc.update("INSERT INTO students (id,user_id,department_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
-                + "(296001,296011,296001,NULL,2,2025,'ENROLLED',296001),"
-                + "(296002,296012,296001,NULL,2,2025,'ENROLLED',296001)");
+        jdbc.update("INSERT INTO students (id,user_id,student_number,department_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
+                + "(296001,296011,'25961296001',296001,NULL,2,2025,'ENROLLED',296001),"
+                + "(296002,296012,'25961296002',296001,NULL,2,2025,'ENROLLED',296001)");
         jdbc.update("INSERT INTO semesters (id,academic_year,term,start_date,end_date,enrollment_start_at,enrollment_end_at,is_current) "
                 + "VALUES (295901,2025,'FIRST','2025-03-02','2025-06-18','2025-02-10 09:00:00','2025-02-14 18:00:00',0),"
                 + "(295902,2025,'SECOND','2025-09-01','2025-12-17','2025-08-10 09:00:00','2025-08-14 18:00:00',0),"
@@ -98,6 +98,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
     void createUsesOpenRecruitmentPeriodWithoutTargetSemesterAndReplays() {
         var created = create("double-major-create");
         assertThat(created.status()).isEqualTo(AcademicChangeRequestStatus.PENDING);
+        assertThat(created.studentNumber()).isEqualTo("25961296001");
         assertThat(created.targetDepartmentName()).isEqualTo("복수전공학과");
         assertThat(created.requestPeriodId()).isNotNull();
         assertThat(created.files()).hasSize(2);
@@ -166,7 +167,9 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(applied.status()).isEqualTo(AcademicChangeRequestStatus.APPLIED);
         assertThat(applied.files()).extracting(file -> file.originalName())
                 .containsExactlyInAnyOrder("자기소개서_학장날인.hwp", "학업계획서_학장날인.hwp");
-        var row = jdbc.queryForMap("SELECT department_id,double_major_id,advisor_id FROM students WHERE id=296001");
+        var row = jdbc.queryForMap(
+                "SELECT student_number,department_id,double_major_id,advisor_id FROM students WHERE id=296001");
+        assertThat(row.get("student_number")).isEqualTo("25961296001");
         assertThat(((Number) row.get("department_id")).longValue()).isEqualTo(296001L);
         assertThat(((Number) row.get("double_major_id")).longValue()).isEqualTo(296002L);
         assertThat(((Number) row.get("advisor_id")).longValue()).isEqualTo(296001L);
@@ -241,6 +244,7 @@ class DoubleMajorWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorCreateRequestDTO']['properties']['targetSemesterId']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorCreateRequestDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['targetDepartmentId']").exists())
+                .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['studentNumber']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['targetMajorId']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DoubleMajorResponseDTO']['properties']['files']").exists());
     }
