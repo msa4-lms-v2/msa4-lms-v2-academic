@@ -17,8 +17,7 @@ public interface AcademicChangeRequestRepository extends JpaRepository<AcademicC
     boolean existsByStudentIdAndRequestTypeAndStatusIn(Long studentId, AcademicChangeRequestType requestType,
                                                        Collection<AcademicChangeRequestStatus> statuses);
 
-    boolean existsByStudentIdAndRequestTypeAndStatusAndIdNot(Long studentId, AcademicChangeRequestType requestType,
-                                                             AcademicChangeRequestStatus status, Long id);
+    boolean existsByStudentIdAndStatusIn(Long studentId, Collection<AcademicChangeRequestStatus> statuses);
 
     @Query("select r.student.id from AcademicChangeRequest r where r.id = :id and r.requestType = :type")
     Optional<Long> findStudentIdByIdAndType(Long id, AcademicChangeRequestType type);

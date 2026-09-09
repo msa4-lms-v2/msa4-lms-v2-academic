@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS students (
     id BIGINT NOT NULL AUTO_INCREMENT,
     snapshot_version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
+    student_number VARCHAR(150) NULL,
     department_id BIGINT NOT NULL,
     double_major_id BIGINT NULL,
     grade_level TINYINT NOT NULL,
@@ -141,6 +142,7 @@ CREATE TABLE IF NOT EXISTS students (
     advisor_id BIGINT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_students_user_id UNIQUE (user_id),
+    CONSTRAINT uk_students_student_number UNIQUE (student_number),
     CONSTRAINT ck_students_distinct_departments
         CHECK (double_major_id IS NULL OR department_id <> double_major_id),
     CONSTRAINT fk_students_user
@@ -894,7 +896,7 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
             AND target_semester_id IS NULL AND request_period_id IS NOT NULL)
     ),
     CONSTRAINT ck_academic_change_requests_status CHECK (
-        status IN ('PENDING', 'ADVISOR_APPROVED', 'ADVISOR_REJECTED', 'APPROVED', 'REJECTED', 'CANCELLED')
+        status IN ('PENDING', 'ADVISOR_APPROVED', 'ADVISOR_REJECTED', 'APPROVED', 'APPLIED', 'REJECTED', 'CANCELLED')
     ),
     CONSTRAINT ck_academic_change_requests_processing CHECK (
         (status = 'PENDING' AND advisor_reviewed_by IS NULL AND advisor_reviewed_at IS NULL
@@ -908,6 +910,9 @@ CREATE TABLE IF NOT EXISTS academic_change_requests (
             AND processed_by IS NULL AND processed_at IS NULL AND reject_reason IS NULL
             AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
         OR (status = 'APPROVED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL
+            AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
+        OR (status = 'APPLIED' AND advisor_reviewed_by IS NOT NULL AND advisor_reviewed_at IS NOT NULL
+            AND advisor_reject_reason IS NULL AND processed_by IS NOT NULL AND processed_at IS NOT NULL
             AND reject_reason IS NULL AND cancelled_by IS NULL AND cancelled_at IS NULL AND cancel_reason IS NULL)
         OR (status = 'REJECTED' AND processed_by IS NOT NULL AND processed_at IS NOT NULL
             AND reject_reason IS NOT NULL AND CHAR_LENGTH(TRIM(reject_reason)) > 0

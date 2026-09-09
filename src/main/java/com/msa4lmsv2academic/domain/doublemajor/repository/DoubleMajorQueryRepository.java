@@ -7,11 +7,15 @@ import static com.msa4lmsv2academic.domain.transfer.entity.QAcademicChangeReques
 import static com.msa4lmsv2academic.domain.user.entity.QUser.user;
 
 import com.msa4lmsv2academic.domain.doublemajor.request.*;
+import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.organization.entity.QDepartment;
+import com.msa4lmsv2academic.domain.professor.entity.QProfessor;
 import com.msa4lmsv2academic.domain.transfer.entity.*;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -26,6 +30,9 @@ public class DoubleMajorQueryRepository {
     private static final QDepartment TARGET_DEPARTMENT = new QDepartment("doubleMajorTargetDepartment");
     private static final QAcademicChangeRequestPeriod REQUEST_PERIOD =
             new QAcademicChangeRequestPeriod("doubleMajorRequestPeriod");
+    private static final QUser ADVISOR_REVIEWED_BY = new QUser("doubleMajorAdvisorReviewedBy");
+    private static final QProfessor ADVISOR = new QProfessor("doubleMajorAdvisor");
+    private static final QUser ADVISOR_USER = new QUser("doubleMajorAdvisorUser");
     private static final QUser PROCESSED_BY = new QUser("doubleMajorProcessedBy");
     private static final QUser CANCELLED_BY = new QUser("doubleMajorCancelledBy");
 
@@ -35,10 +42,16 @@ public class DoubleMajorQueryRepository {
     }
 
     public Page<AcademicChangeRequest> search(DoubleMajorSearchRequestDTO filter, Long ownerUserId,
-                                              Pageable pageable) {
+                                              Long advisorUserId, Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder(
                 academicChangeRequest.requestType.eq(AcademicChangeRequestType.DOUBLE_MAJOR));
         if (ownerUserId != null) where.and(academicChangeRequest.student.user.id.eq(ownerUserId));
+        if (advisorUserId != null) {
+            where.and(academicChangeRequest.student.advisor.id.in(
+                    JPAExpressions.select(ADVISOR.id).from(ADVISOR)
+                            .join(ADVISOR.user, ADVISOR_USER)
+                            .where(ADVISOR_USER.id.eq(advisorUserId))));
+        }
         if (filter.studentId() != null) where.and(academicChangeRequest.student.id.eq(filter.studentId()));
         if (filter.status() != null) where.and(academicChangeRequest.status.eq(filter.status()));
         if (filter.requestPeriodId() != null) where.and(academicChangeRequest.requestPeriod.id.eq(filter.requestPeriodId()));
@@ -56,6 +69,20 @@ public class DoubleMajorQueryRepository {
         Long total = queryFactory.select(academicChangeRequest.count()).from(academicChangeRequest)
                 .where(where).fetchOne();
         return new PageImpl<>(items, pageable, total == null ? 0 : total);
+    }
+
+    public long countCompletedRegularSemesters(Long studentId, LocalDate applicationDate) {
+        Long count = queryFactory.select(semester.id.countDistinct())
+                .from(com.msa4lmsv2academic.domain.enrollment.entity.QEnrollment.enrollment)
+                .join(com.msa4lmsv2academic.domain.enrollment.entity.QEnrollment.enrollment.lecture,
+                        com.msa4lmsv2academic.domain.lecture.entity.QLecture.lecture)
+                .join(com.msa4lmsv2academic.domain.lecture.entity.QLecture.lecture.semester, semester)
+                .where(
+                        com.msa4lmsv2academic.domain.enrollment.entity.QEnrollment.enrollment.student.id.eq(studentId),
+                        com.msa4lmsv2academic.domain.enrollment.entity.QEnrollment.enrollment.status.eq(EnrollmentStatus.ACTIVE),
+                        semester.endDate.lt(applicationDate))
+                .fetchOne();
+        return count == null ? 0 : count;
     }
 
     public Page<AcademicChangeRequestPeriod> searchPeriods(DoubleMajorPeriodSearchRequestDTO filter,
@@ -82,6 +109,7 @@ public class DoubleMajorQueryRepository {
                 .join(academicChangeRequest.targetDepartment, TARGET_DEPARTMENT).fetchJoin()
                 .join(academicChangeRequest.requestPeriod, REQUEST_PERIOD).fetchJoin()
                 .join(REQUEST_PERIOD.semester, semester).fetchJoin()
+                .leftJoin(academicChangeRequest.advisorReviewedBy, ADVISOR_REVIEWED_BY).fetchJoin()
                 .leftJoin(academicChangeRequest.processedBy, PROCESSED_BY).fetchJoin()
                 .leftJoin(academicChangeRequest.cancelledBy, CANCELLED_BY).fetchJoin();
     }

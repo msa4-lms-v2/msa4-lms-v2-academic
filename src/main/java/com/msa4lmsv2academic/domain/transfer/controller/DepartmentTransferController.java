@@ -26,7 +26,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "Department transfer requests", description = "학생 신청 → 지도교수 검토 → 관리자 최종 학적 변경 API")
+@Tag(name = "Department transfer requests",
+        description = "학생 신청 → 지도교수 검토 → 학장 오프라인 날인 → 관리자 학적 반영 API")
 @RestController
 @Validated
 @RequiredArgsConstructor
@@ -111,17 +112,35 @@ public class DepartmentTransferController {
                 DepartmentTransferAuditContext.from(httpRequest))));
     }
 
-    @Operation(operationId = "finalReviewDepartmentTransferRequest", summary = "관리자 전과 최종 처리",
-            description = "ADMIN만 ADVISOR_APPROVED 신청을 최종 승인 또는 반려합니다. 승인 시 학과를 변경하고 StudentSnapshotChanged를 발행합니다.")
-    @PatchMapping("/{requestId}/final-review")
+    @Operation(operationId = "applyDepartmentTransferRequest", summary = "관리자 전과 학적 반영",
+            description = "ADMIN 전용. 지도교수가 승인하고 학장이 두 HWP/HWPX 문서 모두에 날인한 경우에만 호출합니다. "
+                    + "날인본 2개로 기존 서류 묶음을 교체하고 학과 변경과 APPLIED 전이를 한 번에 처리한 뒤 "
+                    + "StudentSnapshotChanged를 발행합니다. 파일명·순서·문서 종류는 판별하지 않습니다.")
+    @PatchMapping(value = "/{requestId}/application", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<GlobalResponseDTO<DepartmentTransferResponseDTO>> finalReview(
+    public ResponseEntity<GlobalResponseDTO<DepartmentTransferResponseDTO>> apply(
             @Positive @PathVariable Long requestId,
-            @Valid @RequestBody FinalDepartmentTransferReviewRequestDTO request,
+            @Parameter(description = "학장 날인이 포함된 HWP/HWPX 파일 정확히 2개", required = true)
+            @RequestPart("files") List<MultipartFile> files,
             @RequestHeader(value = "Idempotency-Key", required = false) String key,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor,
             HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(GlobalResponseDTO.success(service.reviewByAdmin(requestId, request, key, actor,
+        return ResponseEntity.ok(GlobalResponseDTO.success(applicationService.apply(requestId, files, key, actor,
+                DepartmentTransferAuditContext.from(httpRequest))));
+    }
+
+    @Operation(operationId = "rejectDepartmentTransferRequestByAdmin", summary = "관리자 전과 반려",
+            description = "ADMIN 전용. 지도교수 승인 후 전달된 두 문서에 학장 날인이 확인되지 않으면 "
+                    + "사유를 기록하고 REJECTED로 종료합니다. 기존 학생 제출 파일은 교체하지 않습니다.")
+    @PatchMapping("/{requestId}/rejection")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<DepartmentTransferResponseDTO>> reject(
+            @Positive @PathVariable Long requestId,
+            @Valid @RequestBody AdminAcademicChangeRejectionRequestDTO request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String key,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor,
+            HttpServletRequest httpRequest) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(service.rejectByAdmin(requestId, request, key, actor,
                 DepartmentTransferAuditContext.from(httpRequest))));
     }
 

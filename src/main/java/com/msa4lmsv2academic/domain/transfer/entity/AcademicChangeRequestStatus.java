@@ -5,6 +5,7 @@ public enum AcademicChangeRequestStatus {
     ADVISOR_APPROVED,
     ADVISOR_REJECTED,
     APPROVED,
+    APPLIED,
     REJECTED,
     CANCELLED
 }

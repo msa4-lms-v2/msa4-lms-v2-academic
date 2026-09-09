@@ -53,6 +53,7 @@ SET @sample_professor_id = (
 
 INSERT INTO students (
     user_id,
+    student_number,
     department_id,
     double_major_id,
     grade_level,
@@ -62,6 +63,7 @@ INSERT INTO students (
 )
 VALUES (
     @student_user_id,
+    '26001001',
     @cse_department_id,
     NULL,
     3,
@@ -70,6 +72,7 @@ VALUES (
     @sample_professor_id
 )
 ON DUPLICATE KEY UPDATE
+    student_number = VALUES(student_number),
     department_id = VALUES(department_id),
     double_major_id = VALUES(double_major_id),
     grade_level = VALUES(grade_level),

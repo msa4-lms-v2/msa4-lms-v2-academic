@@ -21,7 +21,7 @@ public class DepartmentTransferTemplateService {
         try (var input = new ClassPathResource(BASE_PATH + resourceName).getInputStream()) {
             return new TemplateFile(filename, input.readAllBytes());
         } catch (IOException exception) {
-            throw new FileStorageException("전과 신청 양식을 읽을 수 없습니다.", exception);
+            throw new FileStorageException("학적 변경 신청 양식을 읽을 수 없습니다.", exception);
         }
     }
 

@@ -14,9 +14,14 @@ public class DoubleMajorPolicy {
         return LocalDateTime.now(ZoneId.of("Asia/Seoul"));
     }
 
+    public static LocalDate today() {
+        return LocalDate.now(ZoneId.of("Asia/Seoul"));
+    }
+
     public void requireReader(CurrentUser actor) {
-        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role()) || actor.isAdmin())) {
-            throw new DoubleMajorAccessDeniedException("학생 본인 또는 관리자만 접근할 수 있습니다.");
+        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role())
+                || "PROFESSOR".equals(actor.role()) || actor.isAdmin())) {
+            throw new DoubleMajorAccessDeniedException("학생 본인, 담당 지도교수 또는 관리자만 접근할 수 있습니다.");
         }
     }
 
@@ -38,6 +43,12 @@ public class DoubleMajorPolicy {
     public void requirePending(AcademicChangeRequest request) {
         if (request.getStatus() != AcademicChangeRequestStatus.PENDING) {
             throw new DoubleMajorConflictException("대기 중인 복수전공 신청만 처리할 수 있습니다.");
+        }
+    }
+
+    public void requireAdvisorApproved(AcademicChangeRequest request) {
+        if (request.getStatus() != AcademicChangeRequestStatus.ADVISOR_APPROVED) {
+            throw new DoubleMajorConflictException("지도교수 승인된 복수전공 신청만 학적에 반영하거나 반려할 수 있습니다.");
         }
     }
 

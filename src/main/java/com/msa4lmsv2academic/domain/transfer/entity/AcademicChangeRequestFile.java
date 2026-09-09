@@ -43,4 +43,15 @@ public class AcademicChangeRequestFile {
         file.size = size;
         return file;
     }
+
+    public void replace(String originalName, String storedName, String contentType, long size) {
+        if (originalName == null || originalName.isBlank() || storedName == null || storedName.isBlank()
+                || contentType == null || contentType.isBlank() || size <= 0) {
+            throw new IllegalArgumentException("교체할 학적 변경 서류 정보가 올바르지 않습니다.");
+        }
+        this.originalName = originalName;
+        this.storedName = storedName;
+        this.contentType = contentType;
+        this.size = size;
+    }
 }
