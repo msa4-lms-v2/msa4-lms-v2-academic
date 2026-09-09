@@ -124,10 +124,11 @@ public class WithdrawalController {
     }
 
     @Operation(operationId = "updateWithdrawalAttachment", summary = "자퇴 증빙 등록·교체",
-            description = "STUDENT 본인은 PENDING 신청의 PDF를 등록·교체하고, ADMIN은 PENDING 또는 ADVISOR_APPROVED 신청을 "
+            description = "STUDENT 본인은 PENDING 신청의 증빙을 등록·교체하고, ADMIN은 PENDING 또는 ADVISOR_APPROVED 신청을 "
                     + "예외 처리 사유와 함께 등록·교체합니다. 학생 최초 등록은 request 파트를 생략할 수 있고 감사 사유를 서버가 "
                     + "자동 기록합니다. 학생 교체와 관리자의 모든 변경은 255자 이하 changeReason이 필수입니다. "
-                    + "10MB 이하의 PDF 확장자·application/pdf MIME·PDF 시그니처를 모두 검증합니다. "
+                    + "파일은 10MB 이하 PDF, HWP/HWPX 또는 이미지(JPEG, PNG, GIF, WebP)만 허용하며 "
+                    + "확장자·선언 MIME·실제 형식을 함께 검증합니다. HEIC, TIFF, BMP, SVG는 허용하지 않습니다. "
                     + "변경 전후 파일 메타데이터·처리자·시각·사유를 감사하며 이전 MinIO 파일은 보존합니다. "
                     + "승인·반려·취소된 종결 신청의 파일은 변경할 수 없습니다.",
             security = @SecurityRequirement(name = "bearerAuth"))
@@ -138,7 +139,7 @@ public class WithdrawalController {
             @Parameter(description = "자퇴 신청 ID", example = "1") @Positive @PathVariable Long withdrawalId,
             @Parameter(description = "변경 사유 JSON. 학생 최초 등록만 생략 가능")
             @Valid @RequestPart(value = "request", required = false) WithdrawalAttachmentUpdateRequestDTO request,
-            @Parameter(description = "10MB 이하 PDF", required = true,
+            @Parameter(description = "10MB 이하 PDF, HWP/HWPX 또는 이미지(JPEG, PNG, GIF, WebP)", required = true,
                     schema = @Schema(type = "string", format = "binary"))
             @RequestPart("file") MultipartFile file,
             @Parameter(description = "요청별 고유 키. 파일 내용·이름·크기·사유가 모두 같은 재전송에만 완료 응답 재생",
@@ -157,9 +158,16 @@ public class WithdrawalController {
                     + "MinIO 파일을 전달하고 저장 키·MinIO URL은 공개하지 않습니다. 첨부가 없으면 E10입니다. "
                     + "취소·반려·승인 뒤에도 증빙은 보존하며 조회 권한은 유지합니다.",
             security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponse(responseCode = "200", description = "PDF 파일(공통 JSON envelope 미사용)",
-            content = @Content(mediaType = "application/pdf",
-                    schema = @Schema(type = "string", format = "binary")))
+    @ApiResponse(responseCode = "200", description = "원본 MIME 타입의 증빙 파일(공통 JSON envelope 미사용)",
+            content = {
+                    @Content(mediaType = "application/pdf", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "application/x-hwp", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "application/hwp+zip", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/jpeg", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/png", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/gif", schema = @Schema(type = "string", format = "binary")),
+                    @Content(mediaType = "image/webp", schema = @Schema(type = "string", format = "binary"))
+            })
     @GetMapping("/{withdrawalId}/attachment")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR', 'ADMIN')")
     public ResponseEntity<byte[]> downloadAttachment(
@@ -168,7 +176,7 @@ public class WithdrawalController {
     ) {
         var download = evidenceApplicationService.download(withdrawalId, currentUser);
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(MediaType.parseMediaType(download.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(download.originalName(), StandardCharsets.UTF_8).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store")
