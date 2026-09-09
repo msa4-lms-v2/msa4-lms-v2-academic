@@ -3,7 +3,6 @@ package com.msa4lmsv2academic.domain.leaverequest.service;
 import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestType;
 import com.msa4lmsv2academic.domain.leaverequest.request.LeaveRequestCreateRequestDTO;
 import com.msa4lmsv2academic.domain.leaverequest.response.LeaveRequestResponseDTO;
-import com.msa4lmsv2academic.global.file.EvidenceFileValidator;
 import com.msa4lmsv2academic.global.file.FileStorageException;
 import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.error.InvalidFileException;
@@ -26,7 +25,7 @@ public class LeaveRequestApplicationService {
     private final LeaveRequestService service;
     private final LeaveRequestPolicy policy;
     private final LeaveIdempotencyService idempotency;
-    private final EvidenceFileValidator fileValidator;
+    private final LeaveRequestFileValidator fileValidator;
     private final FileStorageService storage;
 
     // MinIO I/O를 DB transaction 밖에 둡니다. 업로드 이후 변경된 업무 조건은 쓰기 서비스에서 재검증합니다.
@@ -42,7 +41,7 @@ public class LeaveRequestApplicationService {
             throw new InvalidFileException("증빙 파일은 최대 5개까지 첨부할 수 있습니다.");
         }
         if (body.requestType() == LeaveRequestType.MILITARY_LEAVE && attachments.size() != 1) {
-            throw new InvalidFileException("군휴학에는 입영통지서 PDF 1개가 필수입니다.");
+            throw new InvalidFileException("군휴학에는 입영통지서 파일 1개가 필수입니다.");
         }
         attachments.forEach(fileValidator::validateRequired);
         var payload = new LinkedHashMap<String, Object>();
@@ -68,7 +67,7 @@ public class LeaveRequestApplicationService {
         List<LeaveAttachment> uploaded = new ArrayList<>();
         try {
             for (MultipartFile file : attachments) {
-                String objectKey = storage.uploadEvidence("leave-requests/" + actor.id(), file);
+                String objectKey = storage.upload("leave-requests/" + actor.id(), file);
                 uploaded.add(new LeaveAttachment(file.getOriginalFilename(), objectKey, file.getContentType(), file.getSize()));
             }
             LeaveRequestCreationResult result = service.create(body, uploaded, key, hash, actor, context);
@@ -82,12 +81,12 @@ public class LeaveRequestApplicationService {
 
     public Download download(Long id, Long fileId, CurrentUser actor) {
         LeaveAttachment attachment = service.attachment(id, fileId, actor);
-        return new Download(attachment.originalName(), storage.download(attachment.storedName()));
+        return new Download(attachment.originalName(), attachment.contentType(), storage.download(attachment.storedName()));
     }
 
     public Download downloadFirst(Long id, CurrentUser actor) {
         LeaveAttachment attachment = service.firstAttachment(id, actor);
-        return new Download(attachment.originalName(), storage.download(attachment.storedName()));
+        return new Download(attachment.originalName(), attachment.contentType(), storage.download(attachment.storedName()));
     }
 
     private void cleanup(List<LeaveAttachment> uploaded) {
@@ -101,5 +100,5 @@ public class LeaveRequestApplicationService {
         }
     }
 
-    public record Download(String filename, byte[] bytes) { }
+    public record Download(String filename, String contentType, byte[] bytes) { }
 }

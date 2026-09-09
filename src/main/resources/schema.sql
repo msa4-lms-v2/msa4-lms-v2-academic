@@ -792,7 +792,7 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     CONSTRAINT ck_academic_requests_return_semester CHECK (return_semester IS NULL OR return_semester IN (1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 휴·복학 신청별 최대 5개 PDF 증빙 메타데이터. 기존 academic_requests.attachment_*는 호환용으로 유지합니다.
+-- 휴·복학 신청별 최대 5개 PDF/HWP/HWPX/JPEG/PNG/GIF/WebP 증빙 메타데이터. 기존 academic_requests.attachment_*는 호환용으로 유지합니다.
 CREATE TABLE IF NOT EXISTS leave_request_files (
     id BIGINT NOT NULL AUTO_INCREMENT,
     request_id BIGINT NOT NULL,

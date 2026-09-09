@@ -80,9 +80,9 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                     + " VALUES (?,?,?,?,?,?,1)", semesterId, type.name(), now.minusDays(1), now.plusDays(1),
                     now.minusDays(1), now.plusDays(1));
         }
-        when(storage.uploadEvidence(anyString(), any())).thenAnswer(invocation -> {
+        when(storage.upload(anyString(), any())).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
-            return "leave-requests/280011/test.pdf";
+            return "leave-requests/280011/test-file";
         });
         when(storage.download(anyString())).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
@@ -143,7 +143,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(first.returnSemester()).isEqualTo((byte) 1);
         assertThat(first.reason()).isEqualTo("군입대");
         assertThat(application.create(military(), List.of(pdf()), "lv-military", STUDENT, CONTEXT)).isEqualTo(first);
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
         jdbc.update("UPDATE semesters SET is_current=0 WHERE id=280001");
         jdbc.update("UPDATE semesters SET is_current=1 WHERE id=280002");
         var approved = approve(first.id(), "lv-military-approve");
@@ -201,7 +201,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThatThrownBy(() -> create("lv-withdrawn")).isInstanceOf(LeaveRequestConflictException.class);
     }
 
-    @Test void pdfValidationPrecedesUploadAndChangedFileCannotReplay() {
+    @Test void fileValidationPrecedesUploadAndChangedFileCannotReplay() {
         assertThatThrownBy(() -> application.create(military(), List.of(), "lv-no-pdf", STUDENT, CONTEXT))
                 .isInstanceOf(InvalidFileException.class);
         var invalid = new MockMultipartFile("file", "fake.pdf", "application/pdf", "not pdf".getBytes(StandardCharsets.UTF_8));
@@ -214,20 +214,22 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         var changed = new MockMultipartFile("file", "proof.pdf", "application/pdf", "%PDF-1.7 other".getBytes(StandardCharsets.UTF_8));
         assertThatThrownBy(() -> application.create(military(), List.of(changed), "lv-file", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
     }
 
-    @Test void generalLeaveStoresListsAndDownloadsEachFile() {
-        var result = application.create(general(), List.of(pdf("first.pdf"), pdf("second.pdf")),
+    @Test void generalLeaveStoresListsAndDownloadsEachSupportedFile() {
+        var result = application.create(general(), List.of(pdf("first.pdf"), hwp("second.hwp")),
                 "lv-multiple-files", STUDENT, CONTEXT);
 
-        assertThat(result.files()).extracting("originalName").containsExactly("first.pdf", "second.pdf");
+        assertThat(result.files()).extracting("originalName").containsExactly("first.pdf", "second.hwp");
         assertThat(result.attachmentOriginalName()).isEqualTo("first.pdf");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM leave_request_files WHERE request_id=?",
                 Integer.class, result.id())).isEqualTo(2);
         assertThat(application.download(result.id(), result.files().get(1).id(), STUDENT).bytes())
                 .startsWith("%PDF".getBytes(StandardCharsets.UTF_8));
-        verify(storage, times(2)).uploadEvidence(anyString(), any());
+        assertThat(application.download(result.id(), result.files().get(1).id(), STUDENT).contentType())
+                .isEqualTo("application/x-hwp");
+        verify(storage, times(2)).upload(anyString(), any());
     }
 
     @Test void evidenceListRejectsMoreThanFiveFilesBeforeUpload() {
@@ -408,7 +410,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['post']['requestBody']['content']['multipart/form-data']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/status']['patch']['responses']['409']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['post']['requestBody']['content']['multipart/form-data']['schema']['properties']['files']").exists())
-                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/files/{fileId}']['get']['responses']['200']['content']['application/pdf']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/files/{fileId}']['get']['responses']['200']['content']['application/octet-stream']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/attachment']['get']['deprecated']").value(true))
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-request-periods/{id}']['put']['operationId']").value("updateLeaveRequestPeriod"))
                 .andExpect(jsonPath("$['paths']['/api/academic/withdrawals']['post']['responses']['201']").exists())
@@ -498,6 +500,17 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     private MockMultipartFile pdf(String filename) {
         return new MockMultipartFile("files", filename, "application/pdf",
                 "%PDF-1.7 test".getBytes(StandardCharsets.UTF_8));
+    }
+    private MockMultipartFile hwp(String filename) {
+        byte[] signature = {
+                (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0,
+                (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1
+        };
+        byte[] marker = "HWP Document File".getBytes(StandardCharsets.US_ASCII);
+        byte[] content = new byte[signature.length + marker.length];
+        System.arraycopy(signature, 0, content, 0, signature.length);
+        System.arraycopy(marker, 0, content, signature.length, marker.length);
+        return new MockMultipartFile("files", filename, "application/x-hwp", content);
     }
     private LeaveRequestResponseDTO create(String key) {
         return application.create(general(), List.of(), key, STUDENT, CONTEXT);
