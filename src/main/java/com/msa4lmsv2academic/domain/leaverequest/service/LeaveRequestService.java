@@ -106,7 +106,7 @@ public class LeaveRequestService {
         if (replay.isPresent()) return new LeaveRequestCreationResult(replay.orElseThrow(), false);
         ResolvedCreation resolved = resolveCreation(student, body, true);
         if (resolved.type() == LeaveRequestType.MILITARY_LEAVE && attachments.size() != 1) {
-            throw new InvalidLeaveRequestException("군휴학에는 입영통지서 PDF 1개가 필수입니다.");
+            throw new InvalidLeaveRequestException("군휴학에는 입영통지서 파일 1개가 필수입니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
         LeaveRequest request = LeaveRequest.create(student, resolved.type(), resolved.reason(), body.targetYear(),
