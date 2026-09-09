@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
                 .distinct()
                 .collect(Collectors.joining(", "));
         log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), message);
-        return fail(CustomResponseCode.INVALID_PARAMETER);
+        return fail(CustomResponseCode.INVALID_PARAMETER, message);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -63,7 +63,7 @@ public class GlobalExceptionHandler {
                 .distinct()
                 .collect(Collectors.joining(", "));
         log.warn("[{}] {}", CustomResponseCode.INVALID_PARAMETER.getCode(), message);
-        return fail(CustomResponseCode.INVALID_PARAMETER);
+        return fail(CustomResponseCode.INVALID_PARAMETER, message);
     }
 
     @ExceptionHandler({
@@ -111,5 +111,10 @@ public class GlobalExceptionHandler {
     private ResponseEntity<GlobalResponseDTO<Void>> fail(CustomResponseCode code) {
         return ResponseEntity.status(code.getHttpStatus())
                 .body(GlobalResponseDTO.fail(code, null));
+    }
+
+    private ResponseEntity<GlobalResponseDTO<Void>> fail(CustomResponseCode code, String message) {
+        return ResponseEntity.status(code.getHttpStatus())
+                .body(GlobalResponseDTO.fail(code, message, null));
     }
 }

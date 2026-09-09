@@ -17,7 +17,7 @@ public record AdmissionCandidateSearchRequestDTO(
         @Min(value = 1, message = "size는 1 이상이어야 합니다.")
         Integer size,
 
-        @Schema(description = "이름 또는 수험번호의 대소문자 무시 부분 검색", example = "김민수", maxLength = 100)
+        @Schema(description = "이름의 대소문자 무시 부분 검색", example = "김민수", maxLength = 100)
         @Size(max = 100, message = "keyword는 100자 이하여야 합니다.")
         String keyword,
 
@@ -33,9 +33,9 @@ public record AdmissionCandidateSearchRequestDTO(
         AdmissionCandidateStatus status,
 
         @Schema(description = "정렬 필드", example = "createdAt", defaultValue = "createdAt",
-                allowableValues = {"createdAt", "name", "applicationNumber", "admissionYear"})
-        @Pattern(regexp = "createdAt|name|applicationNumber|admissionYear",
-                message = "sortBy는 createdAt, name, applicationNumber, admissionYear 중 하나여야 합니다.")
+                allowableValues = {"createdAt", "name", "admissionYear"})
+        @Pattern(regexp = "createdAt|name|admissionYear",
+                message = "sortBy는 createdAt, name, admissionYear 중 하나여야 합니다.")
         String sortBy,
 
         @Schema(description = "정렬 방향", example = "desc", defaultValue = "desc",

@@ -15,6 +15,7 @@ import com.msa4lmsv2academic.domain.audit.entity.AuditLog;
 import com.msa4lmsv2academic.domain.audit.repository.AuditLogRepository;
 import com.msa4lmsv2academic.domain.organization.entity.Department;
 import com.msa4lmsv2academic.domain.organization.repository.DepartmentRepository;
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
@@ -55,7 +56,14 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Autowired
+    private com.msa4lmsv2academic.domain.outbox.repository.OutboxEventRepository outboxEventRepository;
+
+    @Autowired
+    private com.msa4lmsv2academic.domain.provisioning.service.AccountProvisioningService provisioningService;
+
     private Department department;
+    private Professor advisor;
 
     @BeforeEach
     void setUp() {
@@ -73,24 +81,31 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
         );
         entityManager.persist(administrator);
         department = departmentRepository.saveAndFlush(
-                Department.create("A91", null, "입학테스트학과", true)
+                Department.create("091", null, "입학테스트학과", true)
         );
+        User advisorUser = User.synchronize(
+                99002L, "지도교수", "advisor@test.com", null, null,
+                UserRole.PROFESSOR, UserStatus.ACTIVE
+        );
+        entityManager.persist(advisorUser);
+        advisor = Professor.create(advisorUser, (short) 2020, department);
+        entityManager.persist(advisor);
         entityManager.flush();
     }
 
     @Test
-    void adminCreatesAndReadsCandidateWithoutCreatingStudent() throws Exception {
+    void adminCreatesCandidateAndQueuesAccountWithoutApplicationNumber() throws Exception {
         long candidateId = createCandidate(" APP-TEST-001 ", " 김민수 ", "minsu@test.com");
 
         mockMvc.perform(get("/api/academic/admission-candidates/{candidateId}", candidateId)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.applicationNumber").value("APP-TEST-001"))
+                .andExpect(jsonPath("$.data.applicationNumber").doesNotExist())
                 .andExpect(jsonPath("$.data.name").value("김민수"))
                 .andExpect(jsonPath("$.data.email").value("minsu@test.com"))
                 .andExpect(jsonPath("$.data.departmentId").value(department.getId()))
                 .andExpect(jsonPath("$.data.admissionYear").value(ADMISSION_YEAR))
-                .andExpect(jsonPath("$.data.status").value("REGISTERED"))
+                .andExpect(jsonPath("$.data.status").value("PROVISIONING"))
                 .andExpect(jsonPath("$.data.studentId").value(nullValue()));
 
         List<AuditLog> logs = auditLogRepository.findAll();
@@ -102,24 +117,48 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void registrationQueuesAccountAndProvisioningLinksGeneratedStudent() throws Exception {
+        long candidateId = createCandidate("queue", "자동등록", "automatic@test.com");
+        var event = outboxEventRepository.findAll().stream()
+                .filter(e -> e.getEventType().equals("AdmissionCandidateRegistered") && e.getAggregateId().equals(candidateId))
+                .findFirst().orElseThrow();
+        assertThat(event.getPayload()).containsEntry("admissionCandidateId", candidateId)
+                .containsEntry("administratorId", ADMIN_ID);
+        mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}", candidateId)
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN")).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"수정시도\"}"))
+                .andExpect(status().isConflict());
+        var response = provisioningService.provisionStudent(new com.msa4lmsv2academic.domain.provisioning.request.StudentProvisioningRequestDTO(
+                9001L, "자동등록", "automatic@test.com", null, null, department.getId(), (short) ADMISSION_YEAR, candidateId));
+        entityManager.flush();
+        entityManager.clear();
+        mockMvc.perform(get("/api/academic/admission-candidates/{candidateId}", candidateId).headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PROVISIONED"))
+                .andExpect(jsonPath("$.data.studentNumber").value(response.loginId()))
+                .andExpect(jsonPath("$.data.accountId").value(9001));
+        assertThat(response.loginId()).matches("[0-9]{8}");
+    }
+
+    @Test
     void listSupportsKeywordAndDoesNotExposePersonalInformation() throws Exception {
         createCandidate("APP-SEARCH-002", "이영희", "younghee@test.com");
         createCandidate("APP-SEARCH-001", "김민수", "minsu-search@test.com");
 
         mockMvc.perform(get("/api/academic/admission-candidates")
-                        .queryParam("keyword", "APP-SEARCH")
+                        .queryParam("keyword", "")
                         .queryParam("departmentId", department.getId().toString())
                         .queryParam("admissionYear", String.valueOf(ADMISSION_YEAR))
-                        .queryParam("status", "REGISTERED")
-                        .queryParam("sortBy", "applicationNumber")
+                        .queryParam("status", "PROVISIONING")
+                        .queryParam("sortBy", "name")
                         .queryParam("sortDirection", "asc")
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalCount").value(2))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(20))
-                .andExpect(jsonPath("$.data.items[*].applicationNumber", contains(
-                        "APP-SEARCH-001", "APP-SEARCH-002"
+                .andExpect(jsonPath("$.data.items[*].name", contains(
+                        "김민수", "이영희"
                 )))
                 .andExpect(jsonPath("$.data.items[0].birthDate").doesNotExist())
                 .andExpect(jsonPath("$.data.items[0].email").doesNotExist())
@@ -130,6 +169,8 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     @Test
     void registeredCandidateCanBePartiallyUpdatedWithoutReasonAndBlankOptionalValueClearsIt() throws Exception {
         long candidateId = createCandidate("APP-UPDATE-001", "수정전", "before@test.com");
+        // 기존 REGISTERED 데이터의 수정 동작은 유지한다.
+        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.REGISTERED);
         int auditCountBeforeUpdate = auditLogRepository.findAll().size();
 
         mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}", candidateId)
@@ -160,6 +201,7 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     void statusChangeRequiresReasonAndConfirmedCandidateCannotBeEdited() throws Exception {
         long candidateId = createCandidate("APP-STATUS-001", "상태대상", null);
 
+        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.REGISTERED);
         mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}/status", candidateId)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -196,7 +238,7 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void duplicateApplicationNumberAndSystemOnlyStatusAreRejected() throws Exception {
+    void duplicateEmailAndSystemOnlyStatusAreRejected() throws Exception {
         long candidateId = createCandidate("APP-DUPLICATE-001", "중복원본", null);
 
         mockMvc.perform(post("/api/academic/admission-candidates")
@@ -248,16 +290,16 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     private String createBody(String applicationNumber, String name, String email) {
-        String emailProperty = email == null ? "" : ",\n  \"email\": \"" + email + "\"";
+        String emailProperty = email == null ? ",\n  \"email\": \"" + applicationNumber.toLowerCase() + "@test.com\"" : ",\n  \"email\": \"" + email + "\"";
         return """
                 {
-                  "applicationNumber": "%s",
                   "name": "%s",
                   "birthDate": "2008-03-15",
                   "departmentId": %d,
+                  "advisorProfessorId": %d,
                   "admissionYear": %d%s
                 }
-                """.formatted(applicationNumber, name, department.getId(), ADMISSION_YEAR, emailProperty);
+                """.formatted(name, department.getId(), advisor.getId(), ADMISSION_YEAR, emailProperty);
     }
 
     private HttpHeaders gatewayHeaders(Long userId, String role) {

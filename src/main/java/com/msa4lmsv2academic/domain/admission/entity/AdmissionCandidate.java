@@ -38,10 +38,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Table(
         name = "admission_candidates",
         uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_admission_candidates_application_number",
-                        columnNames = "application_number"
-                ),
+                @UniqueConstraint(name = "uk_admission_candidates_email", columnNames = "email"),
                 @UniqueConstraint(
                         name = "uk_admission_candidates_student_id",
                         columnNames = "student_id"
@@ -66,9 +63,6 @@ public class AdmissionCandidate {
     @Version
     @Column(nullable = false)
     private Long version;
-
-    @Column(name = "application_number", nullable = false, updatable = false, length = 50)
-    private String applicationNumber;
 
     @Column(nullable = false, length = 50)
     private String name;
@@ -119,10 +113,9 @@ public class AdmissionCandidate {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private AdmissionCandidate(String applicationNumber, String name, LocalDate birthDate, String email,
+    private AdmissionCandidate(String name, LocalDate birthDate, String email,
                                String phoneNumber, String address, Department department, short admissionYear,
                                User createdBy) {
-        this.applicationNumber = applicationNumber;
         this.name = name;
         this.birthDate = birthDate;
         this.email = email;
@@ -130,17 +123,29 @@ public class AdmissionCandidate {
         this.address = address;
         this.department = department;
         this.admissionYear = admissionYear;
-        this.status = AdmissionCandidateStatus.REGISTERED;
+        this.status = AdmissionCandidateStatus.PROVISIONING;
         this.createdBy = createdBy;
     }
 
-    public static AdmissionCandidate create(String applicationNumber, String name, LocalDate birthDate,
+    public static AdmissionCandidate create(String name, LocalDate birthDate,
                                             String email, String phoneNumber, String address,
                                             Department department, short admissionYear, User createdBy) {
         return new AdmissionCandidate(
-                applicationNumber, name, birthDate, email, phoneNumber, address,
+                name, birthDate, email, phoneNumber, address,
                 department, admissionYear, createdBy
         );
+    }
+
+    public void markProvisioned(Student student) {
+        if (this.student != null && !this.student.getId().equals(student.getId())) {
+            throw new AdmissionCandidateStateConflictException("이미 다른 학생 계정에 연결되어 있습니다.");
+        }
+        if (status == AdmissionCandidateStatus.CANCELLED) {
+            throw new AdmissionCandidateStateConflictException("취소된 입학 예정자는 계정을 생성할 수 없습니다.");
+        }
+        this.student = student;
+        this.status = AdmissionCandidateStatus.PROVISIONED;
+        this.statusChangedAt = LocalDateTime.now();
     }
 
     public void update(String name, LocalDate birthDate, String email, String phoneNumber, String address,

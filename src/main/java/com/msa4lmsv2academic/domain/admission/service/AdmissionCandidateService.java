@@ -52,8 +52,10 @@ public class AdmissionCandidateService {
     private final AdmissionCandidateRepository admissionCandidateRepository;
     private final AdmissionCandidateQueryRepository admissionCandidateQueryRepository;
     private final DepartmentQueryRepository departmentQueryRepository;
+    private final com.msa4lmsv2academic.domain.professor.repository.ProfessorRepository professorRepository;
     private final UserQueryService userQueryService;
     private final AuditLogService auditLogService;
+    private final com.msa4lmsv2academic.domain.outbox.service.OutboxEventService outboxEventService;
 
     public PageResponseDTO<AdmissionCandidateSummaryResponseDTO> searchCandidates(
             AdmissionCandidateSearchRequestDTO request,
@@ -98,13 +100,21 @@ public class AdmissionCandidateService {
     ) {
         validateAdmin(currentUser);
         ValidatedCandidateValues values = validateCreateRequest(request);
-        validateUniqueApplicationNumber(values.applicationNumber());
+        if (admissionCandidateRepository.existsByEmailIgnoreCase(values.email())) {
+            throw new DuplicateAdmissionCandidateException("이미 등록된 입학 예정자의 이메일입니다.");
+        }
         validateEmailAvailable(values.email());
 
         Department department = findActiveDepartment(request.departmentId());
+        var advisor = professorRepository.findById(request.advisorProfessorId())
+                .orElseThrow(() -> new InvalidAdmissionCandidateRequestException("지도교수를 찾을 수 없습니다."));
+        if (!advisor.getDepartment().getId().equals(department.getId())
+                || advisor.getUser().getStatus() != com.msa4lmsv2academic.domain.user.entity.UserStatus.ACTIVE) {
+            throw new InvalidAdmissionCandidateRequestException(
+                    "입학 예정 학과의 활성 교수만 지도교수로 배정할 수 있습니다.");
+        }
         User administrator = findAdministrator(currentUser.id());
         AdmissionCandidate candidate = AdmissionCandidate.create(
-                values.applicationNumber(),
                 values.name(),
                 request.birthDate(),
                 values.email(),
@@ -121,6 +131,18 @@ public class AdmissionCandidateService {
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateAdmissionCandidateException();
         }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("admissionCandidateId", saved.getId());
+        payload.put("administratorId", currentUser.id());
+        payload.put("name", saved.getName());
+        payload.put("email", saved.getEmail());
+        payload.put("phoneNumber", saved.getPhoneNumber());
+        payload.put("address", saved.getAddress());
+        payload.put("departmentId", department.getId());
+        payload.put("advisorProfessorId", advisor.getId());
+        payload.put("admissionYear", saved.getAdmissionYear());
+        outboxEventService.record(TARGET_TYPE, saved.getId(), "AdmissionCandidateRegistered", payload, 1L);
 
         List<String> createdFields = createdFields(saved);
         auditLogService.record(
@@ -276,16 +298,16 @@ public class AdmissionCandidateService {
     }
 
     private ValidatedCandidateValues validateCreateRequest(AdmissionCandidateCreateRequestDTO request) {
-        if (request == null || request.applicationNumber() == null || request.name() == null
-                || request.birthDate() == null || request.departmentId() == null || request.admissionYear() == null) {
+        if (request == null || request.email() == null || request.email().isBlank() || request.name() == null
+                || request.birthDate() == null || request.departmentId() == null
+                || request.advisorProfessorId() == null || request.admissionYear() == null) {
             throw new InvalidAdmissionCandidateRequestException(
-                    "applicationNumber, name, birthDate, departmentId, admissionYear는 필수입니다."
+                    "email, name, birthDate, departmentId, advisorProfessorId, admissionYear는 필수입니다."
             );
         }
         validateBirthDate(request.birthDate());
         validateAdmissionYear(request.admissionYear());
         return new ValidatedCandidateValues(
-                normalizeApplicationNumber(request.applicationNumber()),
                 normalizeRequiredName(request.name()),
                 normalizeNullable(request.email()),
                 normalizeNullable(request.phoneNumber()),
@@ -348,12 +370,6 @@ public class AdmissionCandidateService {
         }
     }
 
-    private void validateUniqueApplicationNumber(String applicationNumber) {
-        if (admissionCandidateRepository.existsByApplicationNumber(applicationNumber)) {
-            throw new DuplicateAdmissionCandidateException();
-        }
-    }
-
     private void validateEmailAvailable(String email) {
         if (email != null && userQueryService.existsByEmailIgnoreCase(email)) {
             throw new DuplicateAdmissionCandidateException("이미 Academic 사용자가 사용 중인 이메일입니다.");
@@ -364,16 +380,6 @@ public class AdmissionCandidateService {
         findActiveDepartment(candidate.getDepartment().getId());
         validateAdmissionYear((int) candidate.getAdmissionYear());
         validateEmailAvailable(candidate.getEmail());
-    }
-
-    private String normalizeApplicationNumber(String value) {
-        String normalized = value == null ? null : value.strip();
-        if (normalized == null || normalized.isEmpty() || normalized.length() > 50) {
-            throw new InvalidAdmissionCandidateRequestException(
-                    "applicationNumber는 공백이 아닌 50자 이하의 값이어야 합니다."
-            );
-        }
-        return normalized;
     }
 
     private String normalizeRequiredName(String value) {
@@ -424,7 +430,7 @@ public class AdmissionCandidateService {
 
     private List<String> createdFields(AdmissionCandidate candidate) {
         List<String> fields = new ArrayList<>(List.of(
-                "applicationNumber", "name", "birthDate", "departmentId", "admissionYear", "status"
+                "name", "birthDate", "departmentId", "admissionYear", "status"
         ));
         if (candidate.getEmail() != null) fields.add("email");
         if (candidate.getPhoneNumber() != null) fields.add("phoneNumber");
@@ -449,7 +455,6 @@ public class AdmissionCandidateService {
     }
 
     private record ValidatedCandidateValues(
-            String applicationNumber,
             String name,
             String email,
             String phoneNumber,

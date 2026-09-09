@@ -33,6 +33,7 @@ public class OutboxBatchProcessor {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<Object, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final com.msa4lmsv2academic.domain.admission.client.AdmissionAccountClient admissionAccountClient;
 
     @Transactional
     public void publishPendingBatch() {
@@ -45,6 +46,16 @@ public class OutboxBatchProcessor {
     }
 
     private void publish(OutboxEvent event, LocalDateTime now) {
+        if ("AdmissionCandidateRegistered".equals(event.getEventType())) {
+            try {
+                admissionAccountClient.createAccount(event.getPayload());
+                event.complete(now);
+            } catch (org.springframework.web.client.RestClientException exception) {
+                event.retryLater(now.plusSeconds(Math.min(900, 5L << Math.min(event.getAttempts(), 7))), "AUTH_ACCOUNT_CREATE_FAILED");
+                log.warn("입학 예정자 계정 생성 재시도 예정 (eventId={})", event.getId());
+            }
+            return;
+        }
         String topic = EVENT_TYPE_TO_TOPIC.get(event.getEventType());
         if (topic == null) {
             event.giveUp("UNKNOWN_EVENT_TYPE");
