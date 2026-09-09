@@ -117,9 +117,11 @@ CREATE TABLE IF NOT EXISTS professors (
     version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
     hire_year SMALLINT NULL,
+    professor_number VARCHAR(20) NULL,
     department_id BIGINT NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_professors_user_id UNIQUE (user_id),
+    CONSTRAINT uk_professors_professor_number UNIQUE (professor_number),
     CONSTRAINT fk_professors_user
         FOREIGN KEY (user_id) REFERENCES users (id)
         ON DELETE RESTRICT,
@@ -695,7 +697,6 @@ CREATE TABLE IF NOT EXISTS professor_info_change_request_files (
 CREATE TABLE IF NOT EXISTS admission_candidates (
     id BIGINT NOT NULL AUTO_INCREMENT,
     version BIGINT NOT NULL DEFAULT 0,
-    application_number VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
     birth_date DATE NOT NULL,
     email VARCHAR(100) NULL,
@@ -711,7 +712,7 @@ CREATE TABLE IF NOT EXISTS admission_candidates (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT uk_admission_candidates_application_number UNIQUE (application_number),
+    CONSTRAINT uk_admission_candidates_email UNIQUE (email),
     CONSTRAINT uk_admission_candidates_student_id UNIQUE (student_id),
     CONSTRAINT fk_admission_candidates_department
         FOREIGN KEY (department_id) REFERENCES departments (id)

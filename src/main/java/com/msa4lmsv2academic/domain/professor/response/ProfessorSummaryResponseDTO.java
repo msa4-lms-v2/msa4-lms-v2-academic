@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "관리자 교수 목록 항목")
 public record ProfessorSummaryResponseDTO(
+        @Schema(description = "교번", nullable = true) String professorNumber,
         @Schema(description = "Professor 엔티티 ID", example = "10") Long professorId,
         @Schema(description = "Auth accountId와 동일한 Academic 사용자 ID", example = "25") Long userId,
         @Schema(description = "교수 이름", example = "김교수") String name,
@@ -18,6 +19,7 @@ public record ProfessorSummaryResponseDTO(
 
     public static ProfessorSummaryResponseDTO from(Professor professor) {
         return new ProfessorSummaryResponseDTO(
+                professor.getProfessorNumber(),
                 professor.getId(),
                 professor.getUser().getId(),
                 professor.getUser().getName(),

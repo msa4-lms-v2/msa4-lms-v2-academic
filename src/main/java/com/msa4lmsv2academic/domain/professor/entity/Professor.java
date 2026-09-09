@@ -20,6 +20,11 @@ public class Professor {
     @Column(name = "hire_year") private Short hireYear;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "department_id", nullable = false) private Department department;
 
+    @Column(name = "professor_number", unique = true, length = 20)
+    private String professorNumber;
+
+    public void assignProfessorNumber(String number) { this.professorNumber = number; }
+
     private Professor(User user, Short hireYear, Department department) {
         this.user = user;
         this.hireYear = hireYear;

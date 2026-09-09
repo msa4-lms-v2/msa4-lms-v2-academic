@@ -54,7 +54,6 @@ public class AdmissionCandidateQueryRepository {
         if (condition.keyword() != null) {
             predicates.and(
                     admissionCandidate.name.containsIgnoreCase(condition.keyword())
-                            .or(admissionCandidate.applicationNumber.containsIgnoreCase(condition.keyword()))
             );
         }
         if (condition.departmentId() != null) {
@@ -74,9 +73,6 @@ public class AdmissionCandidateQueryRepository {
             case "name" -> condition.descending()
                     ? admissionCandidate.name.desc()
                     : admissionCandidate.name.asc();
-            case "applicationNumber" -> condition.descending()
-                    ? admissionCandidate.applicationNumber.desc()
-                    : admissionCandidate.applicationNumber.asc();
             case "admissionYear" -> condition.descending()
                     ? admissionCandidate.admissionYear.desc()
                     : admissionCandidate.admissionYear.asc();
