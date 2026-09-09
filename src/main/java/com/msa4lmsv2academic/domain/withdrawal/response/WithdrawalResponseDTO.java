@@ -32,8 +32,8 @@ public record WithdrawalResponseDTO(
         @Schema(description = "취소한 학생의 Academic 사용자 ID", nullable = true, minimum = "1", example = "21") Long cancelledBy,
         @Schema(description = "취소 시각(KST)", nullable = true, format = "date-time", example = "2026-09-01T11:00:00")
         LocalDateTime cancelledAt,
-        @Schema(description = "현재 연결된 PDF 원본 파일명. MinIO 저장 키는 응답하지 않음", nullable = true,
-                maxLength = 255, example = "자퇴증빙.pdf") String attachmentOriginalName,
+        @Schema(description = "현재 연결된 증빙 원본 파일명. MinIO 저장 키는 응답하지 않음", nullable = true,
+                maxLength = 255, example = "자퇴증빙.hwp") String attachmentOriginalName,
         @Schema(description = "현재 연결된 증빙 MIME 타입", nullable = true, maxLength = 100,
                 example = "application/pdf") String attachmentContentType,
         @Schema(description = "현재 연결된 증빙 크기(byte), 최대 10485760", nullable = true,

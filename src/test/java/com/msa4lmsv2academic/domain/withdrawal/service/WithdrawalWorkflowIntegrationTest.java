@@ -63,7 +63,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("INSERT INTO professors (id, version, user_id, hire_year, department_id) VALUES (180001, 0, 180013, 2020, 180001)");
         jdbc.update("INSERT INTO students (id, user_id, department_id, grade_level, admission_year, academic_status, advisor_id) VALUES "
                 + "(180001, 180011, 180001, 3, 2024, 'ENROLLED', 180001), (180002, 180012, 180001, 3, 2024, 'ON_LEAVE', 180001)");
-        when(storage.uploadEvidence(anyString(), any())).thenAnswer(invocation ->
+        when(storage.upload(anyString(), any())).thenAnswer(invocation ->
                 invocation.getArgument(0, String.class) + "/stored.pdf");
         when(storage.download(anyString())).thenReturn("%PDF-1.7 stored".getBytes(StandardCharsets.UTF_8));
     }
@@ -103,7 +103,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(first.attachmentSize()).isPositive();
         assertThat(evidenceApplication.update(id, null, pdf("proof.pdf", "first"), "wd-file", STUDENT, CONTEXT))
                 .isEqualTo(first);
-        verify(storage, times(1)).uploadEvidence(eq("withdrawal-requests/" + id), any());
+        verify(storage, times(1)).upload(eq("withdrawal-requests/" + id), any());
         assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? AND action='WITHDRAWAL_ATTACHMENT_CREATED'",
                 String.class, id)).isEqualTo("자퇴 증빙 최초 등록");
         assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(after_value,'$.attachmentStoredName')) "
@@ -118,6 +118,27 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void supportedImageIsDownloadedWithItsOriginalContentType() throws Exception {
+        long id = create(null).id();
+        MockMultipartFile image = new MockMultipartFile(
+                "file",
+                "proof.png",
+                "image/png",
+                new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+        );
+
+        var updated = evidenceApplication.update(id, null, image, "wd-image", STUDENT, CONTEXT);
+
+        assertThat(updated.attachmentOriginalName()).isEqualTo("proof.png");
+        assertThat(updated.attachmentContentType()).isEqualTo("image/png");
+        assertThat(evidenceApplication.download(id, STUDENT).contentType()).isEqualTo("image/png");
+        mvc.perform(get(URL + "/" + id + "/attachment")
+                        .header("X-User-Id", STUDENT.id()).header("X-User-Role", "STUDENT"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"));
+    }
+
+    @Test
     void adminInitialEvidenceNeedsReasonAndUsesAdminAuditAction() {
         long id = create(null).id();
         assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("admin.pdf", "admin"),
@@ -129,7 +150,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT reason FROM audit_logs WHERE target_id=? "
                 + "AND action='WITHDRAWAL_ATTACHMENT_CREATED_BY_ADMIN'", String.class, id))
                 .isEqualTo("학생이 제출한 서류를 확인하여 대신 등록합니다.");
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
     }
 
     @Test
@@ -138,7 +159,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
         evidenceApplication.update(id, null, pdf("first.pdf", "first"), "wd-file-first", STUDENT, CONTEXT);
         assertThatThrownBy(() -> evidenceApplication.update(id, null, pdf("second.pdf", "second"),
                 "wd-file-missing-reason", STUDENT, CONTEXT)).isInstanceOf(InvalidWithdrawalRequestException.class);
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
 
         var studentReplaced = evidenceApplication.update(id,
                 new WithdrawalAttachmentUpdateRequestDTO("  개인정보를 가린 파일로 정정합니다.  "),
@@ -178,7 +199,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
                 new WithdrawalAttachmentUpdateRequestDTO("승인 후 교체"), pdf("late.pdf", "late"),
                 "wd-file-late", ADMIN, CONTEXT)).isInstanceOf(WithdrawalStateConflictException.class);
         assertThat(evidenceApplication.download(id, STUDENT).originalName()).isEqualTo("proof.pdf");
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
     }
 
     @Test
@@ -193,7 +214,7 @@ class WithdrawalWorkflowIntegrationTest extends MySqlIntegrationTest {
                 String.class, id)).isNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_keys WHERE idempotency_key='wd-file-rollback'",
                 Integer.class)).isZero();
-        verify(storage, times(1)).uploadEvidence(anyString(), any());
+        verify(storage, times(1)).upload(anyString(), any());
         verify(storage, never()).delete(anyString());
     }
 
