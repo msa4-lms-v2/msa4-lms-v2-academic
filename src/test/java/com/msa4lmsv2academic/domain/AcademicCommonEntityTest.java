@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.msa4lmsv2academic.domain.course.entity.CompletionType;
 import com.msa4lmsv2academic.domain.course.entity.Course;
@@ -88,5 +89,21 @@ class AcademicCommonEntityTest {
         assertThat(user.getRole()).isEqualTo(UserRole.ADMIN);
         assertThat(user.getStatus()).isEqualTo(UserStatus.LOCKED);
         assertThat(requirement.getRequiredCourses()).isNull();
+    }
+
+    @Test
+    void studentNumberIsAssignedOnceAndDoesNotChangeWithAffiliation() {
+        User studentUser = User.synchronize(31L, "학생", "student-number@test.com", null, null,
+                UserRole.STUDENT, UserStatus.ACTIVE);
+        Department original = Department.create("106", null, "기존학과", true);
+        Department target = Department.create("107", null, "전과학과", true);
+        Student student = Student.create(studentUser, original, (byte) 2, (short) 2025, null);
+
+        student.assignStudentNumber("25106001");
+        student.changeAffiliation(target);
+
+        assertThat(student.getStudentNumber()).isEqualTo("25106001");
+        assertThatThrownBy(() -> student.assignStudentNumber("25107001"))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

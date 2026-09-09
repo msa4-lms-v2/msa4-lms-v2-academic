@@ -76,19 +76,21 @@ public class AccountProvisioningService {
         Student savedStudent =
                 studentRepository.saveAndFlush(student);
 
+        // 학번 생성
+        String studentNumber = generateStudentNumber(
+                request.admissionYear(),
+                department.getCode(),
+                savedStudent.getId()
+        );
+        savedStudent.assignStudentNumber(studentNumber);
+        studentRepository.flush();
+
         outboxEventService.record(
                 AGGREGATE_TYPE_STUDENT,
                 savedStudent.getId(),
                 EVENT_STUDENT_SNAPSHOT_CHANGED,
                 studentSnapshotPayload(savedStudent),
                 savedStudent.getSnapshotVersion()
-        );
-
-        // 학번 생성
-        String studentNumber = generateStudentNumber(
-                request.admissionYear(),
-                department.getCode(),
-                savedStudent.getId()
         );
 
         // 생성한 학번을 Auth에 반환

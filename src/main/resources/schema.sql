@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS students (
     id BIGINT NOT NULL AUTO_INCREMENT,
     snapshot_version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
+    student_number VARCHAR(150) NULL,
     department_id BIGINT NOT NULL,
     double_major_id BIGINT NULL,
     grade_level TINYINT NOT NULL,
@@ -141,6 +142,7 @@ CREATE TABLE IF NOT EXISTS students (
     advisor_id BIGINT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_students_user_id UNIQUE (user_id),
+    CONSTRAINT uk_students_student_number UNIQUE (student_number),
     CONSTRAINT ck_students_distinct_departments
         CHECK (double_major_id IS NULL OR department_id <> double_major_id),
     CONSTRAINT fk_students_user

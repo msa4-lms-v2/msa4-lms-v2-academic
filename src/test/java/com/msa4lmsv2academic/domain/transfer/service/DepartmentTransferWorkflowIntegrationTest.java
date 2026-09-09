@@ -55,9 +55,9 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "(295011,'전과학생','STUDENT','ACTIVE'),(295012,'다른학생','STUDENT','ACTIVE'),"
                 + "(295013,'관리자','ADMIN','ACTIVE'),(295014,'기존지도교수','PROFESSOR','ACTIVE')");
         jdbc.update("INSERT INTO professors (id,version,user_id,hire_year,department_id) VALUES (295001,0,295014,2020,295001)");
-        jdbc.update("INSERT INTO students (id,user_id,department_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
-                + "(295001,295011,295001,295003,2,2025,'ENROLLED',295001),"
-                + "(295002,295012,295001,NULL,2,2025,'ENROLLED',295001)");
+        jdbc.update("INSERT INTO students (id,user_id,student_number,department_id,double_major_id,grade_level,admission_year,academic_status,advisor_id) VALUES "
+                + "(295001,295011,'25951295001',295001,295003,2,2025,'ENROLLED',295001),"
+                + "(295002,295012,'25951295002',295001,NULL,2,2025,'ENROLLED',295001)");
         jdbc.update("INSERT INTO semesters (id,academic_year,term,start_date,end_date,enrollment_start_at,enrollment_end_at,is_current) "
                 + "VALUES (295000,2025,'FIRST','2025-03-02','2025-06-18','2025-02-10 09:00:00','2025-02-14 18:00:00',0),"
                 + "(295001,2027,'FIRST','2027-03-02','2027-06-18','2027-02-10 09:00:00','2027-02-14 18:00:00',0)");
@@ -87,6 +87,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
     void createReplaysSameTwoFilesAndExposesOnlyMetadata() {
         var created = create("transfer-create");
         assertThat(created.status()).isEqualTo(AcademicChangeRequestStatus.PENDING);
+        assertThat(created.studentNumber()).isEqualTo("25951295001");
         assertThat(created.sourceDepartmentName()).isEqualTo("출발학과");
         assertThat(created.targetDepartmentName()).isEqualTo("희망학과");
         assertThat(created.files()).hasSize(2);
@@ -136,7 +137,9 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(applied.status()).isEqualTo(AcademicChangeRequestStatus.APPLIED);
         assertThat(applied.files()).extracting(file -> file.originalName())
                 .containsExactlyInAnyOrder("자기소개서_학장날인.hwp", "학업계획서_학장날인.hwp");
-        var row = jdbc.queryForMap("SELECT department_id,double_major_id,advisor_id FROM students WHERE id=295001");
+        var row = jdbc.queryForMap(
+                "SELECT student_number,department_id,double_major_id,advisor_id FROM students WHERE id=295001");
+        assertThat(row.get("student_number")).isEqualTo("25951295001");
         assertThat(((Number) row.get("department_id")).longValue()).isEqualTo(295002L);
         assertThat(((Number) row.get("double_major_id")).longValue()).isEqualTo(295003L);
         assertThat(row.get("advisor_id")).isNull();
@@ -221,6 +224,7 @@ class DepartmentTransferWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['targetMajorId']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferCreateRequestDTO']['properties']['reason']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['reason']").doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['studentNumber']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/department-transfer-requests']['post']['requestBody']"
                         + "['content']['multipart/form-data']['schema']['properties']['transcript']").doesNotExist())
                 .andExpect(jsonPath("$['components']['schemas']['DepartmentTransferResponseDTO']['properties']['files']").exists());

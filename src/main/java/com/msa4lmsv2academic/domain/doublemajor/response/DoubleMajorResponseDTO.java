@@ -11,6 +11,8 @@ import java.util.List;
 public record DoubleMajorResponseDTO(
         @Schema(description = "복수전공 신청 ID", example = "1") Long id,
         @Schema(description = "학생 ID", example = "1") Long studentId,
+        @Schema(description = "최초 발급 후 변경되지 않는 학번. 기존 데이터 이관 전에는 null일 수 있습니다.",
+                example = "26001001", nullable = true) String studentNumber,
         @Schema(description = "학생명", example = "김학생") String studentName,
         @Schema(description = "신청 당시 학과 ID", example = "130") Long sourceDepartmentId,
         @Schema(description = "신청 당시 학과명", example = "컴퓨터공학과") String sourceDepartmentName,
@@ -41,6 +43,7 @@ public record DoubleMajorResponseDTO(
         return new DoubleMajorResponseDTO(
                 request.getId(),
                 request.getStudent().getId(),
+                request.getStudent().getStudentNumber(),
                 request.getStudent().getUser().getName(),
                 request.getSourceDepartment().getId(),
                 request.getSourceDepartment().getName(),

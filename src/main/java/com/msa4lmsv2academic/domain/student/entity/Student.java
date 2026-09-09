@@ -19,6 +19,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -32,7 +33,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EntityListeners(AuditingEntityListener.class)
 @Table(
         name = "students",
-        uniqueConstraints = @UniqueConstraint(name = "uk_students_user_id", columnNames = "user_id"),
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_students_user_id", columnNames = "user_id"),
+                @UniqueConstraint(name = "uk_students_student_number", columnNames = "student_number")
+        },
         check = @CheckConstraint(
                 name = "ck_students_distinct_departments",
                 constraint = "double_major_id IS NULL OR department_id <> double_major_id"
@@ -58,6 +62,11 @@ public class Student {
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // Auth login_id로 전달한 최초 발급 학번의 조회용 스냅샷이다.
+    // 전과·복수전공 등 소속 변경으로 다시 계산하거나 변경하지 않는다.
+    @Column(name = "student_number", length = 150)
+    private String studentNumber;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
@@ -111,6 +120,16 @@ public class Student {
 
     public void assignDoubleMajor(Department doubleMajor) {
         this.doubleMajor = doubleMajor;
+    }
+
+    public void assignStudentNumber(String studentNumber) {
+        String value = Objects.requireNonNull(studentNumber, "studentNumber must not be null").strip();
+        if (value.isEmpty()) throw new IllegalArgumentException("studentNumber must not be blank");
+        if (value.length() > 150) throw new IllegalArgumentException("studentNumber must not exceed 150 characters");
+        if (this.studentNumber != null && !this.studentNumber.equals(value)) {
+            throw new IllegalStateException("studentNumber cannot be changed after assignment");
+        }
+        this.studentNumber = value;
     }
 
     public void bumpSnapshotVersion() {
