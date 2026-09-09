@@ -27,6 +27,19 @@ public record StudentProvisioningRequestDTO(
         Long departmentId,
 
         @NotNull
-        Short admissionYear
+        Short admissionYear,
+        Long admissionCandidateId,
+        Long advisorProfessorId
 ) {
+    public StudentProvisioningRequestDTO(Long userId, String name, String email, String phoneNumber,
+                                         String address, Long departmentId, Short admissionYear) {
+        this(userId, name, email, phoneNumber, address, departmentId, admissionYear, null, null);
+    }
+
+    public StudentProvisioningRequestDTO(Long userId, String name, String email, String phoneNumber,
+                                         String address, Long departmentId, Short admissionYear,
+                                         Long admissionCandidateId) {
+        this(userId, name, email, phoneNumber, address, departmentId, admissionYear,
+                admissionCandidateId, null);
+    }
 }

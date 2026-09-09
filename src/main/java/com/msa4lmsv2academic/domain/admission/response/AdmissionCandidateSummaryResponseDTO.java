@@ -7,8 +7,9 @@ import java.time.LocalDateTime;
 
 @Schema(description = "입학 예정자 목록 항목. 생년월일·연락처·주소는 포함하지 않습니다.")
 public record AdmissionCandidateSummaryResponseDTO(
+        @Schema(description = "연결된 Auth 계정 ID", nullable = true) Long accountId,
+        @Schema(description = "발급된 학번", nullable = true) String studentNumber,
         @Schema(description = "입학 예정자 ID", example = "15") Long id,
-        @Schema(description = "수험번호 또는 지원번호", example = "APP-2027-00015") String applicationNumber,
         @Schema(description = "이름", example = "김민수") String name,
         @Schema(description = "학과 ID", example = "1") Long departmentId,
         @Schema(description = "학과명", example = "컴퓨터공학과") String departmentName,
@@ -19,8 +20,9 @@ public record AdmissionCandidateSummaryResponseDTO(
 
     public static AdmissionCandidateSummaryResponseDTO from(AdmissionCandidate candidate) {
         return new AdmissionCandidateSummaryResponseDTO(
+                candidate.getStudent() == null ? null : candidate.getStudent().getUser().getId(),
+                candidate.getStudent() == null ? null : candidate.getStudent().getStudentNumber(),
                 candidate.getId(),
-                candidate.getApplicationNumber(),
                 candidate.getName(),
                 candidate.getDepartment().getId(),
                 candidate.getDepartment().getName(),

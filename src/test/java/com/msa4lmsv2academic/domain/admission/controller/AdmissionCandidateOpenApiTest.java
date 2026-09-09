@@ -58,6 +58,8 @@ class AdmissionCandidateOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(summarySchema + "['email']").doesNotExist())
                 .andExpect(jsonPath(summarySchema + "['phoneNumber']").doesNotExist())
                 .andExpect(jsonPath(summarySchema + "['address']").doesNotExist())
+                .andExpect(jsonPath(detailSchema + "['applicationNumber']").doesNotExist())
+                .andExpect(jsonPath(detailSchema + "['studentNumber']").exists())
                 .andExpect(jsonPath(detailSchema + "['birthDate']").exists())
                 .andExpect(jsonPath(detailSchema + "['email']").exists())
                 .andExpect(jsonPath(detailSchema + "['studentId']").exists())

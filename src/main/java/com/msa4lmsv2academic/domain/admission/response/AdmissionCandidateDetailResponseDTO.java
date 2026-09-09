@@ -8,9 +8,10 @@ import java.time.LocalDateTime;
 
 @Schema(description = "입학 예정자 상세 정보")
 public record AdmissionCandidateDetailResponseDTO(
+        @Schema(description = "연결된 Auth 계정 ID", nullable = true) Long accountId,
+        @Schema(description = "발급된 학번", nullable = true) String studentNumber,
         @Schema(description = "입학 예정자 ID", example = "15") Long id,
         @Schema(description = "수정 충돌 감지 버전", example = "0") Long version,
-        @Schema(description = "수험번호 또는 지원번호", example = "APP-2027-00015") String applicationNumber,
         @Schema(description = "이름", example = "김민수") String name,
         @Schema(description = "생년월일", example = "2008-03-15") LocalDate birthDate,
         @Schema(description = "이메일", example = "minsu@example.com", nullable = true) String email,
@@ -34,9 +35,10 @@ public record AdmissionCandidateDetailResponseDTO(
 
     public static AdmissionCandidateDetailResponseDTO from(AdmissionCandidate candidate) {
         return new AdmissionCandidateDetailResponseDTO(
+                candidate.getStudent() == null ? null : candidate.getStudent().getUser().getId(),
+                candidate.getStudent() == null ? null : candidate.getStudent().getStudentNumber(),
                 candidate.getId(),
                 candidate.getVersion(),
-                candidate.getApplicationNumber(),
                 candidate.getName(),
                 candidate.getBirthDate(),
                 candidate.getEmail(),

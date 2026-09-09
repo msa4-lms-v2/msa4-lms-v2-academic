@@ -52,7 +52,7 @@ public class AdmissionCandidateController {
     @Operation(
             operationId = "searchAdmissionCandidates",
             summary = "입학 예정자 목록 조회",
-            description = "ADMIN만 입학 예정자 목록을 조회합니다. 이름·수험번호 검색, 학과·입학연도·상태 필터와 "
+            description = "ADMIN만 입학 예정자 목록을 조회합니다. 이름 검색, 학과·입학연도·상태 필터와 "
                     + "정렬·1-based 페이징을 지원합니다. 목록에는 생년월일·이메일·전화번호·주소를 포함하지 않으며 "
                     + "결과가 없으면 빈 items를 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
@@ -107,9 +107,9 @@ public class AdmissionCandidateController {
     @Operation(
             operationId = "createAdmissionCandidate",
             summary = "입학 예정자 등록",
-            description = "ADMIN만 합격 자료의 고유 수험번호, 이름, 생년월일, 활성 학과와 입학 예정 연도로 "
-                    + "입학 예정자를 REGISTERED 상태로 등록합니다. 이메일·전화번호·주소는 선택값이며 "
-                    + "이 단계에서는 Auth 계정, Academic 사용자·학생 또는 학번을 생성하지 않습니다.",
+            description = "ADMIN만 이름, 생년월일, 이메일, 활성 학과와 입학 예정 연도로 "
+                    + "입학 예정자를 PROVISIONING 상태로 등록합니다. 이메일은 필수이며 "
+                    + "등록과 같은 트랜잭션에서 계정 생성 요청을 기록합니다. 자동 처리가 완료되면 학번이 발급되고 PROVISIONED로 전환됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "201", description = "등록 성공")
@@ -142,7 +142,7 @@ public class AdmissionCandidateController {
             operationId = "updateAdmissionCandidate",
             summary = "입학 예정자 부분 수정",
             description = "ADMIN만 REGISTERED 상태의 이름·생년월일·이메일·전화번호·주소·활성 학과·입학연도를 "
-                    + "부분 수정합니다. applicationNumber는 변경할 수 없습니다. 생략 또는 null인 필드는 유지하고 "
+                    + "부분 수정합니다. 생략 또는 null인 필드는 유지하고 "
                     + "이메일·전화번호·주소의 공백 문자열은 null로 삭제합니다. 일반 수정에는 사유를 받지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -179,7 +179,7 @@ public class AdmissionCandidateController {
             summary = "입학 예정자 상태 변경",
             description = "ADMIN만 입학 예정자를 CONFIRMED 또는 CANCELLED로 변경합니다. 상태 변경 사유가 필수이며 "
                     + "동일 상태 재요청은 현재 데이터를 200으로 반환하고 감사 로그를 추가하지 않습니다. "
-                    + "PROVISIONED는 향후 Auth 프로비저닝 성공 결과로만 변경할 수 있습니다.",
+                    + "PROVISIONED는 등록 시 자동 요청된 계정 생성이 완료되면 변경됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "200", description = "상태 변경 성공 또는 동일 상태 요청")

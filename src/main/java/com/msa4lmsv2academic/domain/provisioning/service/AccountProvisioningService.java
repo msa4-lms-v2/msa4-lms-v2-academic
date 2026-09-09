@@ -32,6 +32,7 @@ public class AccountProvisioningService {
     private final StudentRepository studentRepository;
     private final ProfessorRepository professorRepository;
     private final OutboxEventService outboxEventService;
+    private final com.msa4lmsv2academic.domain.admission.repository.AdmissionCandidateRepository admissionCandidateRepository;
 
     /*
      * 학생 프로비저닝
@@ -40,6 +41,26 @@ public class AccountProvisioningService {
     public StudentProvisioningResponseDTO provisionStudent(
             StudentProvisioningRequestDTO request
     ) {
+        // 응답 유실 후 재시도에도 기존 번호를 그대로 반환한다.
+        Student existing = studentRepository.findByUserId(request.userId()).orElse(null);
+        if (existing != null) {
+            if (request.admissionCandidateId() != null) {
+                var linked = admissionCandidateRepository.findByIdForUpdate(request.admissionCandidateId()).orElseThrow();
+                if (linked.getStudent() == null || !linked.getStudent().getId().equals(existing.getId())) {
+                    throw new IllegalStateException("입학 예정자와 학생 계정의 연결이 일치하지 않습니다.");
+                }
+            }
+            return new StudentProvisioningResponseDTO(request.userId(), existing.getStudentNumber());
+        }
+        com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidate candidate = null;
+        if (request.admissionCandidateId() != null) {
+            candidate = admissionCandidateRepository.findByIdForUpdate(request.admissionCandidateId()).orElseThrow();
+            if (!java.util.Objects.equals(candidate.getEmail(), request.email())
+                    || !candidate.getDepartment().getId().equals(request.departmentId())
+                    || candidate.getAdmissionYear() != request.admissionYear()) {
+                throw new IllegalArgumentException("입학 예정자 등록 정보가 계정 생성 요청과 일치하지 않습니다.");
+            }
+        }
         // 사용자 및 이메일 중복 확인
         validateUserAndEmail(
                 request.userId(),
@@ -51,6 +72,17 @@ public class AccountProvisioningService {
                 findAndValidateDepartment(
                         request.departmentId()
                 );
+        Professor advisor = null;
+        if (request.advisorProfessorId() != null) {
+            advisor = professorRepository.findById(request.advisorProfessorId())
+                    .orElseThrow(() -> new com.msa4lmsv2academic.global.error.InvalidAdmissionCandidateRequestException(
+                            "지도교수를 찾을 수 없습니다."));
+            if (!advisor.getDepartment().getId().equals(department.getId())
+                    || advisor.getUser().getStatus() != com.msa4lmsv2academic.domain.user.entity.UserStatus.ACTIVE) {
+                throw new com.msa4lmsv2academic.global.error.InvalidAdmissionCandidateRequestException(
+                        "학생 학과의 활성 교수만 지도교수로 배정할 수 있습니다.");
+            }
+        }
 
         // Academic users 저장
         User user = User.provision(
@@ -70,20 +102,21 @@ public class AccountProvisioningService {
                 department,
                 (byte) 1,
                 request.admissionYear(),
-                null
+                advisor
         );
 
         Student savedStudent =
                 studentRepository.saveAndFlush(student);
 
         // 학번 생성
-        String studentNumber = generateStudentNumber(
+        String studentNumber = AcademicNumberGenerator.generate(
                 request.admissionYear(),
-                department.getCode(),
+                department.getId(),
                 savedStudent.getId()
         );
         savedStudent.assignStudentNumber(studentNumber);
         studentRepository.flush();
+        if (candidate != null) candidate.markProvisioned(savedStudent);
 
         outboxEventService.record(
                 AGGREGATE_TYPE_STUDENT,
@@ -107,6 +140,10 @@ public class AccountProvisioningService {
     public ProfessorProvisioningResponseDTO provisionProfessor(
             ProfessorProvisioningRequestDTO request
     ) {
+        Professor existing = professorRepository.findByUserId(request.userId()).orElse(null);
+        if (existing != null && existing.getProfessorNumber() != null) {
+            return new ProfessorProvisioningResponseDTO(request.userId(), existing.getProfessorNumber());
+        }
         // 사용자 및 이메일 중복 확인
         validateUserAndEmail(
                 request.userId(),
@@ -142,11 +179,13 @@ public class AccountProvisioningService {
                 professorRepository.saveAndFlush(professor);
 
         // 교번 생성
-        String professorNumber = generateProfessorNumber(
+        String professorNumber = "p" + AcademicNumberGenerator.generate(
                 request.hireYear(),
-                department.getCode(),
+                department.getId(),
                 savedProfessor.getId()
         );
+        savedProfessor.assignProfessorNumber(professorNumber);
+        professorRepository.flush();
 
         // 생성한 교번을 Auth에 반환
         return new ProfessorProvisioningResponseDTO(
@@ -199,54 +238,6 @@ public class AccountProvisioningService {
         }
 
         return department;
-    }
-
-    /*
-     * 학번 생성
-     *
-     * 예:
-     * 입학 연도: 2026
-     * 학과 코드: 001
-     * 학생 ID: 1
-     * 결과: 26001001
-     */
-    private String generateStudentNumber(
-            Short admissionYear,
-            String departmentCode,
-            Long studentId
-    ) {
-        int shortYear = admissionYear % 100;
-
-        return String.format(
-                "%02d%s%03d",
-                shortYear,
-                departmentCode,
-                studentId
-        );
-    }
-
-    /*
-     * 교번 생성
-     *
-     * 예:
-     * 임용 연도: 2026
-     * 학과 코드: 001
-     * 교수 ID: 1
-     * 결과: p26001001
-     */
-    private String generateProfessorNumber(
-            Short hireYear,
-            String departmentCode,
-            Long professorId
-    ) {
-        int shortYear = hireYear % 100;
-
-        return String.format(
-                "p%02d%s%03d",
-                shortYear,
-                departmentCode,
-                professorId
-        );
     }
 
     private Map<String, Object> studentSnapshotPayload(Student student) {
