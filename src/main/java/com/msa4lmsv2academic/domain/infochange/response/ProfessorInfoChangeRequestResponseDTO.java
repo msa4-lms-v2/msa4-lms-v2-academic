@@ -4,6 +4,7 @@ import com.msa4lmsv2academic.domain.infochange.entity.InfoChangeRequestStatus;
 import com.msa4lmsv2academic.domain.infochange.entity.ProfessorInfoChangeRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Schema(description = "교수 프로필 변경 신청")
@@ -27,11 +28,20 @@ public record ProfessorInfoChangeRequestResponseDTO(
         @Schema(description = "본인 취소 시각", nullable = true) LocalDateTime cancelledAt,
         @Schema(description = "생성 시각") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각") LocalDateTime updatedAt,
+        @Schema(
+                description = "변경 신청 항목",
+                allowableValues = {"NAME", "PHONE_NUMBER", "EMAIL", "ADDRESS", "PROFILE_IMAGE"}
+        )
+        List<String> changedFields,
+        @Schema(description = "증빙 첨부파일 수", example = "2") long attachmentCount,
         @Schema(description = "증빙 PDF/JPEG/PNG/GIF/WebP/HWP/HWPX 목록. 목록 응답에서는 null", nullable = true)
         List<ProfessorInfoChangeRequestFileResponseDTO> files
 ) {
-    public static ProfessorInfoChangeRequestResponseDTO summary(ProfessorInfoChangeRequest request) {
-        return from(request, null, null);
+    public static ProfessorInfoChangeRequestResponseDTO summary(
+            ProfessorInfoChangeRequest request,
+            long attachmentCount
+    ) {
+        return from(request, null, attachmentCount, null);
     }
 
     public static ProfessorInfoChangeRequestResponseDTO detail(
@@ -39,12 +49,13 @@ public record ProfessorInfoChangeRequestResponseDTO(
             String newProfileImageUrl,
             List<ProfessorInfoChangeRequestFileResponseDTO> files
     ) {
-        return from(request, newProfileImageUrl, files);
+        return from(request, newProfileImageUrl, files.size(), files);
     }
 
     private static ProfessorInfoChangeRequestResponseDTO from(
             ProfessorInfoChangeRequest request,
             String newProfileImageUrl,
+            long attachmentCount,
             List<ProfessorInfoChangeRequestFileResponseDTO> files
     ) {
         return new ProfessorInfoChangeRequestResponseDTO(
@@ -66,7 +77,19 @@ public record ProfessorInfoChangeRequestResponseDTO(
                 request.getCancelledAt(),
                 request.getCreatedAt(),
                 request.getUpdatedAt(),
+                changedFields(request),
+                attachmentCount,
                 files
         );
+    }
+
+    private static List<String> changedFields(ProfessorInfoChangeRequest request) {
+        ArrayList<String> fields = new ArrayList<>();
+        if (request.getNewName() != null) fields.add("NAME");
+        if (request.getNewPhoneNumber() != null) fields.add("PHONE_NUMBER");
+        if (request.getNewEmail() != null) fields.add("EMAIL");
+        if (request.getNewAddress() != null) fields.add("ADDRESS");
+        if (request.getNewProfileImageKey() != null) fields.add("PROFILE_IMAGE");
+        return List.copyOf(fields);
     }
 }

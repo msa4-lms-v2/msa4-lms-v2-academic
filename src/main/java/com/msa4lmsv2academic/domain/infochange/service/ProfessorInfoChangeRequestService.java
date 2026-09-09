@@ -30,6 +30,7 @@ import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,8 +81,12 @@ public class ProfessorInfoChangeRequestService {
                         size
                 )
         );
+        Map<Long, Long> attachmentCounts = attachmentCounts(result.items());
         List<ProfessorInfoChangeRequestResponseDTO> items = result.items().stream()
-                .map(ProfessorInfoChangeRequestResponseDTO::summary)
+                .map(item -> ProfessorInfoChangeRequestResponseDTO.summary(
+                        item,
+                        attachmentCounts.getOrDefault(item.getId(), 0L)
+                ))
                 .toList();
         boolean hasNext = (page - 1L) * size + items.size() < result.totalCount();
         return new PageResponseDTO<>(items, result.totalCount(), page, size, hasNext);
@@ -284,6 +289,18 @@ public class ProfessorInfoChangeRequestService {
                 ))
                 .toList();
         return ProfessorInfoChangeRequestResponseDTO.detail(request, newProfileImageUrl, files);
+    }
+
+    private Map<Long, Long> attachmentCounts(List<ProfessorInfoChangeRequest> requests) {
+        if (requests.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> requestIds = requests.stream().map(ProfessorInfoChangeRequest::getId).toList();
+        Map<Long, Long> counts = new HashMap<>();
+        fileRepository.findByRequestIdIn(requestIds).forEach(file ->
+                counts.merge(file.getRequest().getId(), 1L, Long::sum)
+        );
+        return counts;
     }
 
     private void validateReadable(ProfessorInfoChangeRequest request, CurrentUser currentUser) {

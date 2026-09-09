@@ -8,4 +8,6 @@ public interface ProfessorInfoChangeRequestFileRepository
         extends JpaRepository<ProfessorInfoChangeRequestFile, Long> {
 
     List<ProfessorInfoChangeRequestFile> findByRequestIdOrderByIdAsc(Long requestId);
+
+    List<ProfessorInfoChangeRequestFile> findByRequestIdIn(List<Long> requestIds);
 }
