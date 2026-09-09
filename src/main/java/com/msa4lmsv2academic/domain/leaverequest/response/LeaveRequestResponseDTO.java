@@ -20,10 +20,10 @@ public record LeaveRequestResponseDTO(
         @Schema(description = "처리 상태", example = "PENDING") LeaveRequestStatus status,
         @Schema(description = "반려 사유", maxLength = 500, nullable = true, example = "신청 내용을 확인해주세요.") String rejectReason,
         @Schema(description = "직접 또는 자퇴 승인에 따른 취소 사유", maxLength = 500, nullable = true, example = "자퇴 최종 승인으로 자동 취소되었습니다.") String cancelReason,
-        @Schema(description = "PDF 원본 파일명", maxLength = 255, nullable = true, example = "증빙.pdf") String attachmentOriginalName,
+        @Schema(description = "첫 번째 증빙의 원본 파일명", maxLength = 255, nullable = true, example = "증빙.hwp") String attachmentOriginalName,
         @Schema(description = "첨부 MIME 타입", nullable = true, example = "application/pdf") String attachmentContentType,
         @Schema(description = "첨부 크기(byte), 최대 10485760", maximum = "10485760", nullable = true, example = "1024") Long attachmentSize,
-        @Schema(description = "증빙 PDF 목록. 최대 5개") List<LeaveRequestFileResponseDTO> files,
+        @Schema(description = "PDF/HWP/HWPX/JPEG/PNG/GIF/WebP 증빙 목록. 최대 5개") List<LeaveRequestFileResponseDTO> files,
         @Schema(description = "신청 시각(KST)", example = "2026-12-10T10:00:00") LocalDateTime createdAt,
         @Schema(description = "최종 변경 시각(KST). 승인·취소의 전용 시각이 아님", example = "2026-12-10T10:00:00") LocalDateTime updatedAt
 ) {
