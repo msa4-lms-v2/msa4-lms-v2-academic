@@ -4,7 +4,6 @@ import com.msa4lmsv2academic.domain.withdrawal.request.WithdrawalAttachmentUpdat
 import com.msa4lmsv2academic.domain.withdrawal.response.WithdrawalResponseDTO;
 import com.msa4lmsv2academic.global.error.WithdrawalAccessDeniedException;
 import com.msa4lmsv2academic.global.file.EvidenceDownload;
-import com.msa4lmsv2academic.global.file.EvidenceFileValidator;
 import com.msa4lmsv2academic.global.file.FileStorageException;
 import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -19,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class WithdrawalEvidenceApplicationService {
     private final WithdrawalService service;
     private final WithdrawalIdempotencyService idempotency;
-    private final EvidenceFileValidator fileValidator;
+    private final WithdrawalFileValidator fileValidator;
     private final FileStorageService storage;
 
     public WithdrawalResponseDTO update(Long withdrawalId, WithdrawalAttachmentUpdateRequestDTO request,
@@ -45,7 +44,7 @@ public class WithdrawalEvidenceApplicationService {
             return replay.orElseThrow();
         }
 
-        String objectKey = storage.uploadEvidence("withdrawal-requests/" + withdrawalId, file);
+        String objectKey = storage.upload("withdrawal-requests/" + withdrawalId, file);
         var attachment = new WithdrawalAttachment(
                 file.getOriginalFilename(), objectKey, file.getContentType(), file.getSize());
         return service.updateAttachment(withdrawalId, request, attachment, key, hash, actor, context);
@@ -53,7 +52,11 @@ public class WithdrawalEvidenceApplicationService {
 
     public EvidenceDownload download(Long withdrawalId, CurrentUser actor) {
         WithdrawalAttachment attachment = service.attachment(withdrawalId, actor);
-        return new EvidenceDownload(attachment.originalName(), storage.download(attachment.storedName()));
+        return new EvidenceDownload(
+                attachment.originalName(),
+                storage.download(attachment.storedName()),
+                attachment.contentType()
+        );
     }
 
     private void requireWriter(CurrentUser actor) {

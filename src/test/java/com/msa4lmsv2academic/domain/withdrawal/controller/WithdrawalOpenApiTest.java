@@ -73,4 +73,20 @@ class WithdrawalOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['components']['schemas']['FinalWithdrawalReviewRequestDTO']['required']")
                         .value(hasItems("approved")));
     }
+
+    @Test
+    void generatedOpenApiContainsSupportedWithdrawalAttachmentMediaTypes() throws Exception {
+        String responseContent = "$['paths']['/api/academic/withdrawals/{withdrawalId}/attachment']"
+                + "['get']['responses']['200']['content']";
+
+        mockMvc.perform(get("/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(responseContent + "['application/pdf']").exists())
+                .andExpect(jsonPath(responseContent + "['application/x-hwp']").exists())
+                .andExpect(jsonPath(responseContent + "['application/hwp+zip']").exists())
+                .andExpect(jsonPath(responseContent + "['image/jpeg']").exists())
+                .andExpect(jsonPath(responseContent + "['image/png']").exists())
+                .andExpect(jsonPath(responseContent + "['image/gif']").exists())
+                .andExpect(jsonPath(responseContent + "['image/webp']").exists());
+    }
 }
