@@ -139,7 +139,7 @@ class CounselingConcurrencyIntegrationTest extends MySqlIntegrationTest {
     }
 
     private void cleanFixture() {
-        jdbc.update("DELETE FROM counseling_notifications WHERE counseling_id IN "
+        jdbc.update("DELETE FROM notifications WHERE resource_type = 'COUNSELING' AND resource_id IN "
                 + "(SELECT id FROM counselings WHERE student_id = ?)", STUDENT);
         jdbc.update("DELETE FROM counselings WHERE student_id = ?", STUDENT);
         jdbc.update("DELETE FROM students WHERE id = ?", STUDENT);

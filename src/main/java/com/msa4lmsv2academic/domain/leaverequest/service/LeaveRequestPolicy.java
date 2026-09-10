@@ -43,16 +43,22 @@ public class LeaveRequestPolicy {
     }
 
     public void validateCreate(LeaveRequestCreateRequestDTO body) {
-        if (body == null || body.requestType() == null || body.targetYear() == null || body.targetSemester() == null) {
-            throw new InvalidLeaveRequestException("신청 유형과 적용 학기가 필요합니다.");
+        if (body == null || body.requestType() == null) {
+            throw new InvalidLeaveRequestException("신청 유형이 필요합니다.");
         }
-        termIndex(body.targetYear(), body.targetSemester());
+        if (body.requestType() != LeaveRequestType.MILITARY_LEAVE
+                && (body.targetYear() == null || body.targetSemester() == null)) {
+            throw new InvalidLeaveRequestException("일반휴학·복학에는 적용 학기가 필요합니다.");
+        }
+        if (body.targetYear() != null && body.targetSemester() != null) {
+            termIndex(body.targetYear(), body.targetSemester());
+        }
         if (body.reason() != null && body.reason().length() > 500) throw new InvalidLeaveRequestException("사유는 500자 이하여야 합니다.");
         if (body.requestType() == LeaveRequestType.GENERAL_LEAVE) {
             requiredReason(body.reason(), 500);
             if (body.returnYear() == null || body.returnSemester() == null
-                    || termIndex(body.returnYear(), body.returnSemester()) <= termIndex(body.targetYear(), body.targetSemester())) {
-                throw new InvalidLeaveRequestException("복학 예정은 휴학 시작보다 최소 한 학기 뒤여야 합니다.");
+                    || termIndex(body.returnYear(), body.returnSemester()) != termIndex(body.targetYear(), body.targetSemester()) + 1) {
+                throw new InvalidLeaveRequestException("일반휴학의 복학 예정은 적용 학기의 바로 다음 학기여야 합니다.");
             }
         } else if (body.returnYear() != null || body.returnSemester() != null) {
             throw new InvalidLeaveRequestException("군휴학·복학 신청에는 복학 예정 값을 직접 지정하지 않습니다.");
@@ -60,9 +66,17 @@ public class LeaveRequestPolicy {
     }
 
     public void validateAcademicStatus(AcademicStatus status, LeaveRequestType type) {
-        AcademicStatus expected = type.isLeave() ? AcademicStatus.ENROLLED : AcademicStatus.ON_LEAVE;
+        if (type == LeaveRequestType.GENERAL_LEAVE) {
+            if (status != AcademicStatus.ENROLLED && status != AcademicStatus.ON_LEAVE) {
+                throw new LeaveRequestConflictException("재학 또는 휴학 상태에서만 일반휴학을 신청·승인할 수 있습니다.");
+            }
+            return;
+        }
+        AcademicStatus expected = type == LeaveRequestType.MILITARY_LEAVE ? AcademicStatus.ENROLLED : AcademicStatus.ON_LEAVE;
         if (status != expected) throw new LeaveRequestConflictException(
-                type.isLeave() ? "재학 상태에서만 휴학을 신청·승인할 수 있습니다." : "휴학 상태에서만 복학을 신청·승인할 수 있습니다.");
+                type == LeaveRequestType.MILITARY_LEAVE
+                        ? "재학 상태에서만 군휴학을 신청·승인할 수 있습니다."
+                        : "휴학 상태에서만 복학을 신청·승인할 수 있습니다.");
     }
 
     public void requirePending(LeaveRequest request) {

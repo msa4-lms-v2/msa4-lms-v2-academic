@@ -109,8 +109,8 @@ public class LeaveRequestService {
             throw new InvalidLeaveRequestException("군휴학에는 입영통지서 파일 1개가 필수입니다.");
         }
         var reserved = idempotency.reserve(key, actor.id(), CREATE_ENDPOINT, hash, now);
-        LeaveRequest request = LeaveRequest.create(student, resolved.type(), resolved.reason(), body.targetYear(),
-                body.targetSemester(), resolved.returnYear(), resolved.returnTerm());
+        LeaveRequest request = LeaveRequest.create(student, resolved.type(), resolved.reason(), resolved.targetYear(),
+                resolved.targetSemester(), resolved.returnYear(), resolved.returnTerm());
         for (LeaveAttachment file : attachments) {
             request.addFile(file.originalName(), file.storedName(), file.contentType(), file.size());
         }
@@ -178,9 +178,11 @@ public class LeaveRequestService {
                 throw new LeaveRequestConflictException("현재 휴학 근거와 복학 신청 유형이 일치하지 않습니다.");
             }
         }
-        var period = queries.findPeriod(request.getTargetYear(), request.getTargetSemester(), request.getRequestType(), true)
-                .orElseThrow(() -> new LeaveRequestConflictException("승인 기간 설정이 없습니다."));
-        if (!period.allowsApproval(now)) throw new LeaveRequestConflictException("현재는 승인 가능한 기간이 아닙니다.");
+        if (request.getRequestType() != LeaveRequestType.MILITARY_LEAVE) {
+            var period = queries.findPeriod(request.getTargetYear(), request.getTargetSemester(), request.getRequestType(), true)
+                    .orElseThrow(() -> new LeaveRequestConflictException("승인 기간 설정이 없습니다."));
+            if (!period.allowsApproval(now)) throw new LeaveRequestConflictException("현재는 승인 가능한 기간이 아닙니다.");
+        }
         var reviewer = studentQueries.findUserById(actor.id()).orElseThrow(this::studentMissing);
         AcademicStatus previous = student.getAcademicStatus();
         request.approve();
@@ -195,6 +197,8 @@ public class LeaveRequestService {
             throw new LeaveRequestConflictException("진행 중인 휴·복학 신청이 있습니다.");
         }
         LeaveRequestType type = body.requestType();
+        Short targetYear = body.targetYear();
+        Byte targetSemester = body.targetSemester();
         Short returnYear = body.returnYear();
         Byte returnTerm = body.returnSemester();
         Semester basis = null;
@@ -204,32 +208,37 @@ public class LeaveRequestService {
             basis = current.getFirst();
             byte currentTerm = (byte) (basis.getTerm() == SemesterTerm.FIRST ? 1 : 2);
             int currentIndex = policy.termIndex(basis.getAcademicYear(), currentTerm);
-            int targetIndex = policy.termIndex(body.targetYear(), body.targetSemester());
-            if (type == LeaveRequestType.GENERAL_LEAVE && targetIndex != currentIndex + 1) {
-                throw new LeaveRequestConflictException("일반휴학의 적용 학기는 현재 학기의 다음 학기여야 합니다.");
-            }
             if (type == LeaveRequestType.MILITARY_LEAVE) {
                 requireMilitaryUnused(student.getId());
                 int computedYear = (currentIndex + 4) / 2;
-                if (computedYear > Short.MAX_VALUE || targetIndex >= currentIndex + 4) {
-                    throw new InvalidLeaveRequestException("군휴학 적용 학기와 복학 예정의 범위가 올바르지 않습니다.");
-                }
+                if (computedYear > Short.MAX_VALUE) throw new InvalidLeaveRequestException("군휴학 복학 예정 학기의 범위가 올바르지 않습니다.");
+                targetYear = basis.getAcademicYear();
+                targetSemester = currentTerm;
                 returnYear = (short) computedYear;
                 returnTerm = currentTerm;
+            } else {
+                int targetIndex = policy.termIndex(targetYear, targetSemester);
+                if (targetIndex != currentIndex + 1) {
+                    throw new LeaveRequestConflictException("일반휴학의 적용 학기는 현재 학기의 다음 학기여야 합니다.");
+                }
             }
         } else {
             var original = currentLeave(student);
             requireReturnTarget(original, body.targetYear(), body.targetSemester());
-            type = returnType(original);
+            if (returnType(original) != type) {
+                throw new LeaveRequestConflictException("선택한 복학 유형이 현재 휴학 근거와 일치하지 않습니다.");
+            }
         }
-        var period = queries.findPeriod(body.targetYear(), body.targetSemester(), type, lock)
-                .orElseThrow(() -> new LeaveRequestConflictException("신청 유형과 적용 학기의 접수 기간 설정이 없습니다."));
-        if (!period.accepts(LeaveRequestPolicy.now())) {
-            throw new LeaveRequestConflictException("현재는 접수 가능한 기간이 아닙니다.");
+        if (type != LeaveRequestType.MILITARY_LEAVE) {
+            var period = queries.findPeriod(targetYear, targetSemester, type, lock)
+                    .orElseThrow(() -> new LeaveRequestConflictException("신청 유형과 적용 학기의 접수 기간 설정이 없습니다."));
+            if (!period.accepts(LeaveRequestPolicy.now())) {
+                throw new LeaveRequestConflictException("현재는 접수 가능한 기간이 아닙니다.");
+            }
         }
         String reason = body.reason();
         if (reason == null || reason.isBlank()) reason = type == LeaveRequestType.MILITARY_LEAVE ? "군입대" : "복학";
-        return new ResolvedCreation(type, reason, returnYear, returnTerm, basis);
+        return new ResolvedCreation(type, reason, targetYear, targetSemester, returnYear, returnTerm, basis);
     }
 
     private LeaveRequest currentLeave(Student student) {
@@ -294,5 +303,6 @@ public class LeaveRequestService {
         return new LeaveRequestNotFoundException("사용자 또는 학생 정보를 찾을 수 없습니다.");
     }
 
-    private record ResolvedCreation(LeaveRequestType type, String reason, Short returnYear, Byte returnTerm, Semester basis) { }
+    private record ResolvedCreation(LeaveRequestType type, String reason, Short targetYear, Byte targetSemester,
+                                    Short returnYear, Byte returnTerm, Semester basis) { }
 }

@@ -1,4 +1,4 @@
-package com.msa4lmsv2academic.domain.counseling.event;
+package com.msa4lmsv2academic.domain.notification.event;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,23 +11,15 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class CounselingNotificationEventListener {
+public class NotificationEventListener {
     private final SimpMessagingTemplate messagingTemplate;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handle(CounselingNotificationCreatedEvent event) {
+    public void handle(NotificationCreatedEvent event) {
         try {
-            messagingTemplate.convertAndSendToUser(
-                    event.recipientUserId().toString(),
-                    "/queue/notifications",
-                    event.payload()
-            );
+            messagingTemplate.convertAndSendToUser(event.recipientUserId().toString(), "/queue/notifications", event.payload());
         } catch (MessagingException exception) {
-            log.warn(
-                    "상담 알림 실시간 전송 실패: notificationId={}",
-                    event.payload().notificationId(),
-                    exception
-            );
+            log.warn("실시간 알림 전송 실패: notificationId={}", event.payload().notificationId(), exception);
         }
     }
 }
