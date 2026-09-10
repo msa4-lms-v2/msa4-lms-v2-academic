@@ -75,8 +75,11 @@ CREATE TABLE IF NOT EXISTS academic_schedules (
     id BIGINT NOT NULL AUTO_INCREMENT,
     title VARCHAR(100) NOT NULL,
     content TEXT NULL,
+    category VARCHAR(30) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NULL,
+    academic_year SMALLINT NOT NULL,
+    term VARCHAR(20) NOT NULL,
     target_role VARCHAR(20) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -86,7 +89,8 @@ CREATE TABLE IF NOT EXISTS academic_schedules (
         FOREIGN KEY (author_id) REFERENCES users (id)
         ON DELETE RESTRICT,
     INDEX idx_academic_schedules_target_active_start (target_role, is_active, start_date),
-    INDEX idx_academic_schedules_end_date (end_date)
+    INDEX idx_academic_schedules_end_date (end_date),
+    INDEX idx_academic_schedules_category_term (category, academic_year, term)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS colleges (
@@ -277,6 +281,21 @@ CREATE TABLE IF NOT EXISTS semesters (
         OR (evaluation_start_at IS NOT NULL AND evaluation_end_at IS NOT NULL
             AND evaluation_start_at < evaluation_end_at)
     )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS course_correction_periods (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    semester_id BIGINT NOT NULL,
+    start_at DATE NOT NULL,
+    end_at DATE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_course_correction_periods_semester UNIQUE (semester_id),
+    CONSTRAINT fk_course_correction_periods_semester
+        FOREIGN KEY (semester_id) REFERENCES semesters (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_course_correction_periods_range CHECK (start_at <= end_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS enrollment_credit_limit_rules (

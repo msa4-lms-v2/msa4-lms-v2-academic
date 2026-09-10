@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum EnrollmentApplicationRejectionReason {
     LECTURE_NOT_OPEN("신청 가능한 개설 강의가 아닙니다."),
-    ENROLLMENT_PERIOD_CLOSED("수강신청 기간이 아닙니다."),
+    ENROLLMENT_PERIOD_CLOSED("수강신청 또는 수강정정 기간이 아닙니다."),
     DUPLICATE_ENROLLMENT("이미 신청한 강의입니다."),
     CAPACITY_EXCEEDED("수강 정원이 마감되었습니다."),
     SCHEDULE_CONFLICT("이미 신청한 강의와 시간이 겹칩니다."),

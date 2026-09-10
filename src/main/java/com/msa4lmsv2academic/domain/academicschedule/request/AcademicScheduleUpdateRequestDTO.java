@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.academicschedule.request;
 
 import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleTargetRole;
+import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,12 +21,19 @@ public record AcademicScheduleUpdateRequestDTO(
         @Size(max = 5000, message = "content는 5000자 이하여야 합니다.")
         String content,
 
+        @Schema(description = "일정 분류", example = "ENROLLMENT", allowableValues = {
+                "ENROLLMENT", "COURSE_CORRECTION", "LEAVE", "RETURN", "GRADE_ENTRY", "GRADE_CORRECTION",
+                "SCHOLARSHIP", "TUITION", "OTHER"
+        }, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "category는 필수입니다.")
+        AcademicScheduleCategory category,
+
         @Schema(description = "일정 시작일", example = "2026-08-17", format = "date",
                 requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "startDate는 필수입니다.")
         LocalDate startDate,
 
-        @Schema(description = "일정 종료일. 하루 일정이면 생략합니다.", example = "2026-08-22",
+        @Schema(description = "일정 종료일. OTHER 외 분류는 필수입니다.", example = "2026-08-22",
                 format = "date", nullable = true)
         LocalDate endDate,
 
@@ -40,4 +48,11 @@ public record AcademicScheduleUpdateRequestDTO(
         @Size(max = 255, message = "reason은 255자 이하여야 합니다.")
         String reason
 ) {
+    /**
+     * 기존 내부 호출과 테스트 호환용 생성자입니다. 외부 API는 category를 사용해야 합니다.
+     */
+    public AcademicScheduleUpdateRequestDTO(String title, String content, LocalDate startDate, LocalDate endDate,
+                                            AcademicScheduleTargetRole targetRole, String reason) {
+        this(title, content, AcademicScheduleCategory.OTHER, startDate, endDate, targetRole, reason);
+    }
 }

@@ -61,7 +61,8 @@ public class LeaveRequestPeriod {
     }
 
     public boolean accepts(LocalDateTime now) {
-        return active && !now.isBefore(startAt) && !now.isAfter(endAt);
+        return active && !now.toLocalDate().isBefore(startAt.toLocalDate())
+                && !now.toLocalDate().isAfter(endAt.toLocalDate());
     }
 
     public boolean allowsApproval(LocalDateTime now) {

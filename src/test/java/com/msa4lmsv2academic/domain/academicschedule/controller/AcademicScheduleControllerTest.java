@@ -110,6 +110,7 @@ class AcademicScheduleControllerTest extends MySqlIntegrationTest {
                                 {
                                   "title": "  2026학년도 2학기 수강신청  ",
                                   "content": "  신청 기간을 확인하세요.  ",
+                                  "category": "OTHER",
                                   "startDate": "2026-08-17",
                                   "endDate": "2026-08-21",
                                   "targetRole": "STUDENT"
@@ -128,6 +129,7 @@ class AcademicScheduleControllerTest extends MySqlIntegrationTest {
                 {
                   "title": "2026학년도 2학기 수강신청 변경",
                   "content": "신청 기간이 연장되었습니다.",
+                  "category": "OTHER",
                   "startDate": "2026-08-17",
                   "endDate": "2026-08-22",
                   "targetRole": "ALL",
@@ -238,6 +240,7 @@ class AcademicScheduleControllerTest extends MySqlIntegrationTest {
                         .content("""
                                 {
                                   "title": "잘못된 기간",
+                                  "category": "OTHER",
                                   "startDate": "2026-08-22",
                                   "endDate": "2026-08-21",
                                   "targetRole": "ALL"
@@ -274,6 +277,7 @@ class AcademicScheduleControllerTest extends MySqlIntegrationTest {
                 {
                   "title": "%s",
                   "content": "동일 본문",
+                  "category": "OTHER",
                   "startDate": "2026-08-17",
                   "endDate": "2026-08-21",
                   "targetRole": "ALL"

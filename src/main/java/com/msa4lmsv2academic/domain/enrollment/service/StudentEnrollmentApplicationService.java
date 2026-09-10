@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.enrollment.service;
 
 import com.msa4lmsv2academic.domain.enrollment.entity.Enrollment;
+import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentApplicationRejectionReason;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentHistory;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentApplicationQueryRepository;
@@ -43,6 +44,7 @@ public class StudentEnrollmentApplicationService {
     private final EnrollmentAcademicStatusValidator academicStatusValidator;
     private final EnrollmentCourseRuleValidator courseRuleValidator;
     private final EnrollmentIdempotencyService idempotencyService;
+    private final CourseCorrectionPeriodRepository courseCorrectionPeriodRepository;
 
     // 학생 → 강의 순서로 잠급니다. 잠금 대기 전 읽기가 있어도 대기 후 집계는 최신 커밋을 읽어야 합니다.
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -101,8 +103,7 @@ public class StudentEnrollmentApplicationService {
             reject(EnrollmentApplicationRejectionReason.LECTURE_NOT_OPEN);
         }
         Semester semester = lecture.getSemester();
-        if (semester.getEnrollmentStartAt() == null || semester.getEnrollmentEndAt() == null
-                || now.isBefore(semester.getEnrollmentStartAt()) || now.isAfter(semester.getEnrollmentEndAt())) {
+        if (!isEnrollmentOrCorrectionOpen(semester, now)) {
             reject(EnrollmentApplicationRejectionReason.ENROLLMENT_PERIOD_CLOSED);
         }
         if (queryRepository.existsActiveEnrollment(student.getId(), lecture.getId())) {
@@ -114,6 +115,15 @@ public class StudentEnrollmentApplicationService {
         if (queryRepository.hasScheduleConflict(student.getId(), lecture)) {
             reject(EnrollmentApplicationRejectionReason.SCHEDULE_CONFLICT);
         }
+    }
+
+    private boolean isEnrollmentOrCorrectionOpen(Semester semester, LocalDateTime now) {
+        boolean enrollmentOpen = semester.getEnrollmentStartAt() != null && semester.getEnrollmentEndAt() != null
+                && !now.toLocalDate().isBefore(semester.getEnrollmentStartAt().toLocalDate())
+                && !now.toLocalDate().isAfter(semester.getEnrollmentEndAt().toLocalDate());
+        return enrollmentOpen || courseCorrectionPeriodRepository.findBySemesterId(semester.getId())
+                .map(period -> period.accepts(now.toLocalDate()))
+                .orElse(false);
     }
 
     private void validateCourseRules(Student student, Lecture lecture) {

@@ -9,6 +9,7 @@ import com.msa4lmsv2academic.domain.academicschedule.request.AcademicScheduleSta
 import com.msa4lmsv2academic.domain.academicschedule.request.AcademicScheduleUpdateRequestDTO;
 import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleDetailResponseDTO;
 import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleSummaryResponseDTO;
+import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleTemplateResponseDTO;
 import com.msa4lmsv2academic.domain.academicschedule.service.AcademicScheduleService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
@@ -23,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
@@ -49,6 +51,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class AcademicScheduleController {
 
     private final AcademicScheduleService academicScheduleService;
+
+    @Operation(
+            operationId = "getAcademicScheduleTemplates",
+            summary = "학사일정 분류 기본 문구 조회",
+            description = "ADMIN이 일정 분류 선택 시 자동 입력할 일정명과 내용을 조회합니다. 반환된 문구는 화면에서 수정할 수 있습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    @CustomApiResponse({
+            CustomResponseCode.UNAUTHENTICATED,
+            CustomResponseCode.ACCESS_DENIED,
+            CustomResponseCode.SYSTEM_ERROR
+    })
+    @GetMapping("/templates")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<List<AcademicScheduleTemplateResponseDTO>>> getTemplates(
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(academicScheduleService.getTemplates(currentUser)));
+    }
 
     @Operation(
             operationId = "searchAcademicSchedules",
@@ -104,7 +126,8 @@ public class AcademicScheduleController {
     @Operation(
             operationId = "createAcademicSchedule",
             summary = "학사일정 등록",
-            description = "ADMIN만 학사일정을 등록할 수 있습니다. 시작일은 필수이고 종료일을 생략하면 하루 일정입니다. "
+            description = "ADMIN만 학사일정을 등록할 수 있습니다. 시작·종료일로 학년도와 학기를 자동 판정합니다. "
+                    + "수강신청·수강정정·휴학·복학 분류는 실제 해당 학기의 접수 기간도 함께 갱신합니다. "
                     + "제목·본문·기간·대상 역할이 모두 같은 활성 일정은 중복 등록할 수 없습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -136,7 +159,7 @@ public class AcademicScheduleController {
     @Operation(
             operationId = "updateAcademicSchedule",
             summary = "학사일정 전체 수정",
-            description = "ADMIN만 제목·본문·시작일·종료일·대상 역할을 전체 치환할 수 있습니다. 변경 사유가 필수이며 "
+            description = "ADMIN만 제목·본문·시작일·종료일·대상 역할을 전체 치환할 수 있습니다. 일정 분류는 등록 후 변경할 수 없고, 변경 사유가 필수이며 "
                     + "활성 상태는 이 API에서 변경하지 않습니다. 값이 모두 같으면 감사 로그 없이 현재 상태를 반환합니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )

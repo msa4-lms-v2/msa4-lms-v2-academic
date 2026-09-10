@@ -1,6 +1,8 @@
 package com.msa4lmsv2academic.domain.academicschedule.repository;
 
 import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleTargetRole;
+import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleCategory;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import java.time.LocalDate;
 import java.util.Set;
 
@@ -11,6 +13,9 @@ public record AcademicScheduleSearchCondition(
         LocalDate from,
         LocalDate to,
         Set<AcademicScheduleTargetRole> targetRoles,
+        AcademicScheduleCategory category,
+        Short academicYear,
+        SemesterTerm term,
         Boolean active
 ) {
 }

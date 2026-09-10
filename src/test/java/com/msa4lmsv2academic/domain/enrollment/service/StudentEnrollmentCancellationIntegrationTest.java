@@ -103,7 +103,7 @@ class StudentEnrollmentCancellationIntegrationTest extends MySqlIntegrationTest 
                 ENROLLMENT_ID,
                 new CurrentUser(STUDENT_USER_ID, "STUDENT")
         )).isInstanceOf(EnrollmentApplicationRejectedException.class)
-                .hasMessageContaining("수강신청 기간");
+                .hasMessageContaining("수강신청 또는 수강정정 기간");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM enrollments WHERE id = ?", String.class, ENROLLMENT_ID
         )).isEqualTo("ACTIVE");

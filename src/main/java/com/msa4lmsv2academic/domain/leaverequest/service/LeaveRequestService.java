@@ -178,11 +178,6 @@ public class LeaveRequestService {
                 throw new LeaveRequestConflictException("현재 휴학 근거와 복학 신청 유형이 일치하지 않습니다.");
             }
         }
-        if (request.getRequestType() != LeaveRequestType.MILITARY_LEAVE) {
-            var period = queries.findPeriod(request.getTargetYear(), request.getTargetSemester(), request.getRequestType(), true)
-                    .orElseThrow(() -> new LeaveRequestConflictException("승인 기간 설정이 없습니다."));
-            if (!period.allowsApproval(now)) throw new LeaveRequestConflictException("현재는 승인 가능한 기간이 아닙니다.");
-        }
         var reviewer = studentQueries.findUserById(actor.id()).orElseThrow(this::studentMissing);
         AcademicStatus previous = student.getAcademicStatus();
         request.approve();

@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.enrollment.service;
 
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentCart;
+import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentCartQueryRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentCartRepository;
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCartCreateRequestDTO;
@@ -33,6 +34,7 @@ public class EnrollmentCartService {
     private final EnrollmentCartQueryRepository queryRepository;
     private final EnrollmentCartRepository cartRepository;
     private final EnrollmentAcademicStatusValidator academicStatusValidator;
+    private final CourseCorrectionPeriodRepository courseCorrectionPeriodRepository;
 
     public EnrollmentCartSummaryResponseDTO getMyCart(
             EnrollmentCartSearchRequestDTO request,
@@ -114,9 +116,14 @@ public class EnrollmentCartService {
     }
 
     private void validateChangePeriod(Semester semester, LocalDateTime now) {
-        if (semester.getEnrollmentStartAt() == null || semester.getEnrollmentEndAt() == null
-                || now.isBefore(semester.getEnrollmentStartAt()) || now.isAfter(semester.getEnrollmentEndAt())) {
-            throw new EnrollmentCartConflictException("수강신청 기간에만 장바구니를 변경할 수 있습니다.");
+        boolean enrollmentOpen = semester.getEnrollmentStartAt() != null && semester.getEnrollmentEndAt() != null
+                && !now.toLocalDate().isBefore(semester.getEnrollmentStartAt().toLocalDate())
+                && !now.toLocalDate().isAfter(semester.getEnrollmentEndAt().toLocalDate());
+        boolean correctionOpen = courseCorrectionPeriodRepository.findBySemesterId(semester.getId())
+                .map(period -> period.accepts(now.toLocalDate()))
+                .orElse(false);
+        if (!enrollmentOpen && !correctionOpen) {
+            throw new EnrollmentCartConflictException("수강신청 또는 수강정정 기간에만 장바구니를 변경할 수 있습니다.");
         }
     }
 }

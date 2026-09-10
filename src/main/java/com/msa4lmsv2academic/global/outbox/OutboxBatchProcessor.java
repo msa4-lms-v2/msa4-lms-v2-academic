@@ -27,7 +27,8 @@ public class OutboxBatchProcessor {
     private static final Map<String, String> EVENT_TYPE_TO_TOPIC = Map.of(
             "StudentSnapshotChanged", "msa4-team3.academic.student-changed",
             "SemesterCreated", "msa4-team3.academic.semester-created",
-            "WithdrawalApproved", "msa4-team3.academic.withdrawal-approved"
+            "WithdrawalApproved", "msa4-team3.academic.withdrawal-approved",
+            "ScholarshipApplicationPeriodChanged", "msa4-team3.academic.scholarship-application-period-changed"
     );
 
     private final OutboxEventRepository outboxEventRepository;
