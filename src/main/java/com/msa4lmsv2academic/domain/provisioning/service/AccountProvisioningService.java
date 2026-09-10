@@ -55,6 +55,10 @@ public class AccountProvisioningService {
         com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidate candidate = null;
         if (request.admissionCandidateId() != null) {
             candidate = admissionCandidateRepository.findByIdForUpdate(request.admissionCandidateId()).orElseThrow();
+            if (candidate.getStatus() != com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PROVISIONING) {
+                throw new com.msa4lmsv2academic.global.error.AdmissionCandidateStateConflictException(
+                        "계정 생성 중인 입학 예정자가 아닙니다.");
+            }
             if (!java.util.Objects.equals(candidate.getEmail(), request.email())
                     || !candidate.getDepartment().getId().equals(request.departmentId())
                     || candidate.getAdmissionYear() != request.admissionYear()) {

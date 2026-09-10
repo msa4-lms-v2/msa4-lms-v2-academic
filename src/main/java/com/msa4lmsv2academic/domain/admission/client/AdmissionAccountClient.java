@@ -16,9 +16,21 @@ public class AdmissionAccountClient {
         client = RestClient.builder().baseUrl(url).requestFactory(factory).build();
     }
     public void createAccount(Map<String, Object> payload) {
+        send(payload, "");
+    }
+    public void retryAccount(Map<String, Object> payload) {
+        send(payload, "/retry");
+    }
+    public void cancelAccount(Map<String, Object> payload) {
+        client.post().uri("/api/auth/accounts/admission-candidates/{id}/cancel", payload.get("admissionCandidateId"))
+                .header("X-User-Id", String.valueOf(payload.get("administratorId")))
+                .header("X-User-Role", "ADMIN")
+                .retrieve().toBodilessEntity();
+    }
+    private void send(Map<String, Object> payload, String suffix) {
         Map<String, Object> request = new LinkedHashMap<>(payload);
         Object administratorId = request.remove("administratorId");
-        client.post().uri("/api/auth/accounts/admission-candidates")
+        client.post().uri("/api/auth/accounts/admission-candidates" + suffix)
                 .header("X-User-Id", String.valueOf(administratorId))
                 .header("X-User-Role", "ADMIN")
                 .body(request).retrieve().toBodilessEntity();
