@@ -25,6 +25,20 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AccountProvisioningServiceTest {
 
+    @Test
+    void cancelledCandidateCannotCreateAStudentEvenWhenARequestArrivesLate() {
+        var candidate = com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidate.create(
+                "학생", java.time.LocalDate.of(2008, 1, 1), "s@example.com", null, null, null, (short) 2026, null);
+        candidate.cancelProvisioning(null);
+        when(admissionCandidateRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(candidate));
+        var request = new StudentProvisioningRequestDTO(23L, "학생", "s@example.com", null, null,
+                1L, (short) 2026, 7L, 2L);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.provisionStudent(request))
+                .isInstanceOf(com.msa4lmsv2academic.global.error.AdmissionCandidateStateConflictException.class);
+        org.mockito.Mockito.verifyNoInteractions(userRepository, departmentRepository, outboxEventService);
+        verify(studentRepository, org.mockito.Mockito.never()).saveAndFlush(any());
+    }
+
     @Mock private UserRepository userRepository;
     @Mock private DepartmentRepository departmentRepository;
     @Mock private StudentRepository studentRepository;

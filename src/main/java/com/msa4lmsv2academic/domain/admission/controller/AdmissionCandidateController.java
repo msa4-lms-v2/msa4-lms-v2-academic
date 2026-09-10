@@ -49,6 +49,28 @@ public class AdmissionCandidateController {
 
     private final AdmissionCandidateService admissionCandidateService;
 
+    @PostMapping("/{candidateId}/provisioning/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> retryProvisioning(
+            @PathVariable @Positive Long candidateId,
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(admissionCandidateService.manageProvisioning(
+                candidateId, false, currentUser, requestId, request.getRemoteAddr())));
+    }
+
+    @PostMapping("/{candidateId}/provisioning/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<AdmissionCandidateDetailResponseDTO>> cancelProvisioning(
+            @PathVariable @Positive Long candidateId,
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            HttpServletRequest request) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(admissionCandidateService.manageProvisioning(
+                candidateId, true, currentUser, requestId, request.getRemoteAddr())));
+    }
+
     @Operation(
             operationId = "searchAdmissionCandidates",
             summary = "입학 예정자 목록 조회",

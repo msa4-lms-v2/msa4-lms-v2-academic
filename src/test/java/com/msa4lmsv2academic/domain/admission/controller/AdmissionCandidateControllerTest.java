@@ -117,6 +117,37 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void pendingRegistrationCanBeRetriedThenCancelledThroughDetailActions() throws Exception {
+        long id = createCandidate("retry", "재시도", "retry@test.com");
+        mockMvc.perform(post("/api/academic/admission-candidates/{id}/provisioning/retry", id)
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PROVISIONING"));
+        mockMvc.perform(post("/api/academic/admission-candidates/{id}/provisioning/cancel", id)
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("CANCELLED"));
+        entityManager.flush();
+        entityManager.clear();
+        var events = outboxEventRepository.lockAdmissionRequests(id);
+        assertThat(events).hasSize(2).allSatisfy(e -> assertThat(e.getLastErrorCode()).isEqualTo("CANCELLED_BY_ADMIN"));
+        assertThat(outboxEventRepository.findAll()).anySatisfy(e -> {
+            assertThat(e.getAggregateId()).isEqualTo(id);
+            assertThat(e.getEventType()).isEqualTo("AdmissionCandidateCancelled");
+        });
+        mockMvc.perform(post("/api/academic/admission-candidates/{id}/provisioning/retry", id)
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void studentCannotRetryOrCancelAdmission() throws Exception {
+        for (var action : List.of("retry", "cancel")) {
+            mockMvc.perform(post("/api/academic/admission-candidates/1/provisioning/" + action)
+                            .headers(gatewayHeaders(99003L, "STUDENT")))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
     void registrationQueuesAccountAndProvisioningLinksGeneratedStudent() throws Exception {
         long candidateId = createCandidate("queue", "자동등록", "automatic@test.com");
         var event = outboxEventRepository.findAll().stream()

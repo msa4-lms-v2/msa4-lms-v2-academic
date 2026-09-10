@@ -9,6 +9,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
+    @Query(value = "SELECT * FROM outbox_events WHERE aggregate_type = 'ADMISSION_CANDIDATE' "
+            + "AND aggregate_id = :candidateId AND event_type IN ('AdmissionCandidateRegistered', 'AdmissionCandidateRetryRequested') "
+            + "ORDER BY id FOR UPDATE", nativeQuery = true)
+    List<OutboxEvent> lockAdmissionRequests(@Param("candidateId") Long candidateId);
+
     @Query(value = "SELECT * FROM outbox_events "
             + "WHERE status = 'PENDING' AND next_attempt_at <= :now "
             + "ORDER BY id ASC LIMIT :batchSize FOR UPDATE SKIP LOCKED",

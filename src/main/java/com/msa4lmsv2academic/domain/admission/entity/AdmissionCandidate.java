@@ -148,6 +148,15 @@ public class AdmissionCandidate {
         this.statusChangedAt = LocalDateTime.now();
     }
 
+    public void cancelProvisioning(User administrator) {
+        if (status != AdmissionCandidateStatus.PROVISIONING || student != null) {
+            throw new AdmissionCandidateStateConflictException("계정 생성 중인 입학 예정자만 취소할 수 있습니다.");
+        }
+        status = AdmissionCandidateStatus.CANCELLED;
+        statusChangedBy = administrator;
+        statusChangedAt = LocalDateTime.now();
+    }
+
     public void update(String name, LocalDate birthDate, String email, String phoneNumber, String address,
                        Department department, short admissionYear) {
         ensureRegistered();

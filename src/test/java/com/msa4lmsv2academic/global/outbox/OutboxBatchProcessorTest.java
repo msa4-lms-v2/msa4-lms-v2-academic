@@ -17,6 +17,28 @@ import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxBatchProcessorTest {
+    @Test
+    void retryAndCancellationAreDeliveredToTheMatchingAuthOperation() {
+        var retry = OutboxEvent.create("ADMISSION_CANDIDATE", 7L, "AdmissionCandidateRetryRequested", Map.of("admissionCandidateId", 7L), 1L);
+        var cancel = OutboxEvent.create("ADMISSION_CANDIDATE", 8L, "AdmissionCandidateCancelled", Map.of("admissionCandidateId", 8L), 1L);
+        when(outboxEventRepository.lockNextBatch(any(), anyInt())).thenReturn(List.of(retry, cancel));
+        processor.publishPendingBatch();
+        verify(admissionAccountClient).retryAccount(retry.getPayload());
+        verify(admissionAccountClient).cancelAccount(cancel.getPayload());
+        assertThat(retry.getStatus()).isEqualTo(OutboxEventStatus.COMPLETED);
+        assertThat(cancel.getStatus()).isEqualTo(OutboxEventStatus.COMPLETED);
+        verifyNoInteractions(kafkaTemplate);
+    }
+
+    @Test
+    void unavailableAuthDoesNotLoseCancellation() {
+        var event = OutboxEvent.create("ADMISSION_CANDIDATE", 7L, "AdmissionCandidateCancelled", Map.of("admissionCandidateId", 7L), 1L);
+        when(outboxEventRepository.lockNextBatch(any(), anyInt())).thenReturn(List.of(event));
+        doThrow(new ResourceAccessException("timeout")).when(admissionAccountClient).cancelAccount(any());
+        processor.publishPendingBatch();
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(event.getAttempts()).isEqualTo(1);
+    }
     @Mock OutboxEventRepository outboxEventRepository;
     @Mock KafkaTemplate<Object, Object> kafkaTemplate;
     @Mock ObjectMapper objectMapper;

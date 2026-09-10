@@ -46,9 +46,14 @@ public class OutboxBatchProcessor {
     }
 
     private void publish(OutboxEvent event, LocalDateTime now) {
-        if ("AdmissionCandidateRegistered".equals(event.getEventType())) {
+        if (java.util.Set.of("AdmissionCandidateRegistered", "AdmissionCandidateRetryRequested",
+                "AdmissionCandidateCancelled").contains(event.getEventType())) {
             try {
-                admissionAccountClient.createAccount(event.getPayload());
+                switch (event.getEventType()) {
+                    case "AdmissionCandidateRetryRequested" -> admissionAccountClient.retryAccount(event.getPayload());
+                    case "AdmissionCandidateCancelled" -> admissionAccountClient.cancelAccount(event.getPayload());
+                    default -> admissionAccountClient.createAccount(event.getPayload());
+                }
                 event.complete(now);
             } catch (org.springframework.web.client.RestClientException exception) {
                 event.retryLater(now.plusSeconds(Math.min(900, 5L << Math.min(event.getAttempts(), 7))), "AUTH_ACCOUNT_CREATE_FAILED");

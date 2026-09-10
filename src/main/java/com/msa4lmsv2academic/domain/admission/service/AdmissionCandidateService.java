@@ -56,6 +56,43 @@ public class AdmissionCandidateService {
     private final UserQueryService userQueryService;
     private final AuditLogService auditLogService;
     private final com.msa4lmsv2academic.domain.outbox.service.OutboxEventService outboxEventService;
+    private final com.msa4lmsv2academic.domain.outbox.repository.OutboxEventRepository outboxEventRepository;
+
+    @Transactional
+    public AdmissionCandidateDetailResponseDTO manageProvisioning(
+            Long candidateId, boolean cancel, CurrentUser currentUser, String requestId, String ipAddress) {
+        validateAdmin(currentUser);
+        // Match the publisher's lock order; never call Auth while holding the candidate lock.
+        var requests = outboxEventRepository.lockAdmissionRequests(candidateId);
+        var candidate = admissionCandidateRepository.findByIdForUpdate(candidateId)
+                .orElseThrow(AdmissionCandidateNotFoundException::new);
+        if (cancel && candidate.getStatus() == AdmissionCandidateStatus.CANCELLED) {
+            return AdmissionCandidateDetailResponseDTO.from(candidate);
+        }
+        if (candidate.getStatus() != AdmissionCandidateStatus.PROVISIONING || candidate.getStudent() != null) {
+            throw new AdmissionCandidateStateConflictException("계정 생성 중인 입학 예정자만 재시도하거나 취소할 수 있습니다.");
+        }
+        if (requests.isEmpty() && !cancel) {
+            throw new AdmissionCandidateStateConflictException("기존 계정 생성 요청을 찾을 수 없습니다.");
+        }
+        Map<String, Object> before = statusSnapshot(candidate);
+        for (var event : requests) {
+            if (event.getStatus() != com.msa4lmsv2academic.domain.outbox.entity.OutboxEventStatus.COMPLETED) {
+                event.giveUp(cancel ? "CANCELLED_BY_ADMIN" : "SUPERSEDED_BY_RETRY");
+            }
+        }
+        Map<String, Object> payload = cancel ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(requests.getFirst().getPayload());
+        payload.put("admissionCandidateId", candidateId);
+        payload.put("administratorId", currentUser.id());
+        if (cancel) candidate.cancelProvisioning(findAdministrator(currentUser.id()));
+        outboxEventService.record(TARGET_TYPE, candidateId,
+                cancel ? "AdmissionCandidateCancelled" : "AdmissionCandidateRetryRequested", payload, 1L);
+        auditLogService.record(currentUser.id(), cancel ? "ADMISSION_PROVISIONING_CANCEL" : "ADMISSION_PROVISIONING_RETRY",
+                TARGET_TYPE, candidateId, before, statusSnapshot(candidate), null,
+                normalizeNullable(requestId), normalizeNullable(ipAddress));
+        return AdmissionCandidateDetailResponseDTO.from(candidate);
+    }
 
     public PageResponseDTO<AdmissionCandidateSummaryResponseDTO> searchCandidates(
             AdmissionCandidateSearchRequestDTO request,
