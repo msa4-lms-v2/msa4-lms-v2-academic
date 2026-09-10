@@ -1,8 +1,14 @@
 package com.msa4lmsv2academic.domain.outbox.controller;
 
+import com.msa4lmsv2academic.domain.graduation.response.CreditDiagnosisResponseDTO;
+import com.msa4lmsv2academic.domain.graduation.service.GraduationCreditDiagnosisService;
+import com.msa4lmsv2academic.domain.outbox.response.ProfessorCertificateEligibilityResponseDTO;
 import com.msa4lmsv2academic.domain.outbox.response.SemesterSnapshotSyncResponseDTO;
+import com.msa4lmsv2academic.domain.outbox.response.StudentCertificateEligibilityResponseDTO;
 import com.msa4lmsv2academic.domain.outbox.response.StudentSnapshotSyncResponseDTO;
 import com.msa4lmsv2academic.domain.outbox.response.WithdrawalSnapshotSyncResponseDTO;
+import com.msa4lmsv2academic.domain.professor.entity.Professor;
+import com.msa4lmsv2academic.domain.professor.repository.ProfessorRepository;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.repository.SemesterRepository;
 import com.msa4lmsv2academic.domain.student.entity.Student;
@@ -10,10 +16,13 @@ import com.msa4lmsv2academic.domain.student.repository.StudentRepository;
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalRequest;
 import com.msa4lmsv2academic.domain.withdrawal.entity.WithdrawalStatus;
 import com.msa4lmsv2academic.domain.withdrawal.repository.WithdrawalRequestRepository;
+import com.msa4lmsv2academic.global.error.GraduationCreditDataNotFoundException;
+import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.error.SemesterNotFoundException;
 import com.msa4lmsv2academic.global.error.StudentNotFoundException;
 import com.msa4lmsv2academic.global.error.WithdrawalNotFoundException;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
+import com.msa4lmsv2academic.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +41,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class SnapshotSyncController {
 
+    // 증명서 발급 자격 조회는 이 내부 시스템 경로를 통해서만 이뤄지므로, 발급자 명의로 진단 로직을 그대로 재사용한다.
+    private static final CurrentUser SYSTEM_ADMIN = new CurrentUser(0L, "ADMIN");
+
     private final StudentRepository studentRepository;
     private final SemesterRepository semesterRepository;
     private final WithdrawalRequestRepository withdrawalRequestRepository;
+    private final ProfessorRepository professorRepository;
+    private final GraduationCreditDiagnosisService graduationCreditDiagnosisService;
 
     @Transactional(readOnly = true)
     @GetMapping("/api/academic/students/{studentId}/snapshot")
@@ -70,5 +84,45 @@ public class SnapshotSyncController {
                 .filter(candidate -> candidate.getStatus() == WithdrawalStatus.APPROVED)
                 .orElseThrow(WithdrawalNotFoundException::new);
         return ResponseEntity.ok(GlobalResponseDTO.success(WithdrawalSnapshotSyncResponseDTO.from(request)));
+    }
+
+    @Transactional(readOnly = true)
+    @GetMapping("/api/academic/students/{studentId}/certificate-snapshot")
+    public ResponseEntity<GlobalResponseDTO<StudentCertificateEligibilityResponseDTO>> getStudentCertificateSnapshot(
+            @PathVariable Long studentId
+    ) {
+        Student student = studentRepository.findById(studentId).orElseThrow(StudentNotFoundException::new);
+
+        Boolean graduationSatisfied = null;
+        Integer earnedTotalCredits = null;
+        try {
+            CreditDiagnosisResponseDTO diagnosis = graduationCreditDiagnosisService.diagnose(studentId, SYSTEM_ADMIN);
+            graduationSatisfied = diagnosis.satisfied();
+            earnedTotalCredits = diagnosis.earnedTotalCredits();
+        } catch (GraduationCreditDataNotFoundException e) {
+            // 졸업요건이 아직 등록되지 않은 학과·입학년도면 졸업증명서 발급 판단에만 영향을 준다 - 재학증명서 발급은 이 값 없이도 가능해야 하므로 전체 요청을 실패시키지 않는다.
+        }
+
+        return ResponseEntity.ok(GlobalResponseDTO.success(
+                StudentCertificateEligibilityResponseDTO.of(student, graduationSatisfied, earnedTotalCredits)
+        ));
+    }
+
+    @Transactional(readOnly = true)
+    @GetMapping("/api/academic/professors/{professorId}/certificate-snapshot")
+    public ResponseEntity<GlobalResponseDTO<ProfessorCertificateEligibilityResponseDTO>> getProfessorCertificateSnapshot(
+            @PathVariable Long professorId
+    ) {
+        Professor professor = professorRepository.findById(professorId).orElseThrow(ProfessorNotFoundException::new);
+        return ResponseEntity.ok(GlobalResponseDTO.success(ProfessorCertificateEligibilityResponseDTO.from(professor)));
+    }
+
+    @Transactional(readOnly = true)
+    @GetMapping("/api/academic/professors/by-user/{userId}/certificate-snapshot")
+    public ResponseEntity<GlobalResponseDTO<ProfessorCertificateEligibilityResponseDTO>> getProfessorCertificateSnapshotByUserId(
+            @PathVariable Long userId
+    ) {
+        Professor professor = professorRepository.findByUserId(userId).orElseThrow(ProfessorNotFoundException::new);
+        return ResponseEntity.ok(GlobalResponseDTO.success(ProfessorCertificateEligibilityResponseDTO.from(professor)));
     }
 }
