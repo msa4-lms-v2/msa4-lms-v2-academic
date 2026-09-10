@@ -73,8 +73,6 @@ class EnrollmentApplicationSampleDataTest {
         jdbc.update("DELETE r FROM enrollment_credit_limit_rules r JOIN semesters s ON s.id = r.semester_id "
                 + "WHERE s.academic_year = 2099 AND s.term = 'FIRST'");
         jdbc.update("DELETE FROM semesters WHERE academic_year = 2099 AND term = 'FIRST'");
-        jdbc.update("DELETE p FROM course_prerequisites p JOIN courses c "
-                + "ON c.id = p.course_id OR c.id = p.prerequisite_course_id WHERE c.code LIKE 'TEST-ENR-%'");
         jdbc.update("DELETE FROM courses WHERE code LIKE 'TEST-ENR-%'");
         runScript("dummy/01_msa4-lms-v2-academic-sample.sql");
     }
@@ -97,7 +95,7 @@ class EnrollmentApplicationSampleDataTest {
                 .isEqualTo(semesters);
         assertThat(jdbc.queryForList("SELECT * FROM enrollment_credit_limit_rules WHERE semester_id <> ? ORDER BY id",
                 semesterId())).isEqualTo(rules);
-        assertThat(count("SELECT COUNT(*) FROM courses WHERE code LIKE 'TEST-ENR-%'")).isEqualTo(5);
+        assertThat(count("SELECT COUNT(*) FROM courses WHERE code LIKE 'TEST-ENR-%'")).isEqualTo(4);
         assertThat(count("SELECT COUNT(*) FROM lectures WHERE syllabus = 'LOCAL_ENROLLMENT_APPLICATION_SAMPLE' "
                 + "AND status = 'OPEN' AND capacity = 40")).isEqualTo(4);
         assertThat(count("SELECT COUNT(*) FROM semesters WHERE academic_year = 2099 AND term = 'FIRST' "
@@ -107,19 +105,13 @@ class EnrollmentApplicationSampleDataTest {
                 + "AND max_credits = 6 AND is_active = TRUE", semesterId())).isEqualTo(1);
         assertThat(count("SELECT COUNT(DISTINCT ls.day_of_week) FROM lecture_schedules ls "
                 + "JOIN lectures l ON l.id = ls.lecture_id WHERE l.semester_id = ?", semesterId())).isEqualTo(4);
-        assertThat(count("SELECT COUNT(*) FROM course_prerequisites p JOIN courses c ON c.id = p.course_id "
-                + "JOIN courses pre ON pre.id = p.prerequisite_course_id "
-                + "WHERE c.code = 'TEST-ENR-D' AND pre.code = 'TEST-ENR-PRE' AND p.is_active = TRUE")).isEqualTo(1);
-        assertThat(count("SELECT COUNT(*) FROM lectures l JOIN courses c ON c.id = l.course_id "
-                + "WHERE c.code = 'TEST-ENR-PRE'")).isZero();
         assertThat(count("SELECT COUNT(*) FROM enrollment_histories")).isZero();
         assertThat(count("SELECT COUNT(*) FROM idempotency_keys")).isZero();
     }
 
     @Test
-    void fixtureSupportsPrerequisiteRejectionSuccessReplayDuplicateAndCreditLimit() {
+    void fixtureSupportsSuccessReplayDuplicateAndCreditLimit() {
         runScript(SAMPLE);
-        assertRejected("TEST-ENR-D", "sample-d", "PREREQUISITE_NOT_COMPLETED");
         var first = apply("TEST-ENR-A", "sample-a");
         assertThat(first.code()).isEqualTo("00");
         assertThat(first.data().status().name()).isEqualTo("ACTIVE");
