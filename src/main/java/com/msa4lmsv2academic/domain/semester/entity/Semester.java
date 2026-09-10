@@ -111,6 +111,11 @@ public class Semester {
                 && !dateTime.isAfter(evaluationEndAt);
     }
 
+    public void changeEnrollmentPeriod(LocalDateTime enrollmentStartAt, LocalDateTime enrollmentEndAt) {
+        this.enrollmentStartAt = enrollmentStartAt;
+        this.enrollmentEndAt = enrollmentEndAt;
+    }
+
     public void unsetCurrent() {
         this.current = false;
     }

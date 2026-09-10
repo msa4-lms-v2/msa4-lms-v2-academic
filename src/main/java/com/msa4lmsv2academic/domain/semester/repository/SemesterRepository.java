@@ -18,4 +18,8 @@ public interface SemesterRepository extends JpaRepository<Semester, Long> {
     List<Semester> findCurrentSemestersForUpdate();
 
     Optional<Semester> findFirstByCurrentTrue();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select semester from Semester semester where semester.academicYear = :academicYear and semester.term = :term")
+    Optional<Semester> findByAcademicYearAndTermForUpdate(short academicYear, SemesterTerm term);
 }

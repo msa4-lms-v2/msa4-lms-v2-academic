@@ -24,6 +24,7 @@ class AcademicScheduleOpenApiTest extends MySqlIntegrationTest {
     @Test
     void generatedOpenApiContainsAcademicScheduleContractsAndSchemas() throws Exception {
         String collectionPath = "$['paths']['/api/academic/academic-schedules']";
+        String templatePath = "$['paths']['/api/academic/academic-schedules/templates']";
         String itemPath = "$['paths']['/api/academic/academic-schedules/{scheduleId}']";
         String statusPath = "$['paths']['/api/academic/academic-schedules/{scheduleId}/status']";
 
@@ -31,6 +32,7 @@ class AcademicScheduleOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(collectionPath + "['get']").exists())
                 .andExpect(jsonPath(collectionPath + "['post']").exists())
+                .andExpect(jsonPath(templatePath + "['get']").exists())
                 .andExpect(jsonPath(itemPath + "['get']").exists())
                 .andExpect(jsonPath(itemPath + "['put']").exists())
                 .andExpect(jsonPath(itemPath + "['delete']").doesNotExist())
@@ -53,9 +55,9 @@ class AcademicScheduleOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(statusPath + "['patch']['operationId']")
                         .value(not(containsString("SCRUM"))))
                 .andExpect(jsonPath("$['components']['schemas']['AcademicScheduleCreateRequestDTO']['required']")
-                        .value(hasItems("title", "startDate", "targetRole")))
+                        .value(hasItems("title", "category", "startDate", "targetRole")))
                 .andExpect(jsonPath("$['components']['schemas']['AcademicScheduleUpdateRequestDTO']['required']")
-                        .value(hasItems("title", "startDate", "targetRole", "reason")))
+                        .value(hasItems("title", "category", "startDate", "targetRole", "reason")))
                 .andExpect(jsonPath("$['components']['schemas']['AcademicScheduleStatusRequestDTO']['required']")
                         .value(hasItems("active", "reason")))
                 .andExpect(jsonPath("$['components']['schemas']['AcademicScheduleSummaryResponseDTO']"

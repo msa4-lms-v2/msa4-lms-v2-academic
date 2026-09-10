@@ -40,6 +40,9 @@ public class AcademicScheduleQueryRepository {
         if (condition.targetRoles() != null && !condition.targetRoles().isEmpty()) {
             predicates.and(academicSchedule.targetRole.in(condition.targetRoles()));
         }
+        if (condition.category() != null) predicates.and(academicSchedule.category.eq(condition.category()));
+        if (condition.academicYear() != null) predicates.and(academicSchedule.academicYear.eq(condition.academicYear()));
+        if (condition.term() != null) predicates.and(academicSchedule.term.eq(condition.term()));
         if (condition.active() != null) {
             predicates.and(academicSchedule.active.eq(condition.active()));
         }
