@@ -37,7 +37,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(properties = {"academic.leave.idempotency-cleanup.cron=-",
-        "academic.enrollment.idempotency-cleanup.cron=-", "academic.withdrawal.idempotency-cleanup.cron=-"})
+        "academic.enrollment.idempotency-cleanup.cron=-", "academic.withdrawal.idempotency-cleanup.cron=-",
+        "academic.leave.expiry-warning.cron=-"})
 @AutoConfigureMockMvc
 class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     private static final CurrentUser STUDENT = new CurrentUser(280011L, "STUDENT");
@@ -51,6 +52,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     @Autowired private LeaveRequestService service;
     @Autowired private LeavePeriodService periods;
     @Autowired private LeaveIdempotencyCleanupService cleanup;
+    @Autowired private LeaveExpiryWarningService expiryWarnings;
     @Autowired private WithdrawalService withdrawals;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private MockMvc mvc;
@@ -72,9 +74,14 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "(280001,280011,280001,2,2089,'ENROLLED',280001),(280002,280012,280001,2,2089,'ENROLLED',280001)");
         semester(280001, 2090, "FIRST", true);
         semester(280002, 2090, "SECOND", false);
-        semester(280003, 2092, "FIRST", false);
+        semester(280003, 2091, "FIRST", false);
+        semester(280004, 2092, "FIRST", false);
         for (var type : LeaveRequestType.values()) {
-            long semesterId = type.isLeave() ? 280002L : 280003L;
+            long semesterId = switch (type) {
+                case GENERAL_LEAVE, MILITARY_LEAVE -> 280002L;
+                case GENERAL_RETURN -> 280003L;
+                case MILITARY_RETURN -> 280004L;
+            };
             var now = LeaveRequestPolicy.now().withNano(0);
             jdbc.update("INSERT INTO leave_request_periods (semester_id,request_type,start_at,end_at,approval_start_at,approval_end_at,is_active)"
                     + " VALUES (?,?,?,?,?,?,1)", semesterId, type.name(), now.minusDays(1), now.plusDays(1),
@@ -99,7 +106,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     @Test void generalLeaveCreateReplayCancelAndReapplyPreserveOriginalAndFullReasons() {
         var first = create("lv-create");
         assertThat(first.status()).isEqualTo(LeaveRequestStatus.PENDING);
-        assertThat(first.returnYear()).isEqualTo((short) 2092);
+        assertThat(first.returnYear()).isEqualTo((short) 2091);
         assertThat(application.create(general(), List.of(), "lv-create", STUDENT, CONTEXT)).isEqualTo(first);
         assertThat(count("academic_requests")).isEqualTo(1);
         assertThat(count("audit_logs")).isEqualTo(1);
@@ -124,10 +131,11 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThat(count("academic_status_histories")).isEqualTo(1);
         assertThat(approve(id, "lv-approve")).isEqualTo(result);
         assertThat(count("academic_status_histories")).isEqualTo(1);
-        assertThatThrownBy(() -> application.create(returnBody((short) 2091, (byte) 2), List.of(), "lv-early", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(generalReturnBody((short) 2091, (byte) 2), List.of(), "lv-early", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
-        // 클라이언트가 군복학을 보내도 실제 일반휴학 근거에서 일반복학으로 판별합니다.
-        var returning = application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
+        assertThatThrownBy(() -> application.create(militaryReturnBody((short) 2091, (byte) 1), List.of(),
+                "lv-mismatched-return", STUDENT, CONTEXT)).isInstanceOf(LeaveRequestConflictException.class);
+        var returning = application.create(generalReturnBody((short) 2091, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
         assertThat(returning.requestType()).isEqualTo(LeaveRequestType.GENERAL_RETURN);
         assertThat(returning.reason()).isEqualTo("복학");
         approve(returning.id(), "lv-return-approve");
@@ -138,7 +146,10 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test void militaryUsesApplicationTermPlusFourAndDoesNotRecalculateOnApproval() {
+        jdbc.update("DELETE FROM leave_request_periods WHERE request_type='MILITARY_LEAVE'");
         var first = application.create(military(), List.of(pdf()), "lv-military", STUDENT, CONTEXT);
+        assertThat(first.targetYear()).isEqualTo((short) 2090);
+        assertThat(first.targetSemester()).isEqualTo((byte) 1);
         assertThat(first.returnYear()).isEqualTo((short) 2092);
         assertThat(first.returnSemester()).isEqualTo((byte) 1);
         assertThat(first.reason()).isEqualTo("군입대");
@@ -148,7 +159,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("UPDATE semesters SET is_current=1 WHERE id=280002");
         var approved = approve(first.id(), "lv-military-approve");
         assertThat(approved.returnSemester()).isEqualTo((byte) 1);
-        var returning = application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
+        var returning = application.create(militaryReturnBody((short) 2092, (byte) 1), List.of(), "lv-return", STUDENT, CONTEXT);
         assertThat(returning.requestType()).isEqualTo(LeaveRequestType.MILITARY_RETURN);
         approve(returning.id(), "lv-return-approve");
         assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-military-again", STUDENT, CONTEXT))
@@ -157,12 +168,52 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "WHERE actor_id=280011 AND action='LEAVE_CREATED' AND target_id=?", String.class, first.id())).isEqualTo("280001");
     }
 
+    @Test void generalLeaveIsOneSemesterAndCanBeReappliedFromOnLeaveDuringNextPeriod() {
+        var first = create("lv-general-first");
+        assertThat(first.returnYear()).isEqualTo((short) 2091);
+        assertThat(first.returnSemester()).isEqualTo((byte) 1);
+        approve(first.id(), "lv-general-first-approve");
+
+        var now = LeaveRequestPolicy.now().withNano(0);
+        jdbc.update("INSERT INTO leave_request_periods (semester_id,request_type,start_at,end_at,approval_start_at,approval_end_at,is_active)"
+                        + " VALUES (?,?,?,?,?,?,1)", 280003L, LeaveRequestType.GENERAL_LEAVE.name(), now.minusDays(1),
+                now.plusDays(1), now.minusDays(1), now.plusDays(1));
+        jdbc.update("UPDATE semesters SET is_current=0 WHERE id=280001");
+        jdbc.update("UPDATE semesters SET is_current=1 WHERE id=280002");
+
+        var reapplication = application.create(new LeaveRequestCreateRequestDTO(LeaveRequestType.GENERAL_LEAVE,
+                "휴학 연장", (short) 2091, (byte) 1, (short) 2091, (byte) 2), List.of(), "lv-general-reapply",
+                STUDENT, CONTEXT);
+        assertThat(reapplication.status()).isEqualTo(LeaveRequestStatus.PENDING);
+        approve(reapplication.id(), "lv-general-reapply-approve");
+        assertThat(studentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(count("academic_status_histories")).isEqualTo(2);
+    }
+
+    @Test void expiredLeaveWarnsOnlyWhenNoPendingOrApprovedReturnTermActionExists() {
+        var leave = create("lv-expiry-warning");
+        approve(leave.id(), "lv-expiry-approve");
+        var returning = application.create(generalReturnBody((short) 2091, (byte) 1), List.of(), "lv-return-pending", STUDENT, CONTEXT);
+
+        expiryWarnings.warnStudentsWithoutNextTermAction(LocalDate.of(2091, 1, 1));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE recipient_user_id=280011", Integer.class))
+                .isZero();
+
+        service.changeStatus(returning.id(), new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.CANCELLED, "취소"),
+                "lv-return-cancel", STUDENT, CONTEXT);
+        expiryWarnings.warnStudentsWithoutNextTermAction(LocalDate.of(2091, 1, 1));
+        expiryWarnings.warnStudentsWithoutNextTermAction(LocalDate.of(2091, 1, 2));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE recipient_user_id=280011 "
+                        + "AND category='ACADEMIC' AND notification_type='LEAVE_ACTION_REQUIRED'", Integer.class))
+                .isEqualTo(1);
+    }
+
     @Test void missingCurrentTermAndUnprovenMigratedLeaveFailClosed() {
         jdbc.update("UPDATE semesters SET is_current=0 WHERE id=280001");
         assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-no-current", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         jdbc.update("UPDATE students SET academic_status='ON_LEAVE' WHERE id=280001");
-        assertThatThrownBy(() -> application.create(returnBody((short) 2092, (byte) 1), List.of(), "lv-no-origin", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> application.create(militaryReturnBody((short) 2092, (byte) 1), List.of(), "lv-no-origin", STUDENT, CONTEXT))
                 .isInstanceOf(LeaveRequestConflictException.class);
         verifyNoInteractions(storage);
     }
@@ -413,6 +464,9 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/files/{fileId}']['get']['responses']['200']['content']['application/octet-stream']").exists())
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-requests/{id}/attachment']['get']['deprecated']").value(true))
                 .andExpect(jsonPath("$['paths']['/api/academic/leave-request-periods/{id}']['put']['operationId']").value("updateLeaveRequestPeriod"))
+                .andExpect(jsonPath("$['paths']['/api/academic/notifications']['get']['security'][0]['bearerAuth']").isArray())
+                .andExpect(jsonPath("$['paths']['/api/academic/notifications/{notificationId}/read']['patch']['responses']['200']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/counseling/notifications']['get']['summary']").value("내 상담 알림 목록 조회"))
                 .andExpect(jsonPath("$['paths']['/api/academic/withdrawals']['post']['responses']['201']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['LeaveRequestCreateRequestDTO']['properties']['returnYear']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['LeavePeriodSaveRequestDTO']['properties']['approvalStartAt']").exists());
@@ -453,7 +507,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "FROM audit_logs WHERE actor_id=280014 AND action='LEAVE_APPROVED'", Integer.class)).isEqualTo(500);
     }
 
-    @Test void missingPeriodBlocksWithoutUploadingAndMigrationKeepsExistingRows() {
+    @Test void missingGeneralLeavePeriodBlocksWithoutUploadingAndMigrationKeepsExistingRows() {
         var first = create("lv-create");
         new org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
                 new org.springframework.core.io.ClassPathResource("migration/20260828_create_leave_requests_and_periods.sql"))
@@ -462,7 +516,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         service.changeStatus(first.id(), new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.CANCELLED,"취소"),
                 "lv-cancel",STUDENT,CONTEXT);
         jdbc.update("DELETE FROM leave_request_periods WHERE semester_id=280002");
-        assertThatThrownBy(() -> application.create(military(), List.of(pdf()), "lv-no-period", STUDENT, CONTEXT))
+        assertThatThrownBy(() -> create("lv-no-period"))
                 .isInstanceOf(LeaveRequestConflictException.class);
         verifyNoInteractions(storage);
     }
@@ -486,13 +540,16 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
     }
 
     private LeaveRequestCreateRequestDTO general() {
-        return new LeaveRequestCreateRequestDTO(LeaveRequestType.GENERAL_LEAVE,"  개인 사정  ",(short)2090,(byte)2,(short)2092,(byte)1);
+        return new LeaveRequestCreateRequestDTO(LeaveRequestType.GENERAL_LEAVE,"  개인 사정  ",(short)2090,(byte)2,(short)2091,(byte)1);
     }
     private LeaveRequestCreateRequestDTO military() {
-        return new LeaveRequestCreateRequestDTO(LeaveRequestType.MILITARY_LEAVE,null,(short)2090,(byte)2,null,null);
+        return new LeaveRequestCreateRequestDTO(LeaveRequestType.MILITARY_LEAVE,null,null,null,null,null);
     }
-    private LeaveRequestCreateRequestDTO returnBody(short year,byte term) {
+    private LeaveRequestCreateRequestDTO militaryReturnBody(short year,byte term) {
         return new LeaveRequestCreateRequestDTO(LeaveRequestType.MILITARY_RETURN,null,year,term,null,null);
+    }
+    private LeaveRequestCreateRequestDTO generalReturnBody(short year,byte term) {
+        return new LeaveRequestCreateRequestDTO(LeaveRequestType.GENERAL_RETURN,null,year,term,null,null);
     }
     private MockMultipartFile pdf() {
         return pdf("proof.pdf");
@@ -554,17 +611,18 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 + "VALUES (?,?,?,'2090-03-01','2090-06-30','2090-02-01 09:00:00','2090-02-10 18:00:00',?)",id,year,term,current);
     }
     private void clean() {
+        jdbc.update("DELETE FROM notifications WHERE recipient_user_id BETWEEN 280011 AND 280014");
         jdbc.update("DELETE FROM audit_logs WHERE actor_id BETWEEN 280011 AND 280014");
         jdbc.update("DELETE FROM idempotency_keys WHERE requester_user_id BETWEEN 280011 AND 280014");
         jdbc.update("DELETE FROM academic_status_histories WHERE student_id IN (280001,280002)");
         jdbc.update("DELETE FROM withdrawal_requests WHERE student_id IN (280001,280002)");
         jdbc.update("DELETE FROM academic_requests WHERE student_id IN (280001,280002)");
-        jdbc.update("DELETE FROM leave_request_periods WHERE semester_id BETWEEN 280001 AND 280003");
+        jdbc.update("DELETE FROM leave_request_periods WHERE semester_id BETWEEN 280001 AND 280004");
         jdbc.update("DELETE FROM students WHERE id IN (280001,280002)");
         jdbc.update("DELETE FROM professors WHERE id=280001");
         jdbc.update("DELETE FROM users WHERE id BETWEEN 280011 AND 280014");
         jdbc.update("DELETE FROM departments WHERE id=280001");
         jdbc.update("DELETE FROM colleges WHERE id=280001");
-        jdbc.update("DELETE FROM semesters WHERE id BETWEEN 280001 AND 280003");
+        jdbc.update("DELETE FROM semesters WHERE id BETWEEN 280001 AND 280004");
     }
 }
