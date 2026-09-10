@@ -15,9 +15,10 @@ import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.global.error.EnrollmentAcademicStatusNotAllowedException;
 import com.msa4lmsv2academic.global.error.EnrollmentApplicationRejectedException;
+import com.msa4lmsv2academic.global.error.EnrollmentCourseAttemptLimitNotAllowedException;
 import com.msa4lmsv2academic.global.error.EnrollmentCreditLimitNotAllowedException;
 import com.msa4lmsv2academic.global.error.EnrollmentLectureNotFoundException;
-import com.msa4lmsv2academic.global.error.EnrollmentPrerequisiteRetakeNotAllowedException;
+import com.msa4lmsv2academic.global.error.EnrollmentRetakeNotAllowedException;
 import com.msa4lmsv2academic.global.error.InvalidEnrollmentApplicationRequestException;
 import com.msa4lmsv2academic.global.error.StudentEnrollmentAccessDeniedException;
 import com.msa4lmsv2academic.global.error.StudentNotFoundException;
@@ -121,9 +122,12 @@ public class StudentEnrollmentApplicationService {
         } catch (EnrollmentCreditLimitNotAllowedException exception) {
             throw new EnrollmentApplicationRejectedException(List.of(EnrollmentApplicationReasonResponseDTO.from(
                     exception.getReason().name(), exception.getReason().getMessage())));
-        } catch (EnrollmentPrerequisiteRetakeNotAllowedException exception) {
-            throw new EnrollmentApplicationRejectedException(exception.getReasons().stream()
-                    .map(reason -> EnrollmentApplicationReasonResponseDTO.from(reason.name(), reason.getMessage())).toList());
+        } catch (EnrollmentCourseAttemptLimitNotAllowedException exception) {
+            throw new EnrollmentApplicationRejectedException(List.of(EnrollmentApplicationReasonResponseDTO.from(
+                    exception.getReason().name(), exception.getReason().getMessage())));
+        } catch (EnrollmentRetakeNotAllowedException exception) {
+            throw new EnrollmentApplicationRejectedException(List.of(EnrollmentApplicationReasonResponseDTO.from(
+                    exception.getReason().name(), exception.getReason().getMessage())));
         }
     }
 

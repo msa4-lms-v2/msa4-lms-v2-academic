@@ -5,8 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum PrerequisiteRetakeRuleRejectionReason {
-    PREREQUISITE_NOT_COMPLETED("선수과목을 이수하지 않았습니다."),
+public enum RetakeRejectionReason {
     ACTIVE_ENROLLMENT_EXISTS("현재 동일 교과목을 수강 중입니다."),
     RETAKE_BLOCKED_HIGH_GRADE("B 이상 성적 이력이 있어 재수강할 수 없습니다."),
     GRADE_NOT_OPENED("아직 공개되지 않은 성적이 있습니다."),

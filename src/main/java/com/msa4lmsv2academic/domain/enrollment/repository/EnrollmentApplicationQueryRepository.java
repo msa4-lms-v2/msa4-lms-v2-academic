@@ -1,8 +1,11 @@
 package com.msa4lmsv2academic.domain.enrollment.repository;
 
 import static com.msa4lmsv2academic.domain.enrollment.entity.QEnrollment.enrollment;
+import static com.msa4lmsv2academic.domain.lecture.entity.QLecture.lecture;
+import static com.msa4lmsv2academic.domain.semester.entity.QSemester.semester;
 import static com.msa4lmsv2academic.domain.student.entity.QStudent.student;
 
+import com.msa4lmsv2academic.domain.enrollment.entity.Enrollment;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.lecture.entity.QLectureSchedule;
@@ -10,6 +13,7 @@ import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -34,6 +38,18 @@ public class EnrollmentApplicationQueryRepository {
         return queryFactory.selectOne().from(enrollment)
                 .where(enrollment.student.id.eq(studentId), enrollment.lecture.id.eq(lectureId),
                         enrollment.status.eq(EnrollmentStatus.ACTIVE)).fetchFirst() != null;
+    }
+
+    public List<Enrollment> findNonCancelledCourseEnrollments(Long studentId, Long courseId) {
+        return queryFactory.selectFrom(enrollment)
+                .join(enrollment.lecture, lecture).fetchJoin()
+                .join(lecture.semester, semester).fetchJoin()
+                .where(
+                        enrollment.student.id.eq(studentId),
+                        lecture.course.id.eq(courseId),
+                        enrollment.status.ne(EnrollmentStatus.CANCELLED)
+                )
+                .fetch();
     }
 
     public long countActiveEnrollments(Long lectureId) {
