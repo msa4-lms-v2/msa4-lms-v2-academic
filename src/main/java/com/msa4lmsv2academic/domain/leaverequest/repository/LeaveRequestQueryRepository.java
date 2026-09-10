@@ -11,11 +11,14 @@ import com.msa4lmsv2academic.domain.leaverequest.entity.*;
 import com.msa4lmsv2academic.domain.leaverequest.request.*;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
+import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.withdrawal.entity.AcademicStatusHistory;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +64,21 @@ public class LeaveRequestQueryRepository {
         return Optional.ofNullable(queryFactory.selectFrom(leaveRequest)
                 .join(leaveRequest.student, student).fetchJoin().join(student.user, user).fetchJoin()
                 .where(leaveRequest.id.eq(id)).fetchOne());
+    }
+
+    public List<LeaveRequest> findApprovedLeavesEndedBefore(LocalDate date) {
+        BooleanExpression targetSemester = leaveRequest.targetSemester.eq((byte) 1)
+                .and(semester.term.eq(SemesterTerm.FIRST))
+                .or(leaveRequest.targetSemester.eq((byte) 2).and(semester.term.eq(SemesterTerm.SECOND)));
+        return queryFactory.selectFrom(leaveRequest)
+                .join(leaveRequest.student, student).fetchJoin()
+                .join(student.user, user).fetchJoin()
+                .join(semester).on(semester.academicYear.eq(leaveRequest.targetYear).and(targetSemester))
+                .where(leaveRequest.status.eq(LeaveRequestStatus.APPROVED),
+                        leaveRequest.requestType.in(LeaveRequestType.GENERAL_LEAVE, LeaveRequestType.MILITARY_LEAVE),
+                        student.academicStatus.eq(AcademicStatus.ON_LEAVE),
+                        semester.endDate.before(date))
+                .fetch();
     }
 
     public Page<LeaveRequest> search(LeaveRequestSearchRequestDTO filter, Long ownerUserId, Pageable pageable) {

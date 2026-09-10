@@ -236,25 +236,24 @@ CREATE TABLE IF NOT EXISTS counselings (
     INDEX idx_counselings_professor_status_created (professor_id, status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS counseling_notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    counseling_id BIGINT NOT NULL,
     recipient_user_id BIGINT NOT NULL,
+    category VARCHAR(30) NOT NULL,
     notification_type VARCHAR(40) NOT NULL,
-    previous_status VARCHAR(20) NULL,
-    new_status VARCHAR(20) NOT NULL,
+    resource_type VARCHAR(40) NOT NULL,
+    resource_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    context JSON NULL,
     message VARCHAR(500) NOT NULL,
     deduplication_key CHAR(64) NOT NULL,
     read_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    CONSTRAINT uk_counseling_notifications_deduplication_key UNIQUE (deduplication_key),
-    CONSTRAINT fk_counseling_notifications_counseling
-        FOREIGN KEY (counseling_id) REFERENCES counselings (id) ON DELETE CASCADE,
-    CONSTRAINT fk_counseling_notifications_recipient
+    CONSTRAINT uk_notifications_deduplication_key UNIQUE (deduplication_key),
+    CONSTRAINT fk_notifications_recipient
         FOREIGN KEY (recipient_user_id) REFERENCES users (id) ON DELETE RESTRICT,
-    INDEX idx_counseling_notifications_recipient_read_created (recipient_user_id, read_at, created_at),
-    INDEX idx_counseling_notifications_counseling (counseling_id)
+    INDEX idx_notifications_recipient_read_created (recipient_user_id, read_at, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS semesters (
     id BIGINT NOT NULL AUTO_INCREMENT,

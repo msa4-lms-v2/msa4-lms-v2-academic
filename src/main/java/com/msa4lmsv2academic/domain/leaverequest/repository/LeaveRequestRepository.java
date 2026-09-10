@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.*;
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
     boolean existsByStudentIdAndStatus(Long studentId, LeaveRequestStatus status);
     boolean existsByStudentIdAndRequestTypeAndStatus(Long studentId, LeaveRequestType type, LeaveRequestStatus status);
+    boolean existsByStudentIdAndTargetYearAndTargetSemesterAndRequestTypeInAndStatusIn(
+            Long studentId, short targetYear, byte targetSemester,
+            List<LeaveRequestType> requestTypes, List<LeaveRequestStatus> statuses);
 
     @Query("select r.student.id from LeaveRequest r where r.id = :id")
     Optional<Long> findStudentIdById(Long id);

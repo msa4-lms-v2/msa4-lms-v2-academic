@@ -4,11 +4,11 @@ import com.msa4lmsv2academic.domain.counseling.request.CounselingAnswerRequestDT
 import com.msa4lmsv2academic.domain.counseling.request.CounselingCreateRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingNotificationSearchRequestDTO;
 import com.msa4lmsv2academic.domain.counseling.request.CounselingSearchRequestDTO;
-import com.msa4lmsv2academic.domain.counseling.response.CounselingNotificationResponseDTO;
 import com.msa4lmsv2academic.domain.counseling.response.CounselingResponseDTO;
 import com.msa4lmsv2academic.domain.counseling.response.CounselingProfessorResponseDTO;
-import com.msa4lmsv2academic.domain.counseling.service.CounselingNotificationService;
 import com.msa4lmsv2academic.domain.counseling.service.CounselingService;
+import com.msa4lmsv2academic.domain.notification.response.NotificationResponseDTO;
+import com.msa4lmsv2academic.domain.notification.service.NotificationService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CounselingController {
     private final CounselingService counselingService;
-    private final CounselingNotificationService notificationService;
+    private final NotificationService notificationService;
 
     @Operation(summary = "내 담당 교수 조회", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/professor")
@@ -84,19 +84,21 @@ public class CounselingController {
         return ResponseEntity.ok(GlobalResponseDTO.success(counselingService.answer(counselingId, request, user)));
     }
 
-    @Operation(summary = "내 상담 알림 목록 조회", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "내 상담 알림 목록 조회", description = "공통 알림 API의 상담 범주 호환 경로입니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/notifications")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
-    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<CounselingNotificationResponseDTO>>> notifications(
+    public ResponseEntity<GlobalResponseDTO<PageResponseDTO<NotificationResponseDTO>>> notifications(
             @ParameterObject @Valid @ModelAttribute CounselingNotificationSearchRequestDTO request,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser user) {
-        return ResponseEntity.ok(GlobalResponseDTO.success(notificationService.search(request, user)));
+        return ResponseEntity.ok(GlobalResponseDTO.success(notificationService.searchCounseling(
+                request.resolvedPage(), request.resolvedSize(), request.resolvedUnreadOnly(), user)));
     }
 
     @Operation(summary = "상담 알림 읽음 처리", security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/notifications/{notificationId}/read")
     @PreAuthorize("hasAnyRole('STUDENT', 'PROFESSOR')")
-    public ResponseEntity<GlobalResponseDTO<CounselingNotificationResponseDTO>> markRead(
+    public ResponseEntity<GlobalResponseDTO<NotificationResponseDTO>> markRead(
             @PathVariable @Positive Long notificationId,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser user) {
         return ResponseEntity.ok(GlobalResponseDTO.success(notificationService.markRead(notificationId, user)));
