@@ -259,14 +259,21 @@ class StudentEnrollmentApplicationIntegrationTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void prerequisiteRejectionRollsBackAndSameKeyCanRetryAfterPassingGrade() {
-        jdbc.update("INSERT INTO course_prerequisites (course_id, prerequisite_course_id, is_active) VALUES (120002, 120001, 1)");
-        rejected(USER, 120002, "prerequisite", "PREREQUISITE_NOT_COMPLETED");
-        assertCounts(0, 0, 0);
-        var prior = apply(USER, LECTURE, "prior");
-        jdbc.update("UPDATE enrollments SET grade_status = 'OPENED', letter_grade = 'A' WHERE id = ?", prior.data().enrollmentId());
-        apply(USER, 120002, "prerequisite");
-        assertCounts(2, 2, 2);
+    void thirdNonCancelledCourseAttemptIsRejectedWithDetailedReason() {
+        jdbc.update("INSERT INTO semesters (id, academic_year, term, start_date, end_date, enrollment_start_at, enrollment_end_at, is_current) "
+                + "VALUES (120002, 2090, 'SECOND', '2090-09-01', '2090-12-19', '2090-08-10', '2090-08-14', 0)");
+        insertLecture(120004, 120002, 120001, "02");
+        insertLecture(120005, 120001, 120001, "03");
+        jdbc.update("INSERT INTO enrollments (student_id, lecture_id, status, enrolled_at, grade_status, letter_grade) "
+                + "VALUES (120001, 120004, 'ACTIVE', '2090-08-12 09:00:00', 'OPENED', 'C')");
+
+        var second = apply(USER, LECTURE, "second-attempt");
+        jdbc.update("UPDATE enrollments SET grade_status = 'OPENED', letter_grade = 'C+' WHERE id = ?",
+                second.data().enrollmentId());
+        rejected(USER, 120005, "third-attempt", "COURSE_ATTEMPT_LIMIT_EXCEEDED");
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM enrollments WHERE student_id = 120001", Integer.class))
+                .isEqualTo(2);
     }
 
     @Test
@@ -444,15 +451,21 @@ class StudentEnrollmentApplicationIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("DELETE FROM enrollment_histories WHERE student_id IN (120001,120002)");
         jdbc.update("DELETE FROM enrollments WHERE student_id IN (120001,120002)");
         jdbc.update("DELETE FROM lecture_schedules WHERE lecture_id BETWEEN 120001 AND 120003");
-        jdbc.update("DELETE FROM course_prerequisites WHERE course_id BETWEEN 120001 AND 120003");
-        jdbc.update("DELETE FROM lectures WHERE id BETWEEN 120001 AND 120003");
+        jdbc.update("DELETE FROM lectures WHERE id BETWEEN 120001 AND 120005");
         jdbc.update("DELETE FROM courses WHERE id BETWEEN 120001 AND 120003");
         jdbc.update("DELETE FROM enrollment_credit_limit_rules WHERE id = 120001");
-        jdbc.update("DELETE FROM semesters WHERE id = 120001");
+        jdbc.update("DELETE FROM semesters WHERE id BETWEEN 120001 AND 120002");
         jdbc.update("DELETE FROM students WHERE id IN (120001,120002)");
         jdbc.update("DELETE FROM professors WHERE id = 120001");
         jdbc.update("DELETE FROM users WHERE id BETWEEN 120011 AND 120013");
         jdbc.update("DELETE FROM departments WHERE id = 120001");
         jdbc.update("DELETE FROM colleges WHERE id = 120001");
+    }
+
+    private void insertLecture(long id, long semesterId, long courseId, String sectionNo) {
+        jdbc.update("INSERT INTO lectures (id, semester_id, course_id, professor_id, section_no, capacity, status, "
+                        + "midterm_ratio, final_ratio, assignment_ratio, attendance_ratio) "
+                        + "VALUES (?, ?, ?, 120001, ?, 40, 'OPEN', 30, 30, 30, 10)",
+                id, semesterId, courseId, sectionNo);
     }
 }

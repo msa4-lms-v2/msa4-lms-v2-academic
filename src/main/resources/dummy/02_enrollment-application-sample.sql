@@ -38,7 +38,7 @@ SET @enrollment_sample_owned = EXISTS (
 SET @enrollment_sample_conflict = NOT @enrollment_sample_owned AND (
     @enrollment_sample_existing_semester_id IS NOT NULL OR EXISTS (
         SELECT 1 FROM courses
-        WHERE code IN ('TEST-ENR-A', 'TEST-ENR-B', 'TEST-ENR-C', 'TEST-ENR-D', 'TEST-ENR-PRE')
+        WHERE code IN ('TEST-ENR-A', 'TEST-ENR-B', 'TEST-ENR-C', 'TEST-ENR-D')
     )
 );
 
@@ -75,8 +75,7 @@ FROM (
     SELECT 'TEST-ENR-A' AS code, '[테스트] 수강신청 성공 A' AS name
     UNION ALL SELECT 'TEST-ENR-B', '[테스트] 최대학점 경계 B'
     UNION ALL SELECT 'TEST-ENR-C', '[테스트] 최대학점 초과 C'
-    UNION ALL SELECT 'TEST-ENR-D', '[테스트] 선수과목 미충족 D'
-    UNION ALL SELECT 'TEST-ENR-PRE', '[테스트] 미이수 선수과목'
+    UNION ALL SELECT 'TEST-ENR-D', '[테스트] 수강신청 성공 D'
 ) sample
 WHERE @enrollment_sample_enabled
   AND NOT EXISTS (SELECT 1 FROM courses existing WHERE existing.code = sample.code);
@@ -108,17 +107,6 @@ WHERE lecture.semester_id = @enrollment_sample_semester_id
   AND lecture.section_no = 'LOCALTEST' AND lecture.syllabus = @enrollment_sample_marker
   AND course.code IN ('TEST-ENR-A', 'TEST-ENR-B', 'TEST-ENR-C', 'TEST-ENR-D')
   AND NOT EXISTS (SELECT 1 FROM lecture_schedules existing WHERE existing.lecture_id = lecture.id);
-
--- PRE에는 개설 강의/수강/성적을 만들지 않습니다. D 신청은 선수과목 미충족으로 거절되어야 합니다.
-INSERT INTO course_prerequisites (course_id, prerequisite_course_id, is_active)
-SELECT target.id, prerequisite.id, TRUE
-FROM courses target
-JOIN courses prerequisite ON prerequisite.code = 'TEST-ENR-PRE'
-WHERE @enrollment_sample_enabled AND target.code = 'TEST-ENR-D'
-  AND NOT EXISTS (
-      SELECT 1 FROM course_prerequisites existing
-      WHERE existing.course_id = target.id AND existing.prerequisite_course_id = prerequisite.id
-  );
 
 COMMIT;
 
