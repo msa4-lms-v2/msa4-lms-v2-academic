@@ -14,6 +14,7 @@ import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentCancellationQueryRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentHistoryRepository;
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentRepository;
+import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
@@ -52,7 +53,8 @@ class StudentEnrollmentCancellationServiceTest {
                 queryRepository,
                 enrollmentRepository,
                 historyRepository,
-                new EnrollmentAcademicStatusValidator()
+                new EnrollmentAcademicStatusValidator(),
+                mock(CourseCorrectionPeriodRepository.class)
         );
         student = mock(Student.class);
         Lecture lecture = mock(Lecture.class);
@@ -89,7 +91,7 @@ class StudentEnrollmentCancellationServiceTest {
 
         assertThatThrownBy(() -> service.cancel(ENROLLMENT_ID, currentUser))
                 .isInstanceOf(EnrollmentApplicationRejectedException.class)
-                .hasMessageContaining("수강신청 기간");
+                .hasMessageContaining("수강신청 또는 수강정정 기간");
         assertThat(enrollment.getStatus()).isEqualTo(EnrollmentStatus.ACTIVE);
         verify(enrollmentRepository, never()).saveAndFlush(any());
         verify(historyRepository, never()).saveAndFlush(any());

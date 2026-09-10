@@ -1,6 +1,8 @@
 package com.msa4lmsv2academic.domain.academicschedule.request;
 
 import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleTargetRole;
+import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleCategory;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
@@ -33,9 +35,24 @@ public record AcademicScheduleSearchRequestDTO(
                 example = "STUDENT", allowableValues = {"ALL", "STUDENT", "PROFESSOR"})
         AcademicScheduleTargetRole targetRole,
 
+        @Schema(description = "일정 분류", example = "ENROLLMENT")
+        AcademicScheduleCategory category,
+
+        @Schema(description = "자동 지정된 학년도", example = "2026")
+        Short academicYear,
+
+        @Schema(description = "자동 지정된 학기", example = "SECOND", allowableValues = {"FIRST", "SECOND"})
+        SemesterTerm term,
+
         @Schema(description = "활성 상태. ADMIN만 선택할 수 있으며 생략하면 전체 상태를 조회합니다.", example = "true")
         Boolean active
 ) {
+
+    /** 기존 내부 호출과 테스트 호환용 생성자입니다. */
+    public AcademicScheduleSearchRequestDTO(Integer page, Integer size, String keyword, LocalDate from, LocalDate to,
+                                            AcademicScheduleTargetRole targetRole, Boolean active) {
+        this(page, size, keyword, from, to, targetRole, null, null, null, active);
+    }
 
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;

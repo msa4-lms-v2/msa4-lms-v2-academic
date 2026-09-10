@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.enrollment.service;
 
 import com.msa4lmsv2academic.domain.enrollment.entity.Enrollment;
+import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentCancellationRejectionReason;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentHistory;
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentStatus;
@@ -32,6 +33,7 @@ public class StudentEnrollmentCancellationService {
     private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentHistoryRepository historyRepository;
     private final EnrollmentAcademicStatusValidator academicStatusValidator;
+    private final CourseCorrectionPeriodRepository courseCorrectionPeriodRepository;
 
     @Transactional
     public StudentEnrollmentCancellationResponseDTO cancel(Long enrollmentId, CurrentUser currentUser) {
@@ -78,8 +80,13 @@ public class StudentEnrollmentCancellationService {
     }
 
     private void validateCancellationPeriod(Semester semester, LocalDateTime now) {
-        if (semester.getEnrollmentStartAt() == null || semester.getEnrollmentEndAt() == null
-                || now.isBefore(semester.getEnrollmentStartAt()) || now.isAfter(semester.getEnrollmentEndAt())) {
+        boolean enrollmentOpen = semester.getEnrollmentStartAt() != null && semester.getEnrollmentEndAt() != null
+                && !now.toLocalDate().isBefore(semester.getEnrollmentStartAt().toLocalDate())
+                && !now.toLocalDate().isAfter(semester.getEnrollmentEndAt().toLocalDate());
+        boolean correctionOpen = courseCorrectionPeriodRepository.findBySemesterId(semester.getId())
+                .map(period -> period.accepts(now.toLocalDate()))
+                .orElse(false);
+        if (!enrollmentOpen && !correctionOpen) {
             reject(EnrollmentCancellationRejectionReason.ENROLLMENT_PERIOD_CLOSED);
         }
     }

@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.academicschedule.entity;
 
 import com.msa4lmsv2academic.domain.user.entity.User;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -41,11 +42,22 @@ public class AcademicSchedule {
     @Column(columnDefinition = "text")
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private AcademicScheduleCategory category;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
     @Column(name = "end_date")
     private LocalDate endDate;
+
+    @Column(name = "academic_year", nullable = false)
+    private short academicYear;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SemesterTerm term;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "target_role", nullable = false, length = 20)
@@ -62,28 +74,47 @@ public class AcademicSchedule {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
-    private AcademicSchedule(String title, String content, LocalDate startDate, LocalDate endDate,
+    private AcademicSchedule(String title, String content, AcademicScheduleCategory category,
+                             LocalDate startDate, LocalDate endDate, short academicYear, SemesterTerm term,
                              AcademicScheduleTargetRole targetRole, User author) {
         this.title = title;
         this.content = content;
+        this.category = category;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.academicYear = academicYear;
+        this.term = term;
         this.targetRole = targetRole;
         this.active = true;
         this.author = author;
     }
 
-    public static AcademicSchedule create(String title, String content, LocalDate startDate, LocalDate endDate,
-                                          AcademicScheduleTargetRole targetRole, User author) {
-        return new AcademicSchedule(title, content, startDate, endDate, targetRole, author);
+    public static AcademicSchedule create(String title, String content, AcademicScheduleCategory category,
+                                          LocalDate startDate, LocalDate endDate, short academicYear,
+                                          SemesterTerm term, AcademicScheduleTargetRole targetRole, User author) {
+        return new AcademicSchedule(title, content, category, startDate, endDate, academicYear, term, targetRole, author);
     }
 
-    public void update(String title, String content, LocalDate startDate, LocalDate endDate,
+    /** 기존 데이터 생성 코드와 테스트 호환용 팩터리입니다. */
+    public static AcademicSchedule create(String title, String content, LocalDate startDate, LocalDate endDate,
+                                          AcademicScheduleTargetRole targetRole, User author) {
+        return new AcademicSchedule(
+                title, content, AcademicScheduleCategory.OTHER, startDate, endDate,
+                (short) startDate.getYear(), startDate.getMonthValue() <= 7 ? SemesterTerm.FIRST : SemesterTerm.SECOND,
+                targetRole, author
+        );
+    }
+
+    public void update(String title, String content, AcademicScheduleCategory category,
+                       LocalDate startDate, LocalDate endDate, short academicYear, SemesterTerm term,
                        AcademicScheduleTargetRole targetRole) {
         this.title = title;
         this.content = content;
+        this.category = category;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.academicYear = academicYear;
+        this.term = term;
         this.targetRole = targetRole;
     }
 

@@ -11,4 +11,8 @@ public interface LeavePeriodRepository extends JpaRepository<LeaveRequestPeriod,
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from LeaveRequestPeriod p where p.id = :id")
     Optional<LeaveRequestPeriod> findByIdForUpdate(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from LeaveRequestPeriod p where p.semester.id = :semesterId and p.requestType = :requestType")
+    Optional<LeaveRequestPeriod> findBySemesterIdAndRequestTypeForUpdate(Long semesterId, LeaveRequestType requestType);
 }

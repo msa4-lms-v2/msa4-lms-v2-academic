@@ -12,6 +12,7 @@ import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentCartQueryRep
 import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentCartRepository;
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCartCreateRequestDTO;
 import com.msa4lmsv2academic.domain.enrollment.request.EnrollmentCartSearchRequestDTO;
+import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.lecture.entity.LectureStatus;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
@@ -47,7 +48,8 @@ class EnrollmentCartServiceTest {
         service = new EnrollmentCartService(
                 queryRepository,
                 cartRepository,
-                new EnrollmentAcademicStatusValidator()
+                new EnrollmentAcademicStatusValidator(),
+                mock(CourseCorrectionPeriodRepository.class)
         );
         student = mock(Student.class);
         lecture = mock(Lecture.class);
@@ -96,7 +98,7 @@ class EnrollmentCartServiceTest {
 
         assertThatThrownBy(() -> service.add(new EnrollmentCartCreateRequestDTO(LECTURE_ID), currentUser))
                 .isInstanceOf(EnrollmentCartConflictException.class)
-                .hasMessageContaining("수강신청 기간");
+                .hasMessageContaining("수강신청 또는 수강정정 기간");
     }
 
     @Test
@@ -139,7 +141,7 @@ class EnrollmentCartServiceTest {
 
         assertThatThrownBy(() -> service.remove(40L, currentUser))
                 .isInstanceOf(EnrollmentCartConflictException.class)
-                .hasMessageContaining("수강신청 기간");
+                .hasMessageContaining("수강신청 또는 수강정정 기간");
     }
 
     @Test
