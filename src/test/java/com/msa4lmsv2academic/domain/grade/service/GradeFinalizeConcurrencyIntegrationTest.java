@@ -9,6 +9,7 @@ import com.msa4lmsv2academic.global.error.GradeManagementConflictException;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -54,6 +55,10 @@ class GradeFinalizeConcurrencyIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("INSERT INTO semesters (id, academic_year, term, start_date, end_date, enrollment_start_at, enrollment_end_at, is_current) "
                         + "VALUES (?, 2091, 'FIRST', '2091-03-02', '2091-06-19', ?, ?, 0)",
                 SEMESTER, LocalDateTime.now().minusDays(30), LocalDateTime.now().minusDays(20));
+        jdbc.update("INSERT INTO grade_operation_periods "
+                        + "(semester_id, operation_type, start_date, end_date, is_active) "
+                        + "VALUES (?, 'GRADE_ENTRY', ?, ?, 1)",
+                SEMESTER, LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
         jdbc.update("INSERT INTO courses (id, department_id, code, name, credits, target_grade, completion_type) "
                 + "VALUES (?, ?, 'GFC-01', '성적확정테스트', 3, 3, 'MAJOR_REQUIRED')", COURSE, DEPARTMENT);
         jdbc.update("INSERT INTO lectures (id, semester_id, course_id, professor_id, section_no, capacity, status, "
@@ -159,6 +164,7 @@ class GradeFinalizeConcurrencyIntegrationTest extends MySqlIntegrationTest {
         jdbc.update("DELETE FROM enrollments WHERE id = ?", ENROLLMENT_ID);
         jdbc.update("DELETE FROM lectures WHERE id = ?", CLASS_ID);
         jdbc.update("DELETE FROM courses WHERE id = ?", COURSE);
+        jdbc.update("DELETE FROM grade_operation_periods WHERE semester_id = ?", SEMESTER);
         jdbc.update("DELETE FROM semesters WHERE id = ?", SEMESTER);
         jdbc.update("DELETE FROM students WHERE id = ?", STUDENT);
         jdbc.update("DELETE FROM professors WHERE id = ?", PROFESSOR);

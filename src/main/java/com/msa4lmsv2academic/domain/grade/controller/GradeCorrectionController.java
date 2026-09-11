@@ -46,7 +46,8 @@ public class GradeCorrectionController {
             operationId = "correctOpenedGrades",
             summary = "공개 성적 정정",
             description = "담당 교수 또는 관리자가 OPENED 상태의 성적을 정정합니다. "
-                    + "변경된 점수와 재계산된 총점·등급의 전후 값, 처리자, 사유와 처리시각을 이력으로 남깁니다.",
+                    + "변경된 점수와 재계산된 총점·등급의 전후 값, 처리자, 사유와 처리시각을 이력으로 남깁니다. "
+                    + "강의 학기의 활성 성적정정(GRADE_CORRECTION) 기간에만 요청할 수 있습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponse(responseCode = "200", description = "성적 정정 성공 또는 저장된 성공 응답 재생")
