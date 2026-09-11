@@ -116,6 +116,8 @@ public class ExcuseRequestController {
             operationId = "reviewExcuseRequest",
             summary = "담당 교수 공결 승인·반려",
             description = "담당 교수가 처리 대기 상태인 본인 강의의 공결 신청을 승인하거나 반려합니다. "
+                    + "승인은 종료된 출석 세션과 해당 학생의 출결 기록이 있을 때만 가능하며, "
+                    + "승인되면 실제 출결 상태를 공결(EXCUSED)로 함께 변경합니다. "
                     + "반려 사유, 변경 전후 상태, 처리자와 처리시각을 감사 이력으로 남깁니다. "
                     + "Idempotency-Key는 공백 없는 1~100자이며 논리적으로 같은 처리의 재시도에는 같은 키를 사용합니다.",
             security = @SecurityRequirement(name = "bearerAuth")

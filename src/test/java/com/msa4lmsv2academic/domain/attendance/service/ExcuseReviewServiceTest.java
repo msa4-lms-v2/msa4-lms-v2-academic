@@ -11,6 +11,12 @@ import static org.mockito.Mockito.when;
 
 import com.msa4lmsv2academic.domain.attendance.entity.ExcuseRequest;
 import com.msa4lmsv2academic.domain.attendance.entity.ExcuseRequestStatus;
+import com.msa4lmsv2academic.domain.attendance.entity.Attendance;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSession;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSessionStatus;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceStatus;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceRepository;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceSessionRepository;
 import com.msa4lmsv2academic.domain.attendance.repository.ExcuseRequestRepository;
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseReviewRequestDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestResponseDTO;
@@ -38,6 +44,8 @@ class ExcuseReviewServiceTest {
     private static final String IDEMPOTENCY_KEY = "excuse-review-301";
 
     private ExcuseRequestRepository excuseRequestRepository;
+    private AttendanceSessionRepository attendanceSessionRepository;
+    private AttendanceRepository attendanceRepository;
     private ExcuseReviewIdempotencyService idempotencyService;
     private AuditLogService auditLogService;
     private ExcuseReviewService service;
@@ -47,9 +55,17 @@ class ExcuseReviewServiceTest {
     @BeforeEach
     void setUp() {
         excuseRequestRepository = mock(ExcuseRequestRepository.class);
+        attendanceSessionRepository = mock(AttendanceSessionRepository.class);
+        attendanceRepository = mock(AttendanceRepository.class);
         idempotencyService = mock(ExcuseReviewIdempotencyService.class);
         auditLogService = mock(AuditLogService.class);
-        service = new ExcuseReviewService(excuseRequestRepository, idempotencyService, auditLogService);
+        service = new ExcuseReviewService(
+                excuseRequestRepository,
+                attendanceSessionRepository,
+                attendanceRepository,
+                idempotencyService,
+                auditLogService
+        );
 
         User professorUser = mock(User.class);
         Professor lectureProfessor = mock(Professor.class);
@@ -58,6 +74,7 @@ class ExcuseReviewServiceTest {
         when(professorUser.getId()).thenReturn(PROFESSOR_USER_ID);
         when(lectureProfessor.getUser()).thenReturn(professorUser);
         when(lecture.getProfessor()).thenReturn(lectureProfessor);
+        when(lecture.getId()).thenReturn(101L);
         when(enrollment.getId()).thenReturn(201L);
         when(enrollment.getLecture()).thenReturn(lecture);
 
@@ -78,6 +95,20 @@ class ExcuseReviewServiceTest {
                 .thenReturn(Optional.empty());
         when(idempotencyService.reserve(eq(IDEMPOTENCY_KEY), eq(PROFESSOR_USER_ID), eq("request-hash"), any()))
                 .thenReturn(mock(AcademicIdempotencyKey.class));
+
+        AttendanceSession attendanceSession = mock(AttendanceSession.class);
+        when(attendanceSession.getId()).thenReturn(401L);
+        when(attendanceSession.getStatus()).thenReturn(AttendanceSessionStatus.CLOSED);
+        when(attendanceSessionRepository.findByLectureIdAndSessionDateAndPeriodForUpdate(
+                101L,
+                LocalDate.of(2026, 9, 1),
+                2
+        )).thenReturn(Optional.of(attendanceSession));
+
+        Attendance attendance = Attendance.record(enrollment, attendanceSession, AttendanceStatus.ABSENT, null);
+        ReflectionTestUtils.setField(attendance, "id", 501L);
+        when(attendanceRepository.findBySessionIdAndEnrollmentIdForUpdate(401L, 201L))
+                .thenReturn(Optional.of(attendance));
     }
 
     @Test

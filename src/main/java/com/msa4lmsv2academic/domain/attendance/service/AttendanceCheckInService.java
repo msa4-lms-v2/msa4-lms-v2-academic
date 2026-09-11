@@ -61,29 +61,16 @@ public class AttendanceCheckInService {
         attendancePolicy.requireCheckInAllowed(enrollment.getStudent().getAcademicStatus());
 
 
-        // 이미 출석했는지 확인
-        boolean alreadyCheckedIn = attendanceRepository.existsBySessionIdAndEnrollmentId(
-                session.getId(),
-                enrollment.getId()
-        );
-
-        if(alreadyCheckedIn) {
-            throw new IllegalStateException(
-                    "이미 출석 처리되었습니다."
-            );
-        }
-
-        // 학생 출석 결과 생성
         LocalDateTime checkInTime = LocalDateTime.now();
-
-        Attendance attendance = Attendance.checkIn(
-                enrollment,
-                session,
-                checkInTime
-        );
-
-        // attendances 테이블에 저장
-        Attendance saved = attendanceRepository.save(attendance);
+        Attendance saved = attendanceRepository.findBySessionIdAndEnrollmentId(session.getId(), enrollment.getId())
+                .map(existing -> {
+                    if (!existing.isAutoAbsent()) {
+                        throw new IllegalStateException("이미 출석 처리되었습니다.");
+                    }
+                    existing.checkInAfterReopen(checkInTime);
+                    return attendanceRepository.save(existing);
+                })
+                .orElseGet(() -> attendanceRepository.save(Attendance.checkIn(enrollment, session, checkInTime)));
 
         // 체크인 결과 반환
         return new AttendanceCheckInResponseDTO(
