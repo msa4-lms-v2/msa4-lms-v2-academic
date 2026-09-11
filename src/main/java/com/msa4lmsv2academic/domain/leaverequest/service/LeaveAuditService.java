@@ -29,6 +29,9 @@ public class LeaveAuditService {
         value.put("targetSemester", request.getTargetSemester());
         value.put("returnYear", request.getReturnYear());
         value.put("returnSemester", request.getReturnSemester());
+        value.put("advisorReviewerId", request.getAdvisorReviewedBy() == null ? null : request.getAdvisorReviewedBy().getId());
+        value.put("advisorReviewedAt", request.getAdvisorReviewedAt());
+        value.put("advisorRejectReason", request.getAdvisorRejectReason());
         value.put("rejectReason", request.getRejectReason());
         value.put("cancelReason", request.getCancelReason());
         List<Map<String, Object>> files = request.getFiles().stream().map(file -> {
