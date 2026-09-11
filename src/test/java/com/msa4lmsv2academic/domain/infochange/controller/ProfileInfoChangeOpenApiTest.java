@@ -25,6 +25,7 @@ class ProfileInfoChangeOpenApiTest extends MySqlIntegrationTest {
     void generatedOpenApiContainsProfileAndChangeRequestContracts() throws Exception {
         String studentRequests = "$['paths']['/api/academic/info-change-requests']";
         String professorRequests = "$['paths']['/api/academic/professor-info-change-requests']";
+        String adminRequests = "$['paths']['/api/academic/admin/info-change-requests']";
 
         mockMvc.perform(get("/api-docs"))
                 .andExpect(status().isOk())
@@ -63,11 +64,21 @@ class ProfileInfoChangeOpenApiTest extends MySqlIntegrationTest {
                         .value(hasItems("keyword", "status", "departmentId", "sortDirection", "page", "size")))
                 .andExpect(jsonPath(professorRequests + "['get']['parameters'][*]['name']")
                         .value(hasItems("keyword", "status", "departmentId", "sortDirection", "page", "size")))
+                .andExpect(jsonPath(adminRequests + "['get']").exists())
+                .andExpect(jsonPath(adminRequests + "['get']['parameters'][*]['name']")
+                        .value(hasItems("keyword", "requesterType", "status", "requestedFrom", "requestedTo", "page", "size")))
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['StudentInfoChangeRequestResponseDTO']['properties']['previousName']"
+                ).exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ProfessorInfoChangeRequestResponseDTO']['properties']['previousName']"
+                ).exists())
                 .andExpect(jsonPath("$..operationId", hasItems(
                         "getMyStudentProfile",
                         "getMyProfessorProfile",
                         "createStudentProfileChangeRequest",
-                        "createProfessorProfileChangeRequest"
+                        "createProfessorProfileChangeRequest",
+                        "searchAdminProfileChangeRequests"
                 )))
                 .andExpect(jsonPath("$..operationId", not(hasItems(containsStringIgnoringCase("scrum")))));
     }
