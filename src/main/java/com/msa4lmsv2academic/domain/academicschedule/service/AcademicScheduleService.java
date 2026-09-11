@@ -17,6 +17,8 @@ import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleTe
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.coursecorrection.entity.CourseCorrectionPeriod;
 import com.msa4lmsv2academic.domain.coursecorrection.repository.CourseCorrectionPeriodRepository;
+import com.msa4lmsv2academic.domain.gradeperiod.entity.GradeOperationType;
+import com.msa4lmsv2academic.domain.gradeperiod.service.GradeOperationPeriodService;
 import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestPeriod;
 import com.msa4lmsv2academic.domain.leaverequest.entity.LeaveRequestType;
 import com.msa4lmsv2academic.domain.leaverequest.repository.LeavePeriodRepository;
@@ -63,6 +65,7 @@ public class AcademicScheduleService {
     private final SemesterRepository semesterRepository;
     private final LeavePeriodRepository leavePeriodRepository;
     private final CourseCorrectionPeriodRepository courseCorrectionPeriodRepository;
+    private final GradeOperationPeriodService gradeOperationPeriodService;
     private final OutboxEventService outboxEventService;
 
     public PageResponseDTO<AcademicScheduleSummaryResponseDTO> search(
@@ -222,7 +225,9 @@ public class AcademicScheduleService {
         Map<String, Object> beforeValue = snapshot(schedule);
         schedule.changeActive(request.active());
         AcademicSchedule saved = academicScheduleRepository.saveAndFlush(schedule);
-        if (saved.getCategory() == AcademicScheduleCategory.SCHOLARSHIP) {
+        if (saved.getCategory() == AcademicScheduleCategory.SCHOLARSHIP
+                || saved.getCategory() == AcademicScheduleCategory.GRADE_ENTRY
+                || saved.getCategory() == AcademicScheduleCategory.GRADE_CORRECTION) {
             applyOperationalPeriod(saved, new TermAssignment(saved.getAcademicYear(), saved.getTerm()));
         }
         auditLogService.record(
@@ -427,9 +432,17 @@ public class AcademicScheduleService {
                 upsertLeavePeriod(semester, LeaveRequestType.GENERAL_RETURN, schedule.getStartDate(), endDate);
                 upsertLeavePeriod(semester, LeaveRequestType.MILITARY_RETURN, schedule.getStartDate(), endDate);
             }
+            case GRADE_ENTRY -> gradeOperationPeriodService.upsert(
+                    semester, GradeOperationType.GRADE_ENTRY,
+                    schedule.getStartDate(), endDate, schedule.isActive()
+            );
+            case GRADE_CORRECTION -> gradeOperationPeriodService.upsert(
+                    semester, GradeOperationType.GRADE_CORRECTION,
+                    schedule.getStartDate(), endDate, schedule.isActive()
+            );
             case SCHOLARSHIP -> recordScholarshipPeriodChanged(schedule, semester);
             default -> {
-                // 성적·등록금 기간은 각 담당 서비스의 후속 연동으로 처리한다.
+                // 등록금 기간은 해당 담당 서비스의 후속 연동으로 처리한다.
             }
         }
     }

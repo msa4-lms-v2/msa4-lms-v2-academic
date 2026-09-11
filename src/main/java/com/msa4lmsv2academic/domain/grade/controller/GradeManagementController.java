@@ -73,7 +73,8 @@ public class GradeManagementController {
             operationId = "createGradeDraft",
             summary = "성적 최초 입력 및 임시저장",
             description = "아직 성적이 없는 활성 수강생에게 일부 또는 전체 점수를 최초 입력합니다. "
-                    + "네 점수가 모두 입력되면 강의 반영 비율로 총점과 등급을 계산하지만 상태는 DRAFT로 유지합니다.",
+                    + "네 점수가 모두 입력되면 강의 반영 비율로 총점과 등급을 계산하지만 상태는 DRAFT로 유지합니다. "
+                    + "강의 학기의 활성 성적입력(GRADE_ENTRY) 기간에만 요청할 수 있습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponse(responseCode = "201", description = "성적 임시저장 성공 또는 저장된 성공 응답 재생")
@@ -106,7 +107,8 @@ public class GradeManagementController {
             operationId = "updateGradeDraft",
             summary = "임시저장 성적 수정",
             description = "DRAFT 상태의 기존 성적을 수정합니다. null 점수는 해당 항목을 비운 것으로 저장되며, "
-                    + "확정된 OPENED 성적은 이 API로 수정할 수 없습니다.",
+                    + "확정된 OPENED 성적은 이 API로 수정할 수 없습니다. "
+                    + "강의 학기의 활성 성적입력(GRADE_ENTRY) 기간에만 요청할 수 있습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponse(responseCode = "200", description = "임시저장 성적 수정 성공 또는 저장된 성공 응답 재생")
@@ -137,7 +139,8 @@ public class GradeManagementController {
             operationId = "finalizeGrades",
             summary = "강의 성적 확정",
             description = "모든 활성 수강생의 네 점수가 입력된 강의를 DRAFT에서 OPENED로 확정합니다. "
-                    + "확정 후 일반 수정은 차단되며 변경 전후 상태와 처리자를 감사 로그에 기록합니다.",
+                    + "확정 후 일반 수정은 차단되며 변경 전후 상태와 처리자를 감사 로그에 기록합니다. "
+                    + "강의 학기의 활성 성적입력(GRADE_ENTRY) 기간에만 요청할 수 있습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponse(responseCode = "200", description = "성적 확정 성공 또는 저장된 성공 응답 재생")
