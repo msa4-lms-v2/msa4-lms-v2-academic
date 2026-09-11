@@ -11,6 +11,7 @@ import com.msa4lmsv2academic.global.error.GradeManagementConflictException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,10 @@ class GradeCorrectionServiceIntegrationTest extends MySqlIntegrationTest {
                 + "(id, academic_year, term, start_date, end_date, enrollment_start_at, enrollment_end_at, is_current) "
                 + "VALUES (99701, 2026, 'SECOND', '2026-08-31', '2026-12-18', "
                 + "'2026-08-01 09:00:00', '2026-08-07 18:00:00', 0)");
+        jdbcTemplate.update("INSERT INTO grade_operation_periods "
+                        + "(semester_id, operation_type, start_date, end_date, is_active) "
+                        + "VALUES (99701, 'GRADE_CORRECTION', ?, ?, 1)",
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
         jdbcTemplate.update("INSERT INTO courses "
                 + "(id, department_id, code, name, credits, target_grade, completion_type) "
                 + "VALUES (99701, 99701, 'CORRECT-01', '성적정정테스트', 3, 2, 'MAJOR_REQUIRED')");
@@ -152,6 +157,20 @@ class GradeCorrectionServiceIntegrationTest extends MySqlIntegrationTest {
                 PageRequest.of(0, 20),
                 new CurrentUser(99703L, "PROFESSOR")
         )).isInstanceOf(GradeManagementAccessDeniedException.class);
+    }
+
+    @Test
+    void blocksCorrectionOutsideGradeCorrectionPeriod() {
+        jdbcTemplate.update("UPDATE grade_operation_periods "
+                        + "SET start_date = ?, end_date = ? "
+                        + "WHERE semester_id = ? AND operation_type = 'GRADE_CORRECTION'",
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(3), 99701L);
+
+        assertThatThrownBy(() -> gradeCorrectionService.correct(
+                correctionRequest("기간 밖 정정 시도"), "grade-correction-outside",
+                new CurrentUser(PROFESSOR_USER_ID, "PROFESSOR"), "trace-outside", "127.0.0.1"
+        )).isInstanceOf(GradeManagementConflictException.class)
+                .hasMessage("성적정정 기간이 아닙니다.");
     }
 
     private GradeCorrectionRequestDTO correctionRequest(String reason) {
