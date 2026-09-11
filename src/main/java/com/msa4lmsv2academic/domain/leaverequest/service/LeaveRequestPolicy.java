@@ -16,8 +16,9 @@ public class LeaveRequestPolicy {
     }
 
     public void requireReader(CurrentUser actor) {
-        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role()) || actor.isAdmin())) {
-            throw new LeaveRequestAccessDeniedException("학생 본인 또는 관리자만 접근할 수 있습니다.");
+        if (actor == null || actor.id() == null || !("STUDENT".equals(actor.role())
+                || "PROFESSOR".equals(actor.role()) || actor.isAdmin())) {
+            throw new LeaveRequestAccessDeniedException("학생 본인, 담당 지도교수 또는 관리자만 접근할 수 있습니다.");
         }
     }
 
@@ -81,6 +82,12 @@ public class LeaveRequestPolicy {
 
     public void requirePending(LeaveRequest request) {
         if (request.getStatus() != LeaveRequestStatus.PENDING) throw new LeaveRequestConflictException("대기 중인 신청만 변경할 수 있습니다.");
+    }
+
+    public void requireAdvisorApproved(LeaveRequest request) {
+        if (request.getStatus() != LeaveRequestStatus.ADVISOR_APPROVED) {
+            throw new LeaveRequestConflictException("지도교수 승인 상태인 신청만 최종 처리할 수 있습니다.");
+        }
     }
 
     public void validatePeriod(LeavePeriodSaveRequestDTO body) {

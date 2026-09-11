@@ -28,7 +28,7 @@ public class LeaveExpiryWarningService {
     private static final List<LeaveRequestType> ACTION_TYPES = List.of(
             LeaveRequestType.GENERAL_LEAVE, LeaveRequestType.GENERAL_RETURN, LeaveRequestType.MILITARY_RETURN);
     private static final List<LeaveRequestStatus> ACTION_STATUSES = List.of(
-            LeaveRequestStatus.PENDING, LeaveRequestStatus.APPROVED);
+            LeaveRequestStatus.PENDING, LeaveRequestStatus.ADVISOR_APPROVED, LeaveRequestStatus.APPROVED);
 
     private final LeaveRequestQueryRepository queries;
     private final LeaveRequestRepository repository;
