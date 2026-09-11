@@ -644,6 +644,11 @@ CREATE TABLE IF NOT EXISTS graduation_requirements (
 CREATE TABLE IF NOT EXISTS student_info_change_requests (
     id                  BIGINT NOT NULL AUTO_INCREMENT,
     student_id          BIGINT NOT NULL,
+    previous_name       VARCHAR(50) NULL,
+    previous_phone_number VARCHAR(20) NULL,
+    previous_email      VARCHAR(100) NULL,
+    previous_address    VARCHAR(255) NULL,
+    previous_profile_image_key VARCHAR(500) NULL,
     new_name            VARCHAR(50) NULL,
     new_phone_number    VARCHAR(20) NULL,
     new_email           VARCHAR(100) NULL,
@@ -687,6 +692,11 @@ CREATE TABLE IF NOT EXISTS student_info_change_request_files (
 CREATE TABLE IF NOT EXISTS professor_info_change_requests (
     id                    BIGINT NOT NULL AUTO_INCREMENT,
     professor_id          BIGINT NOT NULL,
+    previous_name         VARCHAR(50) NULL,
+    previous_phone_number VARCHAR(20) NULL,
+    previous_email        VARCHAR(100) NULL,
+    previous_address      VARCHAR(255) NULL,
+    previous_profile_image_key VARCHAR(500) NULL,
     new_name              VARCHAR(50) NULL,
     new_phone_number      VARCHAR(20) NULL,
     new_email             VARCHAR(100) NULL,
