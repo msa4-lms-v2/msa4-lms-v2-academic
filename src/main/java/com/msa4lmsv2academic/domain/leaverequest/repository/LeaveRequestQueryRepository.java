@@ -4,21 +4,25 @@ import static com.msa4lmsv2academic.domain.leaverequest.entity.QLeaveRequest.lea
 import static com.msa4lmsv2academic.domain.leaverequest.entity.QLeaveRequestPeriod.leaveRequestPeriod;
 import static com.msa4lmsv2academic.domain.student.entity.QStudent.student;
 import static com.msa4lmsv2academic.domain.user.entity.QUser.user;
+import static com.msa4lmsv2academic.domain.organization.entity.QDepartment.department;
 import static com.msa4lmsv2academic.domain.semester.entity.QSemester.semester;
 import static com.msa4lmsv2academic.domain.withdrawal.entity.QAcademicStatusHistory.academicStatusHistory;
 
 import com.msa4lmsv2academic.domain.leaverequest.entity.*;
+import com.msa4lmsv2academic.domain.professor.entity.QProfessor;
 import com.msa4lmsv2academic.domain.leaverequest.request.*;
 import com.msa4lmsv2academic.domain.semester.entity.Semester;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.withdrawal.entity.AcademicStatusHistory;
+import com.msa4lmsv2academic.domain.user.entity.QUser;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +66,9 @@ public class LeaveRequestQueryRepository {
 
     public Optional<LeaveRequest> findDetail(Long id) {
         return Optional.ofNullable(queryFactory.selectFrom(leaveRequest)
-                .join(leaveRequest.student, student).fetchJoin().join(student.user, user).fetchJoin()
+                .join(leaveRequest.student, student).fetchJoin()
+                .join(student.user, user).fetchJoin()
+                .join(student.department, department).fetchJoin()
                 .where(leaveRequest.id.eq(id)).fetchOne());
     }
 
@@ -81,21 +87,47 @@ public class LeaveRequestQueryRepository {
                 .fetch();
     }
 
-    public Page<LeaveRequest> search(LeaveRequestSearchRequestDTO filter, Long ownerUserId, Pageable pageable) {
+    public Page<LeaveRequest> search(LeaveRequestSearchRequestDTO filter, Long ownerUserId, Long advisorUserId,
+                                     Pageable pageable) {
         BooleanBuilder where = new BooleanBuilder();
+        QProfessor advisor = new QProfessor("advisor");
+        QUser advisorUser = new QUser("advisorUser");
         if (ownerUserId != null) where.and(leaveRequest.student.user.id.eq(ownerUserId));
+        if (advisorUserId != null) where.and(advisorUser.id.eq(advisorUserId));
         if (filter.studentId() != null) where.and(leaveRequest.student.id.eq(filter.studentId()));
         if (filter.requestType() != null) where.and(leaveRequest.requestType.eq(filter.requestType()));
         if (filter.status() != null) where.and(leaveRequest.status.eq(filter.status()));
         if (filter.targetYear() != null) where.and(leaveRequest.targetYear.eq(filter.targetYear()));
         if (filter.targetSemester() != null) where.and(leaveRequest.targetSemester.eq(filter.targetSemester()));
+        if (filter.keyword() != null && !filter.keyword().isBlank()) {
+            where.and(user.name.containsIgnoreCase(filter.keyword())
+                    .or(student.studentNumber.containsIgnoreCase(filter.keyword())));
+        }
+        if (filter.requestedFrom() != null) {
+            where.and(leaveRequest.createdAt.goe(filter.requestedFrom().atStartOfDay()));
+        }
+        if (filter.requestedTo() != null) {
+            LocalDateTime endExclusive = filter.requestedTo().plusDays(1).atStartOfDay();
+            where.and(leaveRequest.createdAt.lt(endExclusive));
+        }
         boolean ascending = filter.resolvedSort() == LeaveRequestSort.CREATED_AT_ASC;
-        var items = queryFactory.selectFrom(leaveRequest)
-                .join(leaveRequest.student, student).fetchJoin().join(student.user, user).fetchJoin()
-                .where(where).orderBy(ascending ? leaveRequest.createdAt.asc() : leaveRequest.createdAt.desc(),
+        var itemsQuery = queryFactory.selectFrom(leaveRequest)
+                .join(leaveRequest.student, student).fetchJoin()
+                .join(student.user, user).fetchJoin()
+                .join(student.department, department).fetchJoin();
+        if (advisorUserId != null) {
+            itemsQuery.join(student.advisor, advisor).join(advisor.user, advisorUser);
+        }
+        var items = itemsQuery.where(where).orderBy(ascending ? leaveRequest.createdAt.asc() : leaveRequest.createdAt.desc(),
                         ascending ? leaveRequest.id.asc() : leaveRequest.id.desc())
                 .offset(pageable.getOffset()).limit(pageable.getPageSize()).fetch();
-        Long total = queryFactory.select(leaveRequest.count()).from(leaveRequest).where(where).fetchOne();
+        var totalQuery = queryFactory.select(leaveRequest.count()).from(leaveRequest);
+        if (advisorUserId != null) {
+            totalQuery.join(leaveRequest.student, student)
+                    .join(student.advisor, advisor)
+                    .join(advisor.user, advisorUser);
+        }
+        Long total = totalQuery.where(where).fetchOne();
         return new PageImpl<>(items, pageable, total == null ? 0 : total);
     }
 

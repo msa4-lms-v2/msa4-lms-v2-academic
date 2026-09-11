@@ -57,11 +57,11 @@ public class LeaveRequestController {
     private final LeaveRequestApplicationService applicationService;
 
     @Operation(operationId = "searchLeaveRequests", summary = "휴·복학 신청 목록",
-            description = "STUDENT 본인, ADMIN 전체. 유형·상태·적용 학기·학생 ID 필터와 생성시각/ID 정렬을 제공합니다. "
+            description = "STUDENT 본인, PROFESSOR는 담당 지도 학생, ADMIN은 전체를 조회합니다. 유형·상태·적용 학기·학생 ID·이름/학번·신청일 필터와 생성시각/ID 정렬을 제공합니다. "
                     + "페이지는 1부터, size 최대 100. 결과 없음은 items=[]와 totalCount=0입니다.")
     @ApiResponse(responseCode = "200", description = "00: 목록 조회 성공")
     @GetMapping
-    @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT','PROFESSOR','ADMIN')")
     public ResponseEntity<GlobalResponseDTO<PageResponseDTO<LeaveRequestResponseDTO>>> search(
             @ParameterObject @Valid @ModelAttribute LeaveRequestSearchRequestDTO filter,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor) {
@@ -70,11 +70,11 @@ public class LeaveRequestController {
     }
 
     @Operation(operationId = "getLeaveRequest", summary = "휴·복학 신청 상세",
-            description = "STUDENT 본인 또는 ADMIN만 조회합니다. 원본 신청·반려·취소 사유와 증빙 메타데이터를 제공합니다. "
-                    + "updatedAt은 처리시각이 아니며 처리자·시각은 별도 감사 로그에 보존합니다.")
+            description = "STUDENT 본인, 담당 지도교수 또는 ADMIN만 조회합니다. 원본 신청·교수 및 최종 반려·취소 사유, 교수 검토자·시각, 증빙 메타데이터를 제공합니다. "
+                    + "updatedAt은 처리시각이 아니며 교수 검토와 최종 처리의 행위·시각은 감사 로그에도 보존합니다.")
     @ApiResponse(responseCode = "200", description = "00: 상세 조회 성공")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT','PROFESSOR','ADMIN')")
     public ResponseEntity<GlobalResponseDTO<LeaveRequestResponseDTO>> get(
             @Parameter(description = "신청 ID", example = "1") @Positive @PathVariable Long id,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor) {
@@ -89,8 +89,8 @@ public class LeaveRequestController {
                     + "군휴학은 접수·승인 기간과 무관하게 신청·승인할 수 있고, 적용 학기와 복학 예정은 각각 유일한 현재 학기와 현재 학기+4학기로 서버가 결정하며 승인 시 재계산하지 않습니다. "
                     + "복학은 일반복학 또는 군복학을 선택하며, 선택 유형과 대상 학기가 실제 휴학 승인 근거 및 원본 복학 예정과 일치해야 합니다. "
                     + "휴학은 ENROLLED, 복학은 ON_LEAVE만 가능하고 활성 접수 기간(KST, 양 끝 포함)이 필요합니다. "
-                    + "학생당 PENDING 한 건, 군휴학 승인은 평생 한 번. 성공 시 PENDING이고 학적은 유지합니다. "
-                    + "자퇴와 동시 대기는 허용하되 자퇴 최종 승인 시 PENDING 신청은 자동 취소됩니다.")
+                    + "학생당 PENDING 또는 ADVISOR_APPROVED 진행 건은 한 건, 군휴학 승인은 평생 한 번입니다. 성공 시 PENDING이고 학적은 유지합니다. "
+                    + "자퇴와 동시 대기는 허용하되 자퇴 최종 승인 시 진행 중 신청은 자동 취소됩니다.")
     @ApiResponse(responseCode = "200", description = "00: 신청 성공 또는 저장된 성공 응답 재생")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('STUDENT')")
@@ -115,13 +115,13 @@ public class LeaveRequestController {
     }
 
     @Operation(operationId = "changeLeaveRequestStatus", summary = "휴·복학 승인·반려·취소",
-            description = "STUDENT 본인은 PENDING→CANCELLED만, ADMIN은 PENDING→APPROVED/REJECTED만 가능합니다. "
-                    + "취소·반려 사유 필수(500자 이하). 승인에만 별도 활성 승인 기간(KST, 양 끝 포함)을 적용합니다. "
-                    + "승인은 현재 학적과 승인 근거를 재검증하고 즉시 학적·학적 이력·감사를 함께 저장합니다. "
+            description = "STUDENT 본인은 PENDING 또는 ADVISOR_APPROVED→CANCELLED만 가능합니다. 담당 지도교수는 본인 담당 학생의 "
+                    + "PENDING→ADVISOR_APPROVED/REJECTED만 가능하며, 교수 승인은 일반휴학·복학의 교수 승인 기간에만 가능합니다. ADMIN은 ADVISOR_APPROVED→APPROVED/REJECTED만 가능합니다. "
+                    + "취소·반려 사유는 필수(500자 이하)입니다. 지도교수 승인은 학적을 변경하지 않으며, 관리자 최종 승인에서만 현재 학적과 승인 근거를 재검증해 학적·학적 이력·감사를 함께 저장합니다. "
                     + "취소·반려는 학적을 변경하지 않습니다. 종결 상태 재처리·승인 후 취소·예약 실행은 제공하지 않습니다.")
     @ApiResponse(responseCode = "200", description = "00: 처리 성공 또는 저장된 성공 응답 재생")
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT','PROFESSOR','ADMIN')")
     public ResponseEntity<GlobalResponseDTO<LeaveRequestResponseDTO>> changeStatus(
             @Parameter(description = "신청 ID", example = "1") @Positive @PathVariable Long id,
             @Valid @RequestBody LeaveRequestStatusChangeRequestDTO request,
@@ -135,12 +135,12 @@ public class LeaveRequestController {
     }
 
     @Operation(operationId = "downloadLeaveRequestFile", summary = "휴·복학 증빙 파일 다운로드",
-            description = "STUDENT 본인 또는 ADMIN만 조회합니다. 권한 확인 후 Academic이 MinIO 파일을 전달합니다. "
+            description = "STUDENT 본인, 담당 지도교수 또는 ADMIN만 조회합니다. 권한 확인 후 Academic이 MinIO 파일을 전달합니다. "
                     + "MinIO URL·저장 키는 공개하지 않으며 취소·반려 후에도 증빙을 보존합니다. 파일이 없으면 E10.")
     @ApiResponse(responseCode = "200", description = "원본 형식의 증빙 파일(공통 JSON envelope 미사용)",
             content = @Content(mediaType = "application/octet-stream", schema = @Schema(type = "string", format = "binary")))
     @GetMapping("/{id}/files/{fileId}")
-    @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT','PROFESSOR','ADMIN')")
     public ResponseEntity<byte[]> download(
             @Parameter(description = "신청 ID", example = "1") @Positive @PathVariable Long id,
             @Parameter(description = "증빙 파일 ID", example = "1") @Positive @PathVariable Long fileId,
@@ -150,12 +150,12 @@ public class LeaveRequestController {
     }
 
     @Operation(operationId = "downloadFirstLeaveRequestAttachment", summary = "첫 번째 휴·복학 증빙 다운로드",
-            description = "기존 단일 첨부 호출 호환용입니다. STUDENT 본인 또는 ADMIN만 조회하며 첫 번째 증빙 파일을 반환합니다.",
+            description = "기존 단일 첨부 호출 호환용입니다. STUDENT 본인, 담당 지도교수 또는 ADMIN만 첫 번째 증빙 파일을 조회합니다.",
             deprecated = true)
     @ApiResponse(responseCode = "200", description = "원본 형식의 첫 번째 증빙 파일(공통 JSON envelope 미사용)",
             content = @Content(mediaType = "application/octet-stream", schema = @Schema(type = "string", format = "binary")))
     @GetMapping("/{id}/attachment")
-    @PreAuthorize("hasAnyRole('STUDENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT','PROFESSOR','ADMIN')")
     public ResponseEntity<byte[]> downloadFirst(
             @Parameter(description = "신청 ID", example = "1") @Positive @PathVariable Long id,
             @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser actor) {

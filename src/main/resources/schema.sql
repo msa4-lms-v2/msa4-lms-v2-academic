@@ -817,6 +817,9 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     return_year SMALLINT NULL,
     return_semester TINYINT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    advisor_reviewed_by BIGINT NULL,
+    advisor_reviewed_at DATETIME NULL,
+    advisor_reject_reason VARCHAR(500) NULL,
     reject_reason VARCHAR(500) NULL,
     cancel_reason VARCHAR(500) NULL,
     attachment_original_name VARCHAR(255) NULL,
@@ -826,13 +829,15 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     active_student_id BIGINT GENERATED ALWAYS AS (
-        CASE WHEN status = 'PENDING' THEN student_id ELSE NULL END
+        CASE WHEN status IN ('PENDING', 'ADVISOR_APPROVED') THEN student_id ELSE NULL END
     ) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uk_academic_requests_active_student UNIQUE (active_student_id),
     INDEX idx_academic_requests_student_status (student_id, status),
     INDEX idx_academic_requests_status_created (status, created_at),
+    INDEX idx_academic_requests_advisor_status (advisor_reviewed_by, status),
     CONSTRAINT fk_academic_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_academic_requests_advisor_reviewer FOREIGN KEY (advisor_reviewed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT ck_academic_requests_target_semester CHECK (target_semester IN (1, 2)),
     CONSTRAINT ck_academic_requests_return_semester CHECK (return_semester IS NULL OR return_semester IN (1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
