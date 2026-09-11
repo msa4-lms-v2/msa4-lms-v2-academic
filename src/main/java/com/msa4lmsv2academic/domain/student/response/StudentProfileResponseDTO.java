@@ -4,6 +4,7 @@ import com.msa4lmsv2academic.domain.student.entity.Student;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record StudentProfileResponseDTO(
+        @Schema(description = "학생 ID(Academic Student 엔티티 PK)", example = "1001") Long id,
         @Schema(description = "이름", example = "김학생") String name,
         @Schema(description = "이메일", example = "student@example.com", nullable = true) String email,
         @Schema(description = "연락처", example = "010-1234-5678", nullable = true) String phoneNumber,
@@ -19,6 +20,7 @@ public record StudentProfileResponseDTO(
 ) {
     public static StudentProfileResponseDTO from(Student student, int totalCredits, String profileImageUrl) {
         return new StudentProfileResponseDTO(
+                student.getId(),
                 student.getUser().getName(),
                 student.getUser().getEmail(),
                 student.getUser().getPhoneNumber(),
