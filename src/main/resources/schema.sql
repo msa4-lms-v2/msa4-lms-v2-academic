@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS notices (
     id BIGINT NOT NULL AUTO_INCREMENT,
     title VARCHAR(100) NOT NULL,
     content TEXT NULL,
+    category VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+    normal_transition_date DATE NULL,
     target_role VARCHAR(20) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -68,7 +70,24 @@ CREATE TABLE IF NOT EXISTS notices (
     CONSTRAINT fk_notices_author
         FOREIGN KEY (author_id) REFERENCES users (id)
         ON DELETE RESTRICT,
-    INDEX idx_notices_target_active_created (target_role, is_active, created_at)
+    INDEX idx_notices_target_active_created (target_role, is_active, created_at),
+    INDEX idx_notices_category_transition (category, normal_transition_date),
+    INDEX idx_notices_author_created (author_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notice_attachments (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    notice_id BIGINT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    object_key VARCHAR(500) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    file_size BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_notice_attachments_notice_id (notice_id),
+    CONSTRAINT fk_notice_attachments_notice
+        FOREIGN KEY (notice_id) REFERENCES notices (id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS academic_schedules (

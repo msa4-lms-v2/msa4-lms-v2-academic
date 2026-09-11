@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -41,6 +42,13 @@ public class Notice {
     private String content;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private NoticeCategory category;
+
+    @Column(name = "normal_transition_date")
+    private LocalDate normalTransitionDate;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "target_role", nullable = false, length = 20)
     private NoticeTargetRole targetRole;
 
@@ -55,26 +63,60 @@ public class Notice {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
-    private Notice(String title, String content, NoticeTargetRole targetRole, User author) {
+    private Notice(
+            String title,
+            String content,
+            NoticeCategory category,
+            LocalDate normalTransitionDate,
+            NoticeTargetRole targetRole,
+            User author
+    ) {
         this.title = title;
         this.content = content;
+        this.category = category;
+        this.normalTransitionDate = normalTransitionDate;
         this.targetRole = targetRole;
         this.active = true;
         this.author = author;
     }
 
-    public static Notice create(String title, String content, NoticeTargetRole targetRole, User author) {
-        return new Notice(title, content, targetRole, author);
+    public static Notice create(
+            String title,
+            String content,
+            NoticeCategory category,
+            LocalDate normalTransitionDate,
+            NoticeTargetRole targetRole,
+            User author
+    ) {
+        return new Notice(title, content, category, normalTransitionDate, targetRole, author);
     }
 
-    public void update(String title, String content, NoticeTargetRole targetRole, boolean active) {
+    public static Notice create(String title, String content, NoticeTargetRole targetRole, User author) {
+        return create(title, content, NoticeCategory.NORMAL, null, targetRole, author);
+    }
+
+    public void update(
+            String title,
+            String content,
+            NoticeCategory category,
+            LocalDate normalTransitionDate,
+            NoticeTargetRole targetRole,
+            boolean active
+    ) {
         this.title = title;
         this.content = content;
+        this.category = category;
+        this.normalTransitionDate = normalTransitionDate;
         this.targetRole = targetRole;
         this.active = active;
     }
 
     public void deactivate() {
         this.active = false;
+    }
+
+    public void transitionToNormal() {
+        this.category = NoticeCategory.NORMAL;
+        this.normalTransitionDate = null;
     }
 }

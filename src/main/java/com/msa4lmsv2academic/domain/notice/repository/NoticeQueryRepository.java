@@ -24,11 +24,23 @@ public class NoticeQueryRepository {
                             .or(notice.content.containsIgnoreCase(condition.keyword()))
             );
         }
+        if (condition.authorKeyword() != null) {
+            predicates.and(notice.author.name.containsIgnoreCase(condition.authorKeyword()));
+        }
+        if (condition.category() != null) {
+            predicates.and(notice.category.eq(condition.category()));
+        }
         if (condition.targetRoles() != null && !condition.targetRoles().isEmpty()) {
             predicates.and(notice.targetRole.in(condition.targetRoles()));
         }
         if (condition.active() != null) {
             predicates.and(notice.active.eq(condition.active()));
+        }
+        if (condition.createdFrom() != null) {
+            predicates.and(notice.createdAt.goe(condition.createdFrom().atStartOfDay()));
+        }
+        if (condition.createdTo() != null) {
+            predicates.and(notice.createdAt.lt(condition.createdTo().plusDays(1).atStartOfDay()));
         }
 
         List<Notice> items = jpaQueryFactory

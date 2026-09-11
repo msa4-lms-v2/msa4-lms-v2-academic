@@ -37,6 +37,8 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath(statusPath + "['patch']").exists())
                 .andExpect(jsonPath(collectionPath + "['get']['security'][0]['bearerAuth']").isArray())
                 .andExpect(jsonPath(collectionPath + "['post']['responses']['201']").exists())
+                .andExpect(jsonPath(collectionPath + "['post']['requestBody']['content']['application/json']").exists())
+                .andExpect(jsonPath(collectionPath + "['post']['requestBody']['content']['multipart/form-data']").exists())
                 .andExpect(jsonPath(collectionPath + "['post']['responses']['409']").doesNotExist())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['403']").exists())
                 .andExpect(jsonPath(itemPath + "['get']['responses']['404']").exists())
@@ -56,7 +58,13 @@ class NoticeOpenApiTest extends MySqlIntegrationTest {
                         .value(hasItems("title", "targetRole")))
                 .andExpect(jsonPath("$['components']['schemas']['NoticeSummaryResponseDTO']['properties']['content']")
                         .doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['NoticeSummaryResponseDTO']['properties']['category']")
+                        .exists())
+                .andExpect(jsonPath("$['components']['schemas']['NoticeSummaryResponseDTO']['properties']['normalTransitionDate']['format']")
+                        .value("date"))
                 .andExpect(jsonPath("$['components']['schemas']['NoticeDetailResponseDTO']['properties']['content']")
+                        .exists())
+                .andExpect(jsonPath("$['components']['schemas']['NoticeDetailResponseDTO']['properties']['attachments']")
                         .exists())
                 .andExpect(jsonPath("$['components']['securitySchemes']['bearerAuth']").exists());
     }

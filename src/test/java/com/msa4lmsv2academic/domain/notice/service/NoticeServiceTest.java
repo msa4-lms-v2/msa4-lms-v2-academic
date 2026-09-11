@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.msa4lmsv2academic.domain.audit.entity.AuditLog;
 import com.msa4lmsv2academic.domain.audit.repository.AuditLogRepository;
 import com.msa4lmsv2academic.domain.notice.entity.Notice;
+import com.msa4lmsv2academic.domain.notice.entity.NoticeCategory;
 import com.msa4lmsv2academic.domain.notice.entity.NoticeTargetRole;
 import com.msa4lmsv2academic.domain.notice.repository.NoticeRepository;
 import com.msa4lmsv2academic.domain.notice.request.NoticeCreateRequestDTO;
@@ -22,6 +23,7 @@ import com.msa4lmsv2academic.global.error.NoticeNotFoundException;
 import com.msa4lmsv2academic.global.error.NoticeStateConflictException;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
+import java.time.LocalDate;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -103,6 +105,28 @@ class NoticeServiceTest extends MySqlIntegrationTest {
 
         assertThat(repeated.id()).isNotEqualTo(original.id());
         assertThat(repeated.isActive()).isTrue();
+    }
+
+    @Test
+    void importantNoticeTransitionsToNormalAtStartOfConfiguredDate() {
+        LocalDate transitionDate = LocalDate.now().plusDays(1);
+        NoticeDetailResponseDTO created = noticeService.createNotice(
+                new NoticeCreateRequestDTO(
+                        "중요 공지", "내용", NoticeCategory.IMPORTANT, transitionDate, NoticeTargetRole.ALL
+                ),
+                ADMIN,
+                null,
+                null
+        );
+
+        assertThat(created.category()).isEqualTo(NoticeCategory.IMPORTANT);
+        assertThat(created.normalTransitionDate()).isEqualTo(transitionDate);
+
+        noticeService.transitionExpiredImportantNotices(transitionDate);
+
+        Notice transitioned = noticeRepository.findById(created.id()).orElseThrow();
+        assertThat(transitioned.getCategory()).isEqualTo(NoticeCategory.NORMAL);
+        assertThat(transitioned.getNormalTransitionDate()).isNull();
     }
 
     @Test
