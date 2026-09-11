@@ -1,9 +1,11 @@
 package com.msa4lmsv2academic.domain.notice.request;
 
+import com.msa4lmsv2academic.domain.notice.entity.NoticeCategory;
 import com.msa4lmsv2academic.domain.notice.entity.NoticeTargetRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 
 @Schema(description = "공지사항 목록 검색 조건")
 public record NoticeSearchRequestDTO(
@@ -19,6 +21,13 @@ public record NoticeSearchRequestDTO(
         @Size(max = 100, message = "keyword는 100자 이하여야 합니다.")
         String keyword,
 
+        @Schema(description = "작성자 이름 검색어", example = "관리자", maxLength = 50)
+        @Size(max = 50, message = "authorKeyword는 50자 이하여야 합니다.")
+        String authorKeyword,
+
+        @Schema(description = "공지 분류", example = "IMPORTANT", allowableValues = {"NORMAL", "IMPORTANT"})
+        NoticeCategory category,
+
         @Schema(
                 description = "공지 대상 역할. STUDENT와 PROFESSOR는 ALL 또는 본인 역할만 지정할 수 있습니다.",
                 example = "STUDENT",
@@ -30,12 +39,22 @@ public record NoticeSearchRequestDTO(
                 description = "활성 상태. ADMIN이 생략하면 전체 상태를 조회하며 일반 사용자는 항상 활성 공지만 조회합니다.",
                 example = "true"
         )
-        Boolean active
+        Boolean active,
+
+        @Schema(description = "작성일 검색 시작일", example = "2026-04-01", format = "date")
+        LocalDate createdFrom,
+
+        @Schema(description = "작성일 검색 종료일", example = "2026-05-06", format = "date")
+        LocalDate createdTo
 ) {
 
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
+
+    public NoticeSearchRequestDTO(Integer page, Integer size, String keyword, NoticeTargetRole targetRole, Boolean active) {
+        this(page, size, keyword, null, null, targetRole, active, null, null);
+    }
 
     public int resolvedPage() {
         return page == null ? DEFAULT_PAGE : page;

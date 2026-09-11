@@ -8,6 +8,7 @@ import com.msa4lmsv2academic.domain.grade.request.GradeFinalizeRequestDTO;
 import com.msa4lmsv2academic.domain.grade.request.GradeSaveRequestDTO;
 import com.msa4lmsv2academic.domain.grade.request.GradeScoreRequestDTO;
 import com.msa4lmsv2academic.domain.grade.response.GradeClassResponseDTO;
+import com.msa4lmsv2academic.domain.gradeperiod.service.GradeOperationPeriodService;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureRepository;
 import com.msa4lmsv2academic.global.error.GradeManagementAccessDeniedException;
@@ -43,6 +44,7 @@ public class GradeManagementService {
     private final GradeCalculationPolicy calculationPolicy;
     private final GradeIdempotencyService idempotencyService;
     private final AuditLogService auditLogService;
+    private final GradeOperationPeriodService gradeOperationPeriodService;
 
     public GradeClassResponseDTO getGrades(Long classId, CurrentUser currentUser) {
         validateClassIdAndUser(classId, currentUser);
@@ -91,6 +93,7 @@ public class GradeManagementService {
         Lecture lecture = lectureRepository.findSyllabusByIdForUpdate(classId)
                 .orElseThrow(() -> new GradeManagementNotFoundException("강의를 찾을 수 없습니다."));
         validateOwnerOrAdmin(lecture, currentUser);
+        gradeOperationPeriodService.requireGradeEntryAllowed(lecture.getSemester().getId());
         List<Enrollment> enrollments = gradeRepository.findActiveGradesForUpdate(classId);
         if (enrollments.isEmpty()) {
             throw new InvalidGradeManagementRequestException("확정할 수강생 성적이 없습니다.");
@@ -143,6 +146,7 @@ public class GradeManagementService {
         Lecture lecture = lectureRepository.findSyllabusByIdForUpdate(request.classId())
                 .orElseThrow(() -> new GradeManagementNotFoundException("강의를 찾을 수 없습니다."));
         validateOwnerOrAdmin(lecture, currentUser);
+        gradeOperationPeriodService.requireGradeEntryAllowed(lecture.getSemester().getId());
         List<Enrollment> enrollments = gradeRepository.findActiveGradesForUpdate(request.classId());
         Map<Long, Enrollment> enrollmentById = new HashMap<>();
         enrollments.forEach(enrollment -> enrollmentById.put(enrollment.getId(), enrollment));

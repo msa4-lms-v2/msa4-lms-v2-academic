@@ -58,11 +58,23 @@ public class ProfileFileValidator {
         validateFiles(profileImage, attachments);
     }
 
+    public void validateAttachments(List<MultipartFile> attachments) {
+        validateAttachments(0, attachments);
+    }
+
+    public void validateAttachments(long existingAttachmentCount, List<MultipartFile> attachments) {
+        validateFiles(null, attachments, existingAttachmentCount);
+    }
+
     private void validateFiles(MultipartFile profileImage, List<MultipartFile> attachments) {
+        validateFiles(profileImage, attachments, 0);
+    }
+
+    private void validateFiles(MultipartFile profileImage, List<MultipartFile> attachments, long existingAttachmentCount) {
         List<MultipartFile> presentAttachments = attachments == null
                 ? List.of()
                 : attachments.stream().filter(this::hasContent).toList();
-        if (presentAttachments.size() > ATTACHMENT_MAX_COUNT) {
+        if (existingAttachmentCount + presentAttachments.size() > ATTACHMENT_MAX_COUNT) {
             throw new InvalidFileException("증빙 파일은 최대 5개까지 첨부할 수 있습니다.");
         }
 

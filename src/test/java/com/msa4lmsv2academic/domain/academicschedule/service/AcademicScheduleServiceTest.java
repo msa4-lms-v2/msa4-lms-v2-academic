@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicSchedule;
+import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleCategory;
 import com.msa4lmsv2academic.domain.academicschedule.entity.AcademicScheduleTargetRole;
 import com.msa4lmsv2academic.domain.academicschedule.repository.AcademicScheduleRepository;
 import com.msa4lmsv2academic.domain.academicschedule.request.AcademicScheduleCreateRequestDTO;
@@ -14,6 +15,10 @@ import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleDe
 import com.msa4lmsv2academic.domain.academicschedule.response.AcademicScheduleSummaryResponseDTO;
 import com.msa4lmsv2academic.domain.audit.entity.AuditLog;
 import com.msa4lmsv2academic.domain.audit.repository.AuditLogRepository;
+import com.msa4lmsv2academic.domain.gradeperiod.entity.GradeOperationType;
+import com.msa4lmsv2academic.domain.gradeperiod.repository.GradeOperationPeriodRepository;
+import com.msa4lmsv2academic.domain.semester.entity.Semester;
+import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
@@ -25,6 +30,7 @@ import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +54,9 @@ class AcademicScheduleServiceTest extends MySqlIntegrationTest {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private GradeOperationPeriodRepository gradeOperationPeriodRepository;
 
     @Autowired
     private EntityManager entityManager;
@@ -283,6 +292,81 @@ class AcademicScheduleServiceTest extends MySqlIntegrationTest {
                 ),
                 STUDENT, null, null
         )).isInstanceOf(AcademicScheduleAccessDeniedException.class);
+    }
+
+    @Test
+    void gradeEntryScheduleCreatesUpdatesAndDeactivatesOperationPeriod() {
+        Semester semester = Semester.create(
+                (short) 2030,
+                SemesterTerm.SECOND,
+                LocalDate.of(2030, 8, 26),
+                LocalDate.of(2030, 12, 20),
+                LocalDateTime.of(2030, 8, 1, 9, 0),
+                LocalDateTime.of(2030, 8, 7, 18, 0),
+                false
+        );
+        entityManager.persist(semester);
+        entityManager.flush();
+
+        AcademicScheduleDetailResponseDTO created = academicScheduleService.create(
+                new AcademicScheduleCreateRequestDTO(
+                        "2학기 성적 입력", "성적 입력 기간", AcademicScheduleCategory.GRADE_ENTRY,
+                        LocalDate.of(2030, 12, 1), LocalDate.of(2030, 12, 7),
+                        AcademicScheduleTargetRole.PROFESSOR
+                ),
+                ADMIN, null, null
+        );
+
+        var createdPeriod = gradeOperationPeriodRepository
+                .findBySemesterIdAndOperationType(semester.getId(), GradeOperationType.GRADE_ENTRY)
+                .orElseThrow();
+        assertThat(createdPeriod.getStartDate()).isEqualTo(LocalDate.of(2030, 12, 1));
+        assertThat(createdPeriod.getEndDate()).isEqualTo(LocalDate.of(2030, 12, 7));
+        assertThat(createdPeriod.isActive()).isTrue();
+
+        assertThatThrownBy(() -> academicScheduleService.update(
+                created.id(),
+                new AcademicScheduleUpdateRequestDTO(
+                        "2학기 성적 정정", "분류 변경 시도", AcademicScheduleCategory.GRADE_CORRECTION,
+                        LocalDate.of(2030, 12, 1), LocalDate.of(2030, 12, 7),
+                        AcademicScheduleTargetRole.PROFESSOR, "잘못된 분류 변경"
+                ),
+                ADMIN, null, null
+        )).isInstanceOf(InvalidAcademicScheduleRequestException.class)
+                .hasMessage("일정 분류는 등록 후 변경할 수 없습니다.");
+
+        academicScheduleService.update(
+                created.id(),
+                new AcademicScheduleUpdateRequestDTO(
+                        "2학기 성적 입력", "기간 연장", AcademicScheduleCategory.GRADE_ENTRY,
+                        LocalDate.of(2030, 12, 1), LocalDate.of(2030, 12, 10),
+                        AcademicScheduleTargetRole.PROFESSOR, "성적 입력 기간 연장"
+                ),
+                ADMIN, null, null
+        );
+        assertThat(gradeOperationPeriodRepository
+                .findBySemesterIdAndOperationType(semester.getId(), GradeOperationType.GRADE_ENTRY)
+                .orElseThrow().getEndDate()).isEqualTo(LocalDate.of(2030, 12, 10));
+
+        academicScheduleService.changeStatus(
+                created.id(), new AcademicScheduleStatusRequestDTO(false, "성적 입력 일정 중단"),
+                ADMIN, null, null
+        );
+        assertThat(gradeOperationPeriodRepository
+                .findBySemesterIdAndOperationType(semester.getId(), GradeOperationType.GRADE_ENTRY)
+                .orElseThrow().isActive()).isFalse();
+
+        academicScheduleService.create(
+                new AcademicScheduleCreateRequestDTO(
+                        "2학기 성적 정정", "성적 정정 기간", AcademicScheduleCategory.GRADE_CORRECTION,
+                        LocalDate.of(2030, 12, 11), LocalDate.of(2030, 12, 15),
+                        AcademicScheduleTargetRole.PROFESSOR
+                ),
+                ADMIN, null, null
+        );
+        assertThat(gradeOperationPeriodRepository
+                .findBySemesterIdAndOperationType(semester.getId(), GradeOperationType.GRADE_CORRECTION)
+                .orElseThrow().isActive()).isTrue();
     }
 
     private AcademicScheduleDetailResponseDTO create(String title, String content, LocalDate startDate,

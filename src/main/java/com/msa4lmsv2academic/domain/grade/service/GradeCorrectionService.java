@@ -11,6 +11,7 @@ import com.msa4lmsv2academic.domain.grade.request.GradeCorrectionItemRequestDTO;
 import com.msa4lmsv2academic.domain.grade.request.GradeCorrectionRequestDTO;
 import com.msa4lmsv2academic.domain.grade.response.GradeClassResponseDTO;
 import com.msa4lmsv2academic.domain.grade.response.GradeCorrectionHistoryResponseDTO;
+import com.msa4lmsv2academic.domain.gradeperiod.service.GradeOperationPeriodService;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
 import com.msa4lmsv2academic.domain.lecture.repository.LectureRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
@@ -60,6 +61,7 @@ public class GradeCorrectionService {
     private final GradeCalculationPolicy calculationPolicy;
     private final GradeIdempotencyService idempotencyService;
     private final AuditLogService auditLogService;
+    private final GradeOperationPeriodService gradeOperationPeriodService;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public GlobalResponseDTO<GradeClassResponseDTO> correct(
@@ -86,6 +88,7 @@ public class GradeCorrectionService {
         Lecture lecture = lectureRepository.findSyllabusByIdForUpdate(request.classId())
                 .orElseThrow(() -> new GradeManagementNotFoundException("강의를 찾을 수 없습니다."));
         validateOwnerOrAdmin(lecture, currentUser);
+        gradeOperationPeriodService.requireGradeCorrectionAllowed(lecture.getSemester().getId());
 
         List<Enrollment> enrollments = gradeRepository.findActiveGradesForUpdate(request.classId());
         Map<Long, Enrollment> enrollmentById = new HashMap<>();

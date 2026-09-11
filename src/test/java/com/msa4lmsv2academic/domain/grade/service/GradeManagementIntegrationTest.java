@@ -8,10 +8,12 @@ import com.msa4lmsv2academic.domain.grade.request.GradeFinalizeRequestDTO;
 import com.msa4lmsv2academic.domain.grade.request.GradeSaveRequestDTO;
 import com.msa4lmsv2academic.domain.grade.request.GradeScoreRequestDTO;
 import com.msa4lmsv2academic.global.error.GradeManagementAccessDeniedException;
+import com.msa4lmsv2academic.global.error.GradeManagementConflictException;
 import com.msa4lmsv2academic.global.error.InvalidGradeManagementRequestException;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,10 @@ class GradeManagementIntegrationTest extends MySqlIntegrationTest {
                 + "(id, academic_year, term, start_date, end_date, enrollment_start_at, enrollment_end_at, is_current) "
                 + "VALUES (99601, 2026, 'SECOND', '2026-08-31', '2026-12-18', "
                 + "'2026-08-01 09:00:00', '2026-08-07 18:00:00', 0)");
+        jdbcTemplate.update("INSERT INTO grade_operation_periods "
+                        + "(semester_id, operation_type, start_date, end_date, is_active) "
+                        + "VALUES (99601, 'GRADE_ENTRY', ?, ?, 1)",
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
         jdbcTemplate.update("INSERT INTO courses "
                 + "(id, department_id, code, name, credits, target_grade, completion_type) "
                 + "VALUES (99601, 99601, 'GRADE-01', '성적관리테스트', 3, 2, 'MAJOR_REQUIRED')");
@@ -155,5 +161,25 @@ class GradeManagementIntegrationTest extends MySqlIntegrationTest {
         assertThatThrownBy(() -> gradeManagementService.getGrades(
                 CLASS_ID, new CurrentUser(99603L, "PROFESSOR")
         )).isInstanceOf(GradeManagementAccessDeniedException.class);
+    }
+
+    @Test
+    void blocksDraftOutsideGradeEntryPeriod() {
+        jdbcTemplate.update("UPDATE grade_operation_periods "
+                        + "SET start_date = ?, end_date = ? "
+                        + "WHERE semester_id = ? AND operation_type = 'GRADE_ENTRY'",
+                LocalDate.now().minusDays(3), LocalDate.now().minusDays(1), 99601L);
+
+        GradeSaveRequestDTO request = new GradeSaveRequestDTO(CLASS_ID, List.of(
+                new GradeScoreRequestDTO(
+                        ENROLLMENT_ID, new BigDecimal("90.00"), null, null, null
+                )
+        ));
+
+        assertThatThrownBy(() -> gradeManagementService.createDraft(
+                request, "grade-entry-outside", new CurrentUser(PROFESSOR_USER_ID, "PROFESSOR"),
+                "trace-outside", "127.0.0.1"
+        )).isInstanceOf(GradeManagementConflictException.class)
+                .hasMessage("성적입력 기간이 아닙니다.");
     }
 }
