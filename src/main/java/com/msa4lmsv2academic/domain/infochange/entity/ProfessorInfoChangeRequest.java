@@ -47,6 +47,21 @@ public class ProfessorInfoChangeRequest {
     @JoinColumn(name = "professor_id", nullable = false)
     private Professor professor;
 
+    @Column(name = "previous_name", length = 50)
+    private String previousName;
+
+    @Column(name = "previous_phone_number", length = 20)
+    private String previousPhoneNumber;
+
+    @Column(name = "previous_email", length = 100)
+    private String previousEmail;
+
+    @Column(name = "previous_address", length = 255)
+    private String previousAddress;
+
+    @Column(name = "previous_profile_image_key", length = 500)
+    private String previousProfileImageKey;
+
     @Column(name = "new_name", length = 50)
     private String newName;
 
@@ -97,9 +112,15 @@ public class ProfessorInfoChangeRequest {
             String newEmail,
             String newAddress,
             String newProfileImageKey,
+            ProfileSnapshot previousProfile,
             String reason
     ) {
         this.professor = professor;
+        this.previousName = previousProfile.name();
+        this.previousPhoneNumber = previousProfile.phoneNumber();
+        this.previousEmail = previousProfile.email();
+        this.previousAddress = previousProfile.address();
+        this.previousProfileImageKey = previousProfile.profileImageKey();
         this.newName = newName;
         this.newPhoneNumber = newPhoneNumber;
         this.newEmail = newEmail;
@@ -116,10 +137,11 @@ public class ProfessorInfoChangeRequest {
             String newEmail,
             String newAddress,
             String newProfileImageKey,
+            ProfileSnapshot previousProfile,
             String reason
     ) {
         return new ProfessorInfoChangeRequest(
-                professor, newName, newPhoneNumber, newEmail, newAddress, newProfileImageKey, reason
+                professor, newName, newPhoneNumber, newEmail, newAddress, newProfileImageKey, previousProfile, reason
         );
     }
 
