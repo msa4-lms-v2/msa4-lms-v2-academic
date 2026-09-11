@@ -2,10 +2,18 @@ package com.msa4lmsv2academic.domain.attendance.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.msa4lmsv2academic.domain.attendance.entity.Attendance;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSession;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceStatus;
 import com.msa4lmsv2academic.domain.attendance.entity.ExcuseRequestStatus;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceRepository;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceSessionRepository;
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseReviewRequestDTO;
+import com.msa4lmsv2academic.domain.enrollment.repository.EnrollmentRepository;
+import com.msa4lmsv2academic.domain.lecture.repository.LectureRepository;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +31,21 @@ class ExcuseReviewIntegrationTest extends MySqlIntegrationTest {
 
     @Autowired
     private ExcuseReviewService excuseReviewService;
+
+    @Autowired
+    private AttendanceSessionService attendanceSessionService;
+
+    @Autowired
+    private AttendanceSessionRepository attendanceSessionRepository;
+
+    @Autowired
+    private AttendanceRepository attendanceRepository;
+
+    @Autowired
+    private LectureRepository lectureRepository;
+
+    @Autowired
+    private EnrollmentRepository enrollmentRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -61,6 +84,19 @@ class ExcuseReviewIntegrationTest extends MySqlIntegrationTest {
         jdbcTemplate.update("INSERT INTO excuse_requests "
                 + "(id, enrollment_id, lecture_date, period, reason, status) "
                 + "VALUES (99201, 99201, '2026-09-01', 2, '병원 진료', 'PENDING')");
+
+        var lecture = lectureRepository.findById(99201L).orElseThrow();
+        var enrollment = enrollmentRepository.findById(99201L).orElseThrow();
+        AttendanceSession session = AttendanceSession.open(
+                lecture,
+                LocalDate.of(2026, 9, 1),
+                2,
+                PROFESSOR_USER_ID,
+                LocalDateTime.of(2026, 9, 1, 10, 0)
+        );
+        session.close(LocalDateTime.of(2026, 9, 1, 11, 0));
+        AttendanceSession savedSession = attendanceSessionRepository.saveAndFlush(session);
+        attendanceRepository.saveAndFlush(Attendance.record(enrollment, savedSession, AttendanceStatus.ABSENT, null));
     }
 
     @Test
@@ -91,6 +127,13 @@ class ExcuseReviewIntegrationTest extends MySqlIntegrationTest {
                 "SELECT status FROM excuse_requests WHERE id = ?", String.class, REQUEST_ID
         )).isEqualTo("APPROVED");
         assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM attendances WHERE enrollment_id = ? AND lecture_date = ? AND period = ?",
+                String.class,
+                99201L,
+                LocalDate.of(2026, 9, 1),
+                2
+        )).isEqualTo("EXCUSED");
+        assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM audit_logs WHERE target_type = 'EXCUSE_REQUEST' "
                         + "AND target_id = ? AND action = 'EXCUSE_APPROVED'",
                 Long.class,
@@ -108,6 +151,12 @@ class ExcuseReviewIntegrationTest extends MySqlIntegrationTest {
                 String.class,
                 REQUEST_ID
         )).isEqualTo("APPROVED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(after_value, '$.attendanceStatus')) FROM audit_logs "
+                        + "WHERE target_type = 'EXCUSE_REQUEST' AND target_id = ?",
+                String.class,
+                REQUEST_ID
+        )).isEqualTo("EXCUSED");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM idempotency_keys WHERE idempotency_key = ?",
                 String.class,
@@ -141,5 +190,26 @@ class ExcuseReviewIntegrationTest extends MySqlIntegrationTest {
                 String.class,
                 REQUEST_ID
         )).isEqualTo("증빙 불충분");
+    }
+
+    @Test
+    void closesSessionAndCreatesAbsentRecordsForUncheckedActiveEnrollments() {
+        var lecture = lectureRepository.findById(99201L).orElseThrow();
+        AttendanceSession session = attendanceSessionRepository.saveAndFlush(AttendanceSession.open(
+                lecture,
+                LocalDate.of(2026, 9, 2),
+                1,
+                PROFESSOR_USER_ID,
+                LocalDateTime.of(2026, 9, 2, 10, 0)
+        ));
+
+        attendanceSessionService.close(session.getId(), new CurrentUser(PROFESSOR_USER_ID, "PROFESSOR"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM attendances WHERE session_id = ? AND enrollment_id = ?",
+                String.class,
+                session.getId(),
+                99201L
+        )).isEqualTo("ABSENT");
     }
 }

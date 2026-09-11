@@ -1,5 +1,6 @@
 package com.msa4lmsv2academic.domain.attendance.service;
 
+import com.msa4lmsv2academic.domain.attendance.entity.Attendance;
 import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSession;
 import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSessionStatus;
 import com.msa4lmsv2academic.domain.attendance.entity.AttendanceStatus;
@@ -19,6 +20,7 @@ import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -182,7 +184,27 @@ public class AttendanceSessionService {
             throw new InvalidAttendanceSessionException(exception.getMessage());
         }
 
+        createAbsentRecords(session);
+
         return AttendanceSessionCloseResponseDTO.from(session);
+    }
+
+    private void createAbsentRecords(AttendanceSession session) {
+        var recordedEnrollmentIds = attendanceRepository.findAllBySessionId(session.getId()).stream()
+                .map(attendance -> attendance.getEnrollment().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        var absences = new ArrayList<Attendance>();
+        for (var enrollment : enrollmentQueryRepository.findActiveEnrollments(session.getLecture().getId())) {
+            if (!recordedEnrollmentIds.contains(enrollment.getId())) {
+                absences.add(Attendance.record(
+                        enrollment,
+                        session,
+                        AttendanceStatus.ABSENT,
+                        null
+                ));
+            }
+        }
+        if (!absences.isEmpty()) attendanceRepository.saveAll(absences);
     }
 
     @Transactional(readOnly = true)
