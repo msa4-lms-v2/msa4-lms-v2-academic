@@ -9,6 +9,9 @@ import com.msa4lmsv2academic.domain.notification.entity.NotificationCategory;
 import com.msa4lmsv2academic.domain.notification.entity.NotificationResourceType;
 import com.msa4lmsv2academic.domain.notification.entity.NotificationType;
 import com.msa4lmsv2academic.domain.notification.service.NotificationService;
+import com.msa4lmsv2academic.global.scheduling.CronScheduling;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,13 +19,22 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HexFormat;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * spring.threads.virtual.enabled=true 환경에서 Spring {@code @Scheduled}가 배포 pod에서 실행되지
+ * 않는 현상이 확인돼(OutboxWorker 참고), 별도 ScheduledExecutorService로 직접 폴링한다.
+ * warnStudentsWithoutNextTermAction(LocalDate)의 @Transactional은 AOP 프록시를 거쳐야 적용되므로,
+ * this로 직접 호출하지 않고 지연 주입한 자기 자신(self)의 프록시를 통해 호출한다(self-invocation 우회).
+ */
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class LeaveExpiryWarningService {
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
     private static final List<LeaveRequestType> ACTION_TYPES = List.of(
@@ -33,11 +45,44 @@ public class LeaveExpiryWarningService {
     private final LeaveRequestQueryRepository queries;
     private final LeaveRequestRepository repository;
     private final NotificationService notifications;
+    private final LeaveExpiryWarningService self;
 
-    @Scheduled(cron = "${academic.leave.expiry-warning.cron:0 0 9 * * *}", zone = "Asia/Seoul")
-    @Transactional
-    public void warnStudentsWithoutNextTermAction() {
-        warnStudentsWithoutNextTermAction(LocalDate.now(KOREA_ZONE));
+    @Value("${academic.leave.expiry-warning.cron:0 0 9 * * *}")
+    private String cron;
+
+    private ScheduledExecutorService scheduler;
+
+    public LeaveExpiryWarningService(LeaveRequestQueryRepository queries, LeaveRequestRepository repository,
+                                      NotificationService notifications, @Lazy LeaveExpiryWarningService self) {
+        this.queries = queries;
+        this.repository = repository;
+        this.notifications = notifications;
+        this.self = self;
+    }
+
+    @PostConstruct
+    public void start() {
+        scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "leave-expiry-warning-scheduler");
+            thread.setDaemon(true);
+            return thread;
+        });
+        CronScheduling.scheduleCron(scheduler, cron, KOREA_ZONE, this::runWarnStudentsWithoutNextTermAction);
+    }
+
+    @PreDestroy
+    public void stop() {
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+        }
+    }
+
+    private void runWarnStudentsWithoutNextTermAction() {
+        try {
+            self.warnStudentsWithoutNextTermAction(LocalDate.now(KOREA_ZONE));
+        } catch (Exception exception) {
+            log.error("휴학 복학 미조치 학생 알림 발송 중 예상치 못한 예외 발생", exception);
+        }
     }
 
     @Transactional
