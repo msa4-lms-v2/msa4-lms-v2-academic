@@ -20,6 +20,7 @@ import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,22 @@ public class GraduationCreditDiagnosisService {
                 .findCreditDiagnosisByStudentId(studentId)
                 .orElseThrow(GraduationCreditDataNotFoundException::new);
 
+        return buildResponse(studentId, queryResult);
+    }
+
+    // 증명서 발급 자격 조회(SnapshotSyncController)처럼 졸업요건 미등록을 정상적인 "값 없음"으로 다뤄야 하는
+    // 내부 호출 전용 - 예외를 던지면 같은 트랜잭션에 참여한 호출자가 그 예외를 잡아도 트랜잭션은 이미
+    // rollback-only로 표시된 뒤라 커밋 시점에 UnexpectedRollbackException으로 이어진다(2026-09-13 확인).
+    // 그래서 이 경로는 조회 결과가 없을 때 예외 대신 Optional.empty()를 반환해 트랜잭션 경계를 넘는 예외 자체를 없앤다.
+    public Optional<CreditDiagnosisResponseDTO> diagnoseIfAvailable(Long studentId) {
+        if (studentId == null || studentId <= 0) {
+            throw new InvalidCreditDiagnosisRequestException("studentId는 양수여야 합니다.");
+        }
+        return graduationCreditQueryRepository.findCreditDiagnosisByStudentId(studentId)
+                .map(queryResult -> buildResponse(studentId, queryResult));
+    }
+
+    private CreditDiagnosisResponseDTO buildResponse(Long studentId, GraduationCreditDiagnosisQueryResult queryResult) {
         int shortageMajorCredits = shortage(
                 queryResult.requiredMajorCredits(),
                 queryResult.earnedMajorCredits()
