@@ -36,6 +36,17 @@ public class SnapshotSyncController {
     private final SemesterRepository semesterRepository;
     private final WithdrawalRequestRepository withdrawalRequestRepository;
 
+    // Same internal snapshot boundary as /{semesterId}/snapshot. A successful null
+    // means no current semester; transport/database failures must not mean no semester.
+    @Transactional(readOnly = true)
+    @GetMapping("/api/academic/catalog/semesters/current/snapshot")
+    public ResponseEntity<GlobalResponseDTO<com.msa4lmsv2academic.domain.dashboard.AdminDashboardResponse.CurrentSemester>> getCurrentSemesterSnapshot() {
+        var current = semesterRepository.findFirstByCurrentTrue()
+                .map(com.msa4lmsv2academic.domain.dashboard.AdminDashboardResponse.CurrentSemester::from)
+                .orElse(null);
+        return ResponseEntity.ok(GlobalResponseDTO.success(current));
+    }
+
     @Transactional(readOnly = true)
     @GetMapping("/api/academic/students/{studentId}/snapshot")
     public ResponseEntity<GlobalResponseDTO<StudentSnapshotSyncResponseDTO>> getStudentSnapshot(
