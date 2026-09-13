@@ -19,7 +19,7 @@ public class LeaveDismissalCancellationService {
     // 제적 서비스의 학생 행 잠금과 동일 transaction을 사용합니다. 외부 취소 API 권한은 바꾸지 않습니다.
     public void cancelPending(Long studentId, Long dismissalId, CurrentUser actor, LeaveAuditContext context) {
         policy.requireRole(actor, "ADMIN");
-        for (var request : repository.findPendingForUpdate(studentId)) {
+        for (var request : repository.findActiveForUpdate(studentId)) {
             var before = audit.snapshot(request);
             request.cancel(REASON);
             repository.flush();

@@ -5,7 +5,11 @@ import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSessionStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -20,6 +24,20 @@ public interface AttendanceSessionRepository extends JpaRepository<AttendanceSes
             Long lectureId,
             LocalDate sessionDate,
             Integer period
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select session
+            from AttendanceSession session
+            where session.lecture.id = :lectureId
+              and session.sessionDate = :sessionDate
+              and session.period = :period
+            """)
+    Optional<AttendanceSession> findByLectureIdAndSessionDateAndPeriodForUpdate(
+            @Param("lectureId") Long lectureId,
+            @Param("sessionDate") LocalDate sessionDate,
+            @Param("period") Integer period
     );
 
     // QR 갱신 권한 확인 메서드

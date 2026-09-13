@@ -2,6 +2,7 @@ package com.msa4lmsv2academic.domain.infochange.service;
 
 import com.msa4lmsv2academic.domain.audit.service.AuditLogService;
 import com.msa4lmsv2academic.domain.infochange.entity.InfoChangeRequestStatus;
+import com.msa4lmsv2academic.domain.infochange.entity.ProfileSnapshot;
 import com.msa4lmsv2academic.domain.infochange.entity.StudentInfoChangeRequest;
 import com.msa4lmsv2academic.domain.infochange.entity.StudentInfoChangeRequestFile;
 import com.msa4lmsv2academic.domain.infochange.repository.InfoChangeRequestSearchCondition;
@@ -139,6 +140,7 @@ public class StudentInfoChangeRequestService {
                 values.email(),
                 values.address(),
                 newProfileImageKey,
+                ProfileSnapshot.from(student.getUser()),
                 createDTO.reason().trim()
         ));
         saveAttachments(request, createDTO.attachments());
@@ -296,6 +298,9 @@ public class StudentInfoChangeRequestService {
     }
 
     private StudentInfoChangeRequestResponseDTO toDetail(StudentInfoChangeRequest request) {
+        String previousProfileImageUrl = request.getPreviousProfileImageKey() == null
+                ? null
+                : fileStorageService.presignedDownloadUrl(request.getPreviousProfileImageKey());
         String newProfileImageUrl = request.getNewProfileImageKey() == null
                 ? null
                 : fileStorageService.presignedDownloadUrl(request.getNewProfileImageKey());
@@ -305,7 +310,9 @@ public class StudentInfoChangeRequestService {
                         file, fileStorageService.presignedDownloadUrl(file.getObjectKey())
                 ))
                 .toList();
-        return StudentInfoChangeRequestResponseDTO.detail(request, newProfileImageUrl, files);
+        return StudentInfoChangeRequestResponseDTO.detail(
+                request, previousProfileImageUrl, newProfileImageUrl, files
+        );
     }
 
     private Map<Long, Long> attachmentCounts(List<StudentInfoChangeRequest> requests) {

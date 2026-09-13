@@ -128,4 +128,22 @@ public class Attendance {
         this.remarks = remarks;
         this.modified = true;
     }
+
+    public void markExcused() {
+        this.status = AttendanceStatus.EXCUSED;
+        this.modified = true;
+    }
+
+    public boolean isAutoAbsent() {
+        return status == AttendanceStatus.ABSENT && !modified && checkInTime == null;
+    }
+
+    public void checkInAfterReopen(LocalDateTime checkInTime) {
+        if (!isAutoAbsent()) {
+            throw new IllegalStateException("자동 결석 처리된 출결만 재개설 세션에서 출석으로 변경할 수 있습니다.");
+        }
+        this.status = AttendanceStatus.PRESENT;
+        this.remarks = null;
+        this.checkInTime = checkInTime;
+    }
 }

@@ -1,6 +1,7 @@
 package com.msa4lmsv2academic.domain.leaverequest.entity;
 
 import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.domain.user.entity.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -40,6 +41,13 @@ public class LeaveRequest {
     private Byte returnSemester;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private LeaveRequestStatus status;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "advisor_reviewed_by")
+    private User advisorReviewedBy;
+    @Column(name = "advisor_reviewed_at")
+    private LocalDateTime advisorReviewedAt;
+    @Column(name = "advisor_reject_reason", length = 500)
+    private String advisorRejectReason;
     @Column(name = "reject_reason", length = 500)
     private String rejectReason;
     @Column(name = "cancel_reason", length = 500)
@@ -84,26 +92,53 @@ public class LeaveRequest {
         files.add(LeaveRequestFile.create(this, originalName, storedName, contentType, size));
     }
 
-    public void approve() {
+    public void advisorApprove(User reviewer, LocalDateTime reviewedAt) {
         requirePending();
+        advisorReviewedBy = reviewer;
+        advisorReviewedAt = reviewedAt;
+        status = LeaveRequestStatus.ADVISOR_APPROVED;
+    }
+
+    public void advisorReject(User reviewer, String reason, LocalDateTime reviewedAt) {
+        requirePending();
+        advisorReviewedBy = reviewer;
+        advisorReviewedAt = reviewedAt;
+        advisorRejectReason = reason;
+        status = LeaveRequestStatus.REJECTED;
+    }
+
+    public void approve() {
+        requireAdvisorApproved();
         status = LeaveRequestStatus.APPROVED;
     }
 
     public void reject(String reason) {
-        requirePending();
+        requireAdvisorApproved();
         status = LeaveRequestStatus.REJECTED;
         rejectReason = reason;
     }
 
     public void cancel(String reason) {
-        requirePending();
+        requireActive();
         status = LeaveRequestStatus.CANCELLED;
         cancelReason = reason;
     }
 
     private void requirePending() {
         if (status != LeaveRequestStatus.PENDING) {
-            throw new IllegalStateException("대기 중인 휴·복학 신청만 변경할 수 있습니다.");
+            throw new IllegalStateException("지도교수 검토 대기 중인 휴·복학 신청만 변경할 수 있습니다.");
+        }
+    }
+
+    private void requireAdvisorApproved() {
+        if (status != LeaveRequestStatus.ADVISOR_APPROVED) {
+            throw new IllegalStateException("지도교수 승인 상태인 휴·복학 신청만 최종 처리할 수 있습니다.");
+        }
+    }
+
+    private void requireActive() {
+        if (status != LeaveRequestStatus.PENDING && status != LeaveRequestStatus.ADVISOR_APPROVED) {
+            throw new IllegalStateException("진행 중인 휴·복학 신청만 취소할 수 있습니다.");
         }
     }
 }

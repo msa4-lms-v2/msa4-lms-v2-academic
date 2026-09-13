@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record LeaveRequestStatusChangeRequestDTO(
-        @NotNull @Schema(description = "학생: CANCELLED, 관리자: APPROVED 또는 REJECTED", allowableValues = {"APPROVED", "REJECTED", "CANCELLED"}, example = "CANCELLED", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull @Schema(description = "학생: CANCELLED, 담당 지도교수: APPROVED 또는 REJECTED, 관리자: APPROVED 또는 REJECTED", allowableValues = {"APPROVED", "REJECTED", "CANCELLED"}, example = "APPROVED", requiredMode = Schema.RequiredMode.REQUIRED)
         LeaveRequestStatus status,
-        @Size(max = 500) @Schema(description = "취소·반려 시 필수(1~500자). 승인 시 생략", maxLength = 500, example = "신청을 철회합니다.")
+        @Size(max = 500) @Schema(description = "취소·반려 시 필수(1~500자). 교수 승인·관리자 최종 승인 시 생략", maxLength = 500, example = "신청을 철회합니다.")
         String reason
 ) {
     public LeaveRequestStatusChangeRequestDTO {

@@ -145,6 +145,28 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 Integer.class)).isEqualTo(2);
     }
 
+    @Test void advisorApprovalPrecedesAdminFinalApprovalAndPreservesAcademicStatus() {
+        long id = create("lv-advisor-flow").id();
+
+        assertThatThrownBy(() -> service.changeStatus(id,
+                new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED, null),
+                "lv-admin-too-early", ADMIN, CONTEXT)).isInstanceOf(LeaveRequestConflictException.class);
+
+        var advisorApproved = advisorApprove(id, "lv-advisor-approve");
+        assertThat(advisorApproved.status()).isEqualTo(LeaveRequestStatus.ADVISOR_APPROVED);
+        assertThat(advisorApproved.advisorReviewerName()).isEqualTo("지도교수");
+        assertThat(advisorApproved.advisorReviewedAt()).isNotNull();
+        assertThat(studentStatus()).isEqualTo("ENROLLED");
+        assertThat(count("academic_status_histories")).isZero();
+
+        var approved = service.changeStatus(id,
+                new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED, null),
+                "lv-admin-final", ADMIN, CONTEXT);
+        assertThat(approved.status()).isEqualTo(LeaveRequestStatus.APPROVED);
+        assertThat(studentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(count("academic_status_histories")).isEqualTo(1);
+    }
+
     @Test void militaryUsesApplicationTermPlusFourAndDoesNotRecalculateOnApproval() {
         jdbc.update("DELETE FROM leave_request_periods WHERE request_type='MILITARY_LEAVE'");
         var first = application.create(military(), List.of(pdf()), "lv-military", STUDENT, CONTEXT);
@@ -225,7 +247,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         assertThatThrownBy(() -> approve(first.id(), "lv-no-approval-period")).isInstanceOf(LeaveRequestConflictException.class);
         jdbc.update("UPDATE leave_request_periods SET is_active=0");
         service.changeStatus(first.id(), new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.REJECTED, "보완 필요"),
-                "lv-reject", ADMIN, CONTEXT);
+                "lv-reject", PROFESSOR, CONTEXT);
         assertThatThrownBy(() -> create("lv-inactive")).isInstanceOf(LeaveRequestConflictException.class);
         jdbc.update("UPDATE leave_request_periods SET is_active=1");
         var second = create("lv-create2");
@@ -245,8 +267,8 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         var first = create("lv-create");
         jdbc.update("UPDATE students SET academic_status='WITHDRAWN' WHERE id=280001");
         assertThatThrownBy(() -> approve(first.id(), "lv-invalid-state")).isInstanceOf(LeaveRequestConflictException.class);
-        assertThat(service.get(first.id(), STUDENT).status()).isEqualTo(LeaveRequestStatus.PENDING);
-        // 취소는 학적 상태 변경 후에도 본인 대기 신청이면 가능합니다.
+        assertThat(service.get(first.id(), STUDENT).status()).isEqualTo(LeaveRequestStatus.ADVISOR_APPROVED);
+        // 취소는 학적 상태 변경 후에도 본인 진행 중 신청이면 가능합니다.
         service.changeStatus(first.id(), new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.CANCELLED, "취소"),
                 "lv-cancel", STUDENT, CONTEXT);
         assertThatThrownBy(() -> create("lv-withdrawn")).isInstanceOf(LeaveRequestConflictException.class);
@@ -297,9 +319,9 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 anyString(), anyLong(), any(), any(), any(), any(), any());
         assertThatThrownBy(() -> approve(id, "lv-rollback")).isInstanceOf(IllegalStateException.class);
         assertThat(studentStatus()).isEqualTo("ENROLLED");
-        assertThat(service.get(id, STUDENT).status()).isEqualTo(LeaveRequestStatus.PENDING);
+        assertThat(service.get(id, STUDENT).status()).isEqualTo(LeaveRequestStatus.ADVISOR_APPROVED);
         assertThat(count("academic_status_histories")).isZero();
-        assertThat(count("idempotency_keys")).isEqualTo(1);
+        assertThat(count("idempotency_keys")).isEqualTo(2);
     }
 
     @Test void withdrawalFinalApprovalAutoCancelsPendingAndReplayDoesNotRepeatAudit() {
@@ -430,7 +452,9 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         mvc.perform(get(URL+"/"+id).header("X-User-Id",OTHER.id()).header("X-User-Role","STUDENT"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("E03"));
         mvc.perform(get(URL).header("X-User-Id",PROFESSOR.id()).header("X-User-Role","PROFESSOR"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].id").value(id));
+        mvc.perform(get(URL+"/"+id).header("X-User-Id",PROFESSOR.id()).header("X-User-Role","PROFESSOR"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.studentId").value(280001));
         mvc.perform(get(URL)).andExpect(status().isUnauthorized());
         mvc.perform(get(URL).header("X-User-Id",ADMIN.id()).header("X-User-Role","ADMIN").param("status","REJECTED"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.items").isEmpty()).andExpect(jsonPath("$.data.totalCount").value(0));
@@ -469,6 +493,8 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/academic/counseling/notifications']['get']['summary']").value("내 상담 알림 목록 조회"))
                 .andExpect(jsonPath("$['paths']['/api/academic/withdrawals']['post']['responses']['201']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['LeaveRequestCreateRequestDTO']['properties']['returnYear']").exists())
+                .andExpect(jsonPath("$['paths']['/api/academic/leave-requests']['get']['parameters'][?(@.name == 'keyword')]").isNotEmpty())
+                .andExpect(jsonPath("$['components']['schemas']['LeaveRequestResponseDTO']['properties']['advisorReviewedAt']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['LeavePeriodSaveRequestDTO']['properties']['approvalStartAt']").exists());
     }
 
@@ -500,6 +526,7 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
 
     @Test void approvalReasonIsPreservedInAuditAndNotMistakenForOriginalRequestReason() {
         long id = create("lv-create").id();
+        advisorApprove(id, "lv-approval-advisor");
         var result = service.changeStatus(id, new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED, "승".repeat(500)),
                 "lv-approval-reason", ADMIN, CONTEXT);
         assertThat(result.reason()).isEqualTo("개인 사정");
@@ -573,7 +600,11 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
         return application.create(general(), List.of(), key, STUDENT, CONTEXT);
     }
     private LeaveRequestResponseDTO approve(long id,String key) {
+        advisorApprove(id, key + "-advisor");
         return service.changeStatus(id,new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED,null),key,ADMIN,CONTEXT);
+    }
+    private LeaveRequestResponseDTO advisorApprove(long id,String key) {
+        return service.changeStatus(id,new LeaveRequestStatusChangeRequestDTO(LeaveRequestStatus.APPROVED,null),key,PROFESSOR,CONTEXT);
     }
     private long advisorApprovedWithdrawal() {
         var wd = withdrawals.create(new WithdrawalCreateRequestDTO("자퇴",null),"lv-wd-create",STUDENT,WD_CONTEXT);

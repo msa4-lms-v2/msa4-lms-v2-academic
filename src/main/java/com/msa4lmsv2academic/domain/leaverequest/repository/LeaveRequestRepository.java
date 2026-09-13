@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.*;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
     boolean existsByStudentIdAndStatus(Long studentId, LeaveRequestStatus status);
+    boolean existsByStudentIdAndStatusIn(Long studentId, List<LeaveRequestStatus> statuses);
     boolean existsByStudentIdAndRequestTypeAndStatus(Long studentId, LeaveRequestType type, LeaveRequestStatus status);
     boolean existsByStudentIdAndTargetYearAndTargetSemesterAndRequestTypeInAndStatusIn(
             Long studentId, short targetYear, byte targetSemester,
@@ -23,6 +24,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     Optional<LeaveRequest> findByIdForUpdate(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from LeaveRequest r where r.student.id = :studentId and r.status = 'PENDING' order by r.id")
-    List<LeaveRequest> findPendingForUpdate(Long studentId);
+    @Query("select r from LeaveRequest r where r.student.id = :studentId and r.status in ('PENDING', 'ADVISOR_APPROVED') order by r.id")
+    List<LeaveRequest> findActiveForUpdate(Long studentId);
 }

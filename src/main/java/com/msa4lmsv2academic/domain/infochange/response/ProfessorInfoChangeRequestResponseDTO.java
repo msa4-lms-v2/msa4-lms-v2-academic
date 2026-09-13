@@ -14,6 +14,11 @@ public record ProfessorInfoChangeRequestResponseDTO(
         @Schema(description = "신청자 이름", example = "김교수") String professorName,
         @Schema(description = "신청자 학과 ID", example = "3") Long departmentId,
         @Schema(description = "신청자 학과명", example = "컴퓨터공학과") String departmentName,
+        @Schema(description = "신청 당시 이름 스냅샷. 기존 이관 데이터에서는 null일 수 있음", nullable = true) String previousName,
+        @Schema(description = "신청 당시 전화번호 스냅샷. 기존 이관 데이터에서는 null일 수 있음", nullable = true) String previousPhoneNumber,
+        @Schema(description = "신청 당시 이메일 스냅샷. 기존 이관 데이터에서는 null일 수 있음", nullable = true) String previousEmail,
+        @Schema(description = "신청 당시 주소 스냅샷. 기존 이관 데이터에서는 null일 수 있음", nullable = true) String previousAddress,
+        @Schema(description = "신청 당시 프로필 이미지 임시 URL. 기존 이관 데이터에서는 null일 수 있음", nullable = true) String previousProfileImageUrl,
         @Schema(description = "변경할 이름", nullable = true) String newName,
         @Schema(description = "변경할 전화번호", nullable = true) String newPhoneNumber,
         @Schema(description = "변경할 이메일", nullable = true) String newEmail,
@@ -41,19 +46,21 @@ public record ProfessorInfoChangeRequestResponseDTO(
             ProfessorInfoChangeRequest request,
             long attachmentCount
     ) {
-        return from(request, null, attachmentCount, null);
+        return from(request, null, null, attachmentCount, null);
     }
 
     public static ProfessorInfoChangeRequestResponseDTO detail(
             ProfessorInfoChangeRequest request,
+            String previousProfileImageUrl,
             String newProfileImageUrl,
             List<ProfessorInfoChangeRequestFileResponseDTO> files
     ) {
-        return from(request, newProfileImageUrl, files.size(), files);
+        return from(request, previousProfileImageUrl, newProfileImageUrl, files.size(), files);
     }
 
     private static ProfessorInfoChangeRequestResponseDTO from(
             ProfessorInfoChangeRequest request,
+            String previousProfileImageUrl,
             String newProfileImageUrl,
             long attachmentCount,
             List<ProfessorInfoChangeRequestFileResponseDTO> files
@@ -64,6 +71,11 @@ public record ProfessorInfoChangeRequestResponseDTO(
                 request.getProfessor().getUser().getName(),
                 request.getProfessor().getDepartment().getId(),
                 request.getProfessor().getDepartment().getName(),
+                request.getPreviousName(),
+                request.getPreviousPhoneNumber(),
+                request.getPreviousEmail(),
+                request.getPreviousAddress(),
+                previousProfileImageUrl,
                 request.getNewName(),
                 request.getNewPhoneNumber(),
                 request.getNewEmail(),

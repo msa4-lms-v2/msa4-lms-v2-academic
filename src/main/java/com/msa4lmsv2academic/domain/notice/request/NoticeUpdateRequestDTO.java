@@ -1,8 +1,10 @@
 package com.msa4lmsv2academic.domain.notice.request;
 
+import com.msa4lmsv2academic.domain.notice.entity.NoticeCategory;
 import com.msa4lmsv2academic.domain.notice.entity.NoticeTargetRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 
 @Schema(description = "공지사항 부분 수정 요청")
 public record NoticeUpdateRequestDTO(
@@ -16,6 +18,14 @@ public record NoticeUpdateRequestDTO(
         @Size(max = 5000, message = "content는 5000자 이하여야 합니다.")
         String content,
 
+        @Schema(description = "변경할 공지 분류. NORMAL로 바꾸면 일반 공지 전환일은 제거됩니다.", example = "IMPORTANT",
+                allowableValues = {"NORMAL", "IMPORTANT"})
+        NoticeCategory category,
+
+        @Schema(description = "중요 공지를 일반 공지로 자동 전환할 변경 날짜. 해당 날짜 00:00부터 일반 공지로 전환됩니다. IMPORTANT일 때 필요합니다.",
+                example = "2026-05-06", format = "date", nullable = true)
+        LocalDate normalTransitionDate,
+
         @Schema(description = "변경할 대상 역할. 생략하거나 null이면 기존 값 유지", example = "STUDENT",
                 allowableValues = {"ALL", "STUDENT", "PROFESSOR"})
         NoticeTargetRole targetRole,
@@ -24,7 +34,12 @@ public record NoticeUpdateRequestDTO(
         Boolean isActive
 ) {
 
+    public NoticeUpdateRequestDTO(String title, String content, NoticeTargetRole targetRole, Boolean isActive) {
+        this(title, content, null, null, targetRole, isActive);
+    }
+
     public boolean hasAnyUpdateField() {
-        return title != null || content != null || targetRole != null || isActive != null;
+        return title != null || content != null || category != null || normalTransitionDate != null
+                || targetRole != null || isActive != null;
     }
 }

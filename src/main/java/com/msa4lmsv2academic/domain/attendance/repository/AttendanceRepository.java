@@ -4,7 +4,11 @@ import com.msa4lmsv2academic.domain.attendance.entity.Attendance;
 import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSession;
 import com.msa4lmsv2academic.domain.attendance.entity.AttendanceStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +23,18 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     Optional<Attendance> findBySessionIdAndEnrollmentId(
             Long sessionId,
             Long enrollmentId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select attendance
+            from Attendance attendance
+            where attendance.session.id = :sessionId
+              and attendance.enrollment.id = :enrollmentId
+            """)
+    Optional<Attendance> findBySessionIdAndEnrollmentIdForUpdate(
+            @Param("sessionId") Long sessionId,
+            @Param("enrollmentId") Long enrollmentId
     );
 
     List<Attendance> findAllBySessionId(Long sessionId);

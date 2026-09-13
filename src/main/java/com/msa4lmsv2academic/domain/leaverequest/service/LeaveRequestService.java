@@ -42,11 +42,16 @@ public class LeaveRequestService {
     public PageResponseDTO<LeaveRequestResponseDTO> search(LeaveRequestSearchRequestDTO filter, CurrentUser actor,
                                                           Pageable pageable) {
         policy.requireReader(actor);
-        if (!actor.isAdmin() && filter.studentId() != null) {
+        Long ownerUserId = null;
+        Long advisorUserId = null;
+        if ("STUDENT".equals(actor.role())) {
             Student student = queries.findStudentByUserId(actor.id()).orElseThrow(this::studentMissing);
-            if (!student.getId().equals(filter.studentId())) throw accessDenied();
+            if (filter.studentId() != null && !student.getId().equals(filter.studentId())) throw accessDenied();
+            ownerUserId = actor.id();
+        } else if ("PROFESSOR".equals(actor.role())) {
+            advisorUserId = actor.id();
         }
-        var result = queries.search(filter, actor.isAdmin() ? null : actor.id(), pageable);
+        var result = queries.search(filter, ownerUserId, advisorUserId, pageable);
         return new PageResponseDTO<>(result.map(LeaveRequestResponseDTO::from).getContent(), result.getTotalElements(),
                 filter.resolvedPage(), filter.resolvedSize(), result.hasNext());
     }
@@ -134,11 +139,12 @@ public class LeaveRequestService {
         policy.requireId(id);
         idempotency.validateKey(key);
         if (body == null || body.status() == null || body.status() == LeaveRequestStatus.PENDING
+                || body.status() == LeaveRequestStatus.ADVISOR_APPROVED
                 || (body.reason() != null && body.reason().length() > 500)) {
-            throw new InvalidLeaveRequestException("승인·반려·취소 상태와 500자 이하 사유가 필요합니다.");
+            throw new InvalidLeaveRequestException("교수 승인·반려, 관리자 최종 승인·반려 또는 학생 취소 상태와 500자 이하 사유가 필요합니다.");
         }
         if (body.status() == LeaveRequestStatus.CANCELLED) policy.requireRole(actor, "STUDENT");
-        else policy.requireRole(actor, "ADMIN");
+        else if (!"PROFESSOR".equals(actor.role())) policy.requireRole(actor, "ADMIN");
         Long studentId = repository.findStudentIdById(id).orElseThrow(this::requestMissing);
         studentQueries.findStudentByIdForUpdate(studentId).orElseThrow(this::studentMissing);
         LeaveRequest request = repository.findByIdForUpdate(id).orElseThrow(this::requestMissing);
@@ -148,20 +154,51 @@ public class LeaveRequestService {
         var now = LeaveRequestPolicy.now();
         var replay = idempotency.replay(key, actor.id(), endpoint, hash, now, LeaveRequestResponseDTO.class);
         if (replay.isPresent()) return replay.orElseThrow();
-        policy.requirePending(request);
         var reserved = idempotency.reserve(key, actor.id(), endpoint, hash, now);
         Map<String, Object> before = audit.snapshot(request);
-        switch (body.status()) {
-            case APPROVED -> approve(request, actor, now);
-            case REJECTED -> request.reject(policy.requiredReason(body.reason(), 500));
-            case CANCELLED -> request.cancel(policy.requiredReason(body.reason(), 500));
-            default -> throw new InvalidLeaveRequestException("허용되지 않은 상태입니다.");
+        String action;
+        String auditReason;
+        if ("PROFESSOR".equals(actor.role())) {
+            policy.requirePending(request);
+            var reviewer = studentQueries.findUserById(actor.id()).orElseThrow(this::studentMissing);
+            switch (body.status()) {
+                case APPROVED -> {
+                    requireAdvisorApprovalPeriod(request, now);
+                    request.advisorApprove(reviewer, now);
+                    action = "LEAVE_ADVISOR_APPROVED";
+                    auditReason = "지도교수 승인";
+                }
+                case REJECTED -> {
+                    request.advisorReject(reviewer, policy.requiredReason(body.reason(), 500), now);
+                    action = "LEAVE_ADVISOR_REJECTED";
+                    auditReason = "지도교수 반려";
+                }
+                default -> throw new InvalidLeaveRequestException("지도교수는 승인 또는 반려만 처리할 수 있습니다.");
+            }
+        } else if ("ADMIN".equals(actor.role())) {
+            policy.requireAdvisorApproved(request);
+            switch (body.status()) {
+                case APPROVED -> {
+                    approve(request, actor, now);
+                    action = "LEAVE_APPROVED";
+                    auditReason = "휴·복학 신청 최종 승인";
+                }
+                case REJECTED -> {
+                    request.reject(policy.requiredReason(body.reason(), 500));
+                    action = "LEAVE_REJECTED";
+                    auditReason = "휴·복학 신청 최종 반려";
+                }
+                default -> throw new InvalidLeaveRequestException("관리자는 최종 승인 또는 반려만 처리할 수 있습니다.");
+            }
+        } else {
+            request.cancel(policy.requiredReason(body.reason(), 500));
+            action = "LEAVE_CANCELLED";
+            auditReason = "휴·복학 신청 취소";
         }
         repository.flush();
         var after = audit.snapshot(request);
         after.put("decisionReason", body.reason());
-        audit.record(id, "LEAVE_REQUEST", before, after,
-                "LEAVE_" + body.status().name(), "휴·복학 신청 " + body.status().name(), actor, context);
+        audit.record(id, "LEAVE_REQUEST", before, after, action, auditReason, actor, context);
         var response = LeaveRequestResponseDTO.from(request);
         idempotency.complete(reserved, response);
         return response;
@@ -188,7 +225,8 @@ public class LeaveRequestService {
 
     private ResolvedCreation resolveCreation(Student student, LeaveRequestCreateRequestDTO body, boolean lock) {
         policy.validateAcademicStatus(student.getAcademicStatus(), body.requestType());
-        if (repository.existsByStudentIdAndStatus(student.getId(), LeaveRequestStatus.PENDING)) {
+        if (repository.existsByStudentIdAndStatusIn(student.getId(),
+                List.of(LeaveRequestStatus.PENDING, LeaveRequestStatus.ADVISOR_APPROVED))) {
             throw new LeaveRequestConflictException("진행 중인 휴·복학 신청이 있습니다.");
         }
         LeaveRequestType type = body.requestType();
@@ -263,6 +301,15 @@ public class LeaveRequestService {
                 ? LeaveRequestType.MILITARY_RETURN : LeaveRequestType.GENERAL_RETURN;
     }
 
+    private void requireAdvisorApprovalPeriod(LeaveRequest request, LocalDateTime now) {
+        if (request.getRequestType() == LeaveRequestType.MILITARY_LEAVE) return;
+        var period = queries.findPeriod(request.getTargetYear(), request.getTargetSemester(), request.getRequestType(), true)
+                .orElseThrow(() -> new LeaveRequestConflictException("신청 유형과 적용 학기의 교수 승인 기간 설정이 없습니다."));
+        if (!period.allowsApproval(now)) {
+            throw new LeaveRequestConflictException("현재는 지도교수 승인 가능한 기간이 아닙니다.");
+        }
+    }
+
     private void requireMilitaryUnused(Long studentId) {
         if (repository.existsByStudentIdAndRequestTypeAndStatus(studentId, LeaveRequestType.MILITARY_LEAVE,
                 LeaveRequestStatus.APPROVED)) throw new LeaveRequestConflictException("군휴학은 한 번만 승인받을 수 있습니다.");
@@ -283,11 +330,15 @@ public class LeaveRequestService {
     }
 
     private void requireOwnerOrAdmin(LeaveRequest request, CurrentUser actor) {
-        if (!actor.isAdmin() && !request.getStudent().getUser().getId().equals(actor.id())) throw accessDenied();
+        boolean readable = actor.isAdmin()
+                || ("STUDENT".equals(actor.role()) && request.getStudent().getUser().getId().equals(actor.id()))
+                || ("PROFESSOR".equals(actor.role()) && request.getStudent().getAdvisor() != null
+                && request.getStudent().getAdvisor().getUser().getId().equals(actor.id()));
+        if (!readable) throw accessDenied();
     }
 
     private LeaveRequestAccessDeniedException accessDenied() {
-        return new LeaveRequestAccessDeniedException("본인의 휴·복학 신청만 접근할 수 있습니다.");
+        return new LeaveRequestAccessDeniedException("휴·복학 신청 조회 권한이 없습니다.");
     }
 
     private LeaveRequestNotFoundException requestMissing() {

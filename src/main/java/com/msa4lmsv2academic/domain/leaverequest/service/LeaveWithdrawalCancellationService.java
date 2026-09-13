@@ -19,7 +19,7 @@ public class LeaveWithdrawalCancellationService {
     // 호출자는 자퇴 최종 승인 transaction에서 해당 학생 행을 먼저 잠가야 합니다.
     public void cancelPending(Long studentId, Long withdrawalId, CurrentUser actor, LeaveAuditContext context) {
         policy.requireRole(actor, "ADMIN");
-        for (var request : repository.findPendingForUpdate(studentId)) {
+        for (var request : repository.findActiveForUpdate(studentId)) {
             var before = audit.snapshot(request);
             request.cancel(REASON);
             repository.flush();

@@ -2,6 +2,11 @@ package com.msa4lmsv2academic.domain.attendance.service;
 
 import com.msa4lmsv2academic.domain.attendance.entity.ExcuseRequest;
 import com.msa4lmsv2academic.domain.attendance.entity.ExcuseRequestStatus;
+import com.msa4lmsv2academic.domain.attendance.entity.Attendance;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceSessionStatus;
+import com.msa4lmsv2academic.domain.attendance.entity.AttendanceStatus;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceRepository;
+import com.msa4lmsv2academic.domain.attendance.repository.AttendanceSessionRepository;
 import com.msa4lmsv2academic.domain.attendance.repository.ExcuseRequestRepository;
 import com.msa4lmsv2academic.domain.attendance.request.ExcuseReviewRequestDTO;
 import com.msa4lmsv2academic.domain.attendance.response.ExcuseRequestResponseDTO;
@@ -31,6 +36,8 @@ public class ExcuseReviewService {
     private static final int MAX_AUDIT_REASON_LENGTH = 255;
 
     private final ExcuseRequestRepository excuseRequestRepository;
+    private final AttendanceSessionRepository attendanceSessionRepository;
+    private final AttendanceRepository attendanceRepository;
     private final ExcuseReviewIdempotencyService idempotencyService;
     private final AuditLogService auditLogService;
 
@@ -64,9 +71,14 @@ public class ExcuseReviewService {
         Map<String, Object> beforeValue = auditSnapshot(excuseRequest);
         String action;
         String rejectReason = null;
+        Attendance approvedAttendance = null;
         try {
             if (reviewRequest.status() == ExcuseRequestStatus.APPROVED) {
+                approvedAttendance = resolveAttendanceForApproval(excuseRequest);
+                beforeValue.put("attendanceId", approvedAttendance.getId());
+                beforeValue.put("attendanceStatus", approvedAttendance.getStatus().name());
                 excuseRequest.approve();
+                approvedAttendance.markExcused();
                 action = "EXCUSE_APPROVED";
             } else {
                 rejectReason = reviewRequest.rejectReason().trim();
@@ -80,13 +92,18 @@ public class ExcuseReviewService {
         }
 
         excuseRequestRepository.saveAndFlush(excuseRequest);
+        Map<String, Object> afterValue = auditSnapshot(excuseRequest);
+        if (approvedAttendance != null) {
+            afterValue.put("attendanceId", approvedAttendance.getId());
+            afterValue.put("attendanceStatus", approvedAttendance.getStatus().name());
+        }
         auditLogService.record(
                 currentUser.id(),
                 action,
                 AUDIT_TARGET_TYPE,
                 excuseRequest.getId(),
                 beforeValue,
-                auditSnapshot(excuseRequest),
+                afterValue,
                 auditReason(rejectReason),
                 traceRequestId,
                 ipAddress
@@ -126,6 +143,26 @@ public class ExcuseReviewService {
         if (!ownerUserId.equals(professorUserId)) {
             throw new ExcuseRequestAccessDeniedException("본인이 담당하는 강의의 공결 신청만 처리할 수 있습니다.");
         }
+    }
+
+    private Attendance resolveAttendanceForApproval(ExcuseRequest request) {
+        var session = attendanceSessionRepository.findByLectureIdAndSessionDateAndPeriodForUpdate(
+                        request.getEnrollment().getLecture().getId(),
+                        request.getLectureDate(),
+                        (int) request.getPeriod())
+                .orElseThrow(() -> new ExcuseReviewConflictException("공결 승인 대상 출석 세션이 없습니다."));
+        if (session.getStatus() != AttendanceSessionStatus.CLOSED) {
+            throw new ExcuseReviewConflictException("출석 세션이 종료된 뒤에만 공결을 승인할 수 있습니다.");
+        }
+        Attendance attendance = attendanceRepository.findBySessionIdAndEnrollmentIdForUpdate(session.getId(), request.getEnrollment().getId())
+                .orElseThrow(() -> new ExcuseReviewConflictException("공결 승인 대상 출결 기록이 없습니다."));
+        if (attendance.getStatus() == AttendanceStatus.PRESENT) {
+            throw new ExcuseReviewConflictException("이미 출석 처리된 학생의 공결은 승인할 수 없습니다.");
+        }
+        if (attendance.getStatus() == AttendanceStatus.EXCUSED) {
+            throw new ExcuseReviewConflictException("이미 공결 처리된 출결 기록입니다.");
+        }
+        return attendance;
     }
 
     private Map<String, Object> auditSnapshot(ExcuseRequest request) {

@@ -13,6 +13,7 @@ import com.msa4lmsv2academic.domain.notice.repository.NoticeRepository;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import com.msa4lmsv2academic.domain.user.entity.UserRole;
 import com.msa4lmsv2academic.domain.user.entity.UserStatus;
+import com.msa4lmsv2academic.global.file.FileStorageService;
 import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,10 +21,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -43,6 +49,9 @@ class NoticeControllerTest extends MySqlIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @MockitoBean
+    private FileStorageService fileStorageService;
 
     private User admin;
 
@@ -165,6 +174,39 @@ class NoticeControllerTest extends MySqlIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(auditLogRepository.findAll())
                 .extracting(log -> log.getAction())
                 .containsExactly("NOTICE_CREATE", "NOTICE_UPDATE", "NOTICE_DELETE");
+    }
+
+    @Test
+    void adminCreatesNoticeWithMultipartRequestAndAttachment() throws Exception {
+        MockMultipartFile request = new MockMultipartFile(
+                "request",
+                "request.json",
+                MediaType.APPLICATION_JSON_VALUE,
+                """
+                        {
+                          "title": "첨부 공지",
+                          "content": "본문",
+                          "category": "IMPORTANT",
+                          "normalTransitionDate": "2099-01-01",
+                          "targetRole": "ALL"
+                        }
+                        """.getBytes()
+        );
+        MockMultipartFile file = new MockMultipartFile(
+                "files", "안내.pdf", MediaType.APPLICATION_PDF_VALUE, "%PDF-1.4".getBytes()
+        );
+        when(fileStorageService.upload(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn("notices/attachments/test.pdf");
+        when(fileStorageService.presignedDownloadUrl("notices/attachments/test.pdf"))
+                .thenReturn("https://minio.test/notices/attachments/test.pdf");
+
+        mockMvc.perform(multipart("/api/academic/catalog/notices")
+                        .file(request)
+                        .file(file)
+                        .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.category").value("IMPORTANT"))
+                .andExpect(jsonPath("$.data.attachments[0].fileName").value("안내.pdf"));
     }
 
     @Test

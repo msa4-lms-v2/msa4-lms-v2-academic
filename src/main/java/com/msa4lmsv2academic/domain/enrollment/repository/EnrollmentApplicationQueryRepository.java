@@ -58,6 +58,12 @@ public class EnrollmentApplicationQueryRepository {
         return count == null ? 0 : count;
     }
 
+    public List<Enrollment> findActiveEnrollments(Long lectureId) {
+        return queryFactory.selectFrom(enrollment)
+                .where(enrollment.lecture.id.eq(lectureId), enrollment.status.eq(EnrollmentStatus.ACTIVE))
+                .fetch();
+    }
+
     public boolean hasScheduleConflict(Long studentId, Lecture target) {
         QLectureSchedule requested = new QLectureSchedule("requestedSchedule");
         QLectureSchedule existing = new QLectureSchedule("existingSchedule");

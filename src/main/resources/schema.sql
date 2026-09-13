@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS notices (
     id BIGINT NOT NULL AUTO_INCREMENT,
     title VARCHAR(100) NOT NULL,
     content TEXT NULL,
+    category VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+    normal_transition_date DATE NULL,
     target_role VARCHAR(20) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -68,7 +70,24 @@ CREATE TABLE IF NOT EXISTS notices (
     CONSTRAINT fk_notices_author
         FOREIGN KEY (author_id) REFERENCES users (id)
         ON DELETE RESTRICT,
-    INDEX idx_notices_target_active_created (target_role, is_active, created_at)
+    INDEX idx_notices_target_active_created (target_role, is_active, created_at),
+    INDEX idx_notices_category_transition (category, normal_transition_date),
+    INDEX idx_notices_author_created (author_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notice_attachments (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    notice_id BIGINT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    object_key VARCHAR(500) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    file_size BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_notice_attachments_notice_id (notice_id),
+    CONSTRAINT fk_notice_attachments_notice
+        FOREIGN KEY (notice_id) REFERENCES notices (id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS academic_schedules (
@@ -563,6 +582,54 @@ CREATE TABLE IF NOT EXISTS excuse_requests (
     INDEX idx_excuse_requests_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS attendance_sessions (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    lecture_id BIGINT NOT NULL,
+    session_date DATE NOT NULL,
+    period TINYINT NOT NULL,
+    opened_by BIGINT NOT NULL,
+    opened_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at DATETIME NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+    PRIMARY KEY (id),
+    CONSTRAINT uk_attendance_sessions_lecture_date_period
+        UNIQUE (lecture_id, session_date, period),
+    CONSTRAINT ck_attendance_sessions_period CHECK (period BETWEEN 1 AND 20),
+    CONSTRAINT ck_attendance_sessions_status CHECK (status IN ('OPEN', 'CLOSED')),
+    CONSTRAINT fk_attendance_sessions_lecture
+        FOREIGN KEY (lecture_id) REFERENCES lectures (id)
+        ON DELETE RESTRICT,
+    INDEX idx_attendance_sessions_lecture_status_opened
+        (lecture_id, status, opened_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS attendances (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    enrollment_id BIGINT NOT NULL,
+    session_id BIGINT NOT NULL,
+    lecture_date DATE NOT NULL,
+    period TINYINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PRESENT',
+    remarks VARCHAR(255) NULL,
+    check_in_time DATETIME NULL,
+    is_modified TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_attendances_session_enrollment
+        UNIQUE (session_id, enrollment_id),
+    CONSTRAINT ck_attendances_period CHECK (period BETWEEN 1 AND 20),
+    CONSTRAINT ck_attendances_status CHECK (status IN ('PRESENT', 'LATE', 'ABSENT', 'EXCUSED')),
+    CONSTRAINT fk_attendances_enrollment
+        FOREIGN KEY (enrollment_id) REFERENCES enrollments (id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_attendances_session
+        FOREIGN KEY (session_id) REFERENCES attendance_sessions (id)
+        ON DELETE RESTRICT,
+    INDEX idx_attendances_session_id (session_id),
+    INDEX idx_attendances_enrollment_id (enrollment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS student_grade_summaries (
     id BIGINT NOT NULL AUTO_INCREMENT,
     student_id BIGINT NOT NULL,
@@ -625,6 +692,11 @@ CREATE TABLE IF NOT EXISTS graduation_requirements (
 CREATE TABLE IF NOT EXISTS student_info_change_requests (
     id                  BIGINT NOT NULL AUTO_INCREMENT,
     student_id          BIGINT NOT NULL,
+    previous_name       VARCHAR(50) NULL,
+    previous_phone_number VARCHAR(20) NULL,
+    previous_email      VARCHAR(100) NULL,
+    previous_address    VARCHAR(255) NULL,
+    previous_profile_image_key VARCHAR(500) NULL,
     new_name            VARCHAR(50) NULL,
     new_phone_number    VARCHAR(20) NULL,
     new_email           VARCHAR(100) NULL,
@@ -668,6 +740,11 @@ CREATE TABLE IF NOT EXISTS student_info_change_request_files (
 CREATE TABLE IF NOT EXISTS professor_info_change_requests (
     id                    BIGINT NOT NULL AUTO_INCREMENT,
     professor_id          BIGINT NOT NULL,
+    previous_name         VARCHAR(50) NULL,
+    previous_phone_number VARCHAR(20) NULL,
+    previous_email        VARCHAR(100) NULL,
+    previous_address      VARCHAR(255) NULL,
+    previous_profile_image_key VARCHAR(500) NULL,
     new_name              VARCHAR(50) NULL,
     new_phone_number      VARCHAR(20) NULL,
     new_email             VARCHAR(100) NULL,
@@ -788,6 +865,9 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     return_year SMALLINT NULL,
     return_semester TINYINT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    advisor_reviewed_by BIGINT NULL,
+    advisor_reviewed_at DATETIME NULL,
+    advisor_reject_reason VARCHAR(500) NULL,
     reject_reason VARCHAR(500) NULL,
     cancel_reason VARCHAR(500) NULL,
     attachment_original_name VARCHAR(255) NULL,
@@ -797,13 +877,15 @@ CREATE TABLE IF NOT EXISTS academic_requests (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     active_student_id BIGINT GENERATED ALWAYS AS (
-        CASE WHEN status = 'PENDING' THEN student_id ELSE NULL END
+        CASE WHEN status IN ('PENDING', 'ADVISOR_APPROVED') THEN student_id ELSE NULL END
     ) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uk_academic_requests_active_student UNIQUE (active_student_id),
     INDEX idx_academic_requests_student_status (student_id, status),
     INDEX idx_academic_requests_status_created (status, created_at),
+    INDEX idx_academic_requests_advisor_status (advisor_reviewed_by, status),
     CONSTRAINT fk_academic_requests_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_academic_requests_advisor_reviewer FOREIGN KEY (advisor_reviewed_by) REFERENCES users (id) ON DELETE RESTRICT,
     CONSTRAINT ck_academic_requests_target_semester CHECK (target_semester IN (1, 2)),
     CONSTRAINT ck_academic_requests_return_semester CHECK (return_semester IS NULL OR return_semester IN (1, 2))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
