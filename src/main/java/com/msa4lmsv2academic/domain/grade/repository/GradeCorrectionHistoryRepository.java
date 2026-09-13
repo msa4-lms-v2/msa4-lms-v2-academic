@@ -9,12 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface GradeCorrectionHistoryRepository extends JpaRepository<GradeCorrectionHistory, Long> {
 
-    boolean existsByEnrollmentIdAndFieldChangedAndNewValue(
-            Long enrollmentId,
-            String fieldChanged,
-            String newValue
-    );
-
     @Query(
             value = """
                     select history
