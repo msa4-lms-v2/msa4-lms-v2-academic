@@ -24,8 +24,6 @@ import lombok.NoArgsConstructor;
 @Table(name = "grade_correction_histories")
 public class GradeCorrectionHistory {
 
-    public static final String RETAKE_REFLECTION_FIELD = "RETAKE_REFLECTION";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
@@ -72,24 +70,6 @@ public class GradeCorrectionHistory {
         this.createdAt = createdAt;
     }
 
-    public static GradeCorrectionHistory recordRetakeReflection(
-            Enrollment reflectedEnrollment,
-            Enrollment previousEnrollment,
-            User changedBy,
-            String reason,
-            LocalDateTime createdAt
-    ) {
-        return new GradeCorrectionHistory(
-                reflectedEnrollment,
-                RETAKE_REFLECTION_FIELD,
-                gradeValue(previousEnrollment),
-                gradeValue(reflectedEnrollment),
-                changedBy,
-                reason,
-                createdAt
-        );
-    }
-
     public static GradeCorrectionHistory recordCorrection(
             Enrollment enrollment,
             String fieldChanged,
@@ -108,9 +88,5 @@ public class GradeCorrectionHistory {
                 reason,
                 createdAt
         );
-    }
-
-    public static String gradeValue(Enrollment enrollment) {
-        return enrollment.getId() + ":" + enrollment.getLetterGrade();
     }
 }
