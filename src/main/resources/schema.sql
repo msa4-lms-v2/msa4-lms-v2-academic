@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT NOT NULL,
     name VARCHAR(50) NOT NULL,
+    birth_date DATE NULL,
     email VARCHAR(100) NULL,
     phone_number VARCHAR(20) NULL,
     address VARCHAR(255) NULL,
@@ -139,6 +140,7 @@ CREATE TABLE IF NOT EXISTS professors (
     id BIGINT NOT NULL AUTO_INCREMENT,
     version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
+    birth_date DATE NULL,
     hire_year SMALLINT NULL,
     professor_number VARCHAR(20) NULL,
     department_id BIGINT NOT NULL,
@@ -159,6 +161,7 @@ CREATE TABLE IF NOT EXISTS students (
     snapshot_version BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL,
     student_number VARCHAR(150) NULL,
+    birth_date DATE NULL,
     department_id BIGINT NOT NULL,
     double_major_id BIGINT NULL,
     grade_level TINYINT NOT NULL,

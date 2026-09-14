@@ -60,6 +60,7 @@ public class AccountProvisioningService {
                         "계정 생성 중인 입학 예정자가 아닙니다.");
             }
             if (!java.util.Objects.equals(candidate.getEmail(), request.email())
+                    || !java.util.Objects.equals(candidate.getBirthDate(), request.birthDate())
                     || !candidate.getDepartment().getId().equals(request.departmentId())
                     || candidate.getAdmissionYear() != request.admissionYear()) {
                 throw new IllegalArgumentException("입학 예정자 등록 정보가 계정 생성 요청과 일치하지 않습니다.");
@@ -92,6 +93,7 @@ public class AccountProvisioningService {
         User user = User.provision(
                 request.userId(),
                 request.name(),
+                request.birthDate(),
                 request.email(),
                 request.phoneNumber(),
                 request.address(),
@@ -103,6 +105,7 @@ public class AccountProvisioningService {
         // students 저장
         Student student = Student.create(
                 user,
+                request.birthDate(),
                 department,
                 (byte) 1,
                 request.admissionYear(),
@@ -164,6 +167,7 @@ public class AccountProvisioningService {
         User user = User.provision(
                 request.userId(),
                 request.name(),
+                request.birthDate(),
                 request.email(),
                 request.phoneNumber(),
                 request.address(),
@@ -175,6 +179,7 @@ public class AccountProvisioningService {
         // professors 저장
         Professor professor = Professor.create(
                 user,
+                request.birthDate(),
                 request.hireYear(),
                 department
         );
