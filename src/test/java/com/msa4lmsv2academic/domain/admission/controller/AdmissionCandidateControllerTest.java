@@ -160,7 +160,8 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                         .content("{\"name\":\"수정시도\"}"))
                 .andExpect(status().isConflict());
         var response = provisioningService.provisionStudent(new com.msa4lmsv2academic.domain.provisioning.request.StudentProvisioningRequestDTO(
-                9001L, "자동등록", "automatic@test.com", null, null, department.getId(), (short) ADMISSION_YEAR, candidateId));
+                9001L, "자동등록", java.time.LocalDate.of(2008, 3, 15), "automatic@test.com",
+                null, null, department.getId(), (short) ADMISSION_YEAR, candidateId, null));
         entityManager.flush();
         entityManager.clear();
         mockMvc.perform(get("/api/academic/admission-candidates/{candidateId}", candidateId).headers(gatewayHeaders(ADMIN_ID, "ADMIN")))

@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -37,6 +38,9 @@ public class User {
 
     @Column(nullable = false, length = 50)
     private String name;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
 
     @Column(length = 100)
     private String email;
@@ -87,6 +91,13 @@ public class User {
     public static User provision(Long id, String name, String email, String phoneNumber, String address,
                                  UserRole role) {
         return new User(id, name, email, phoneNumber, address, role, UserStatus.ACTIVE);
+    }
+
+    public static User provision(Long id, String name, LocalDate birthDate, String email,
+                                 String phoneNumber, String address, UserRole role) {
+        User user = new User(id, name, email, phoneNumber, address, role, UserStatus.ACTIVE);
+        user.birthDate = birthDate;
+        return user;
     }
 
     public void synchronizeAccount(UserRole role, UserStatus status) {

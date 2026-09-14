@@ -85,6 +85,7 @@ public class AdmissionCandidateService {
                 : new LinkedHashMap<>(requests.getFirst().getPayload());
         payload.put("admissionCandidateId", candidateId);
         payload.put("administratorId", currentUser.id());
+        if (!cancel) payload.put("birthDate", candidate.getBirthDate().toString());
         if (cancel) candidate.cancelProvisioning(findAdministrator(currentUser.id()));
         outboxEventService.record(TARGET_TYPE, candidateId,
                 cancel ? "AdmissionCandidateCancelled" : "AdmissionCandidateRetryRequested", payload, 1L);
@@ -173,6 +174,7 @@ public class AdmissionCandidateService {
         payload.put("admissionCandidateId", saved.getId());
         payload.put("administratorId", currentUser.id());
         payload.put("name", saved.getName());
+        payload.put("birthDate", saved.getBirthDate().toString());
         payload.put("email", saved.getEmail());
         payload.put("phoneNumber", saved.getPhoneNumber());
         payload.put("address", saved.getAddress());
