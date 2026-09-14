@@ -22,16 +22,19 @@ import org.junit.jupiter.api.Test;
 class StudentGradeQueryServiceTest {
 
     private StudentGradeQueryRepository queryRepository;
+    private com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository creditRepository;
     private StudentGradeQueryService service;
 
     @BeforeEach
     void setUp() {
         queryRepository = mock(StudentGradeQueryRepository.class);
-        service = new StudentGradeQueryService(queryRepository);
+        creditRepository = mock(com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository.class);
+        service = new StudentGradeQueryService(queryRepository, creditRepository);
     }
 
     @Test
     void returnsOnlyOwnOpenedGradesAndCalculatesRetakeAwareSummaries() {
+        when(creditRepository.sumTotalCreditsByStudentUserId(10L)).thenReturn(6);
         CurrentUser student = new CurrentUser(10L, "STUDENT");
         when(queryRepository.existsStudentByUserId(10L)).thenReturn(true);
         when(queryRepository.findDisclosableGradesByStudentUserId(10L)).thenReturn(List.of(
@@ -112,6 +115,20 @@ class StudentGradeQueryServiceTest {
 
         assertThatThrownBy(() -> service.getMyGrades(null, new CurrentUser(99L, "STUDENT")))
                 .isInstanceOf(StudentNotFoundException.class);
+    }
+
+    @Test
+    void excludesFailedCreditsButKeepsThemInGpaAndUsesCanonicalTotal() {
+        when(queryRepository.existsStudentByUserId(10L)).thenReturn(true);
+        when(creditRepository.sumTotalCreditsByStudentUserId(10L)).thenReturn(9);
+        when(queryRepository.findDisclosableGradesByStudentUserId(10L)).thenReturn(List.of(
+                grade(1L, 1L, (short) 2026, SemesterTerm.FIRST, "C1", "과목1", "A"),
+                grade(2L, 2L, (short) 2026, SemesterTerm.FIRST, "C2", "과목2", "F")
+        ));
+        var result = service.getMyGrades(null, new CurrentUser(10L, "STUDENT"));
+        assertThat(result.totalCredits()).isEqualTo(9);
+        assertThat(result.queryCredits()).isEqualTo(3);
+        assertThat(result.queryGpa()).isEqualByComparingTo("2.00");
     }
 
     private StudentGradeQueryResult grade(

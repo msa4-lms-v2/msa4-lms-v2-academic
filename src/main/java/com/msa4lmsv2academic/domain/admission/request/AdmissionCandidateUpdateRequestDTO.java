@@ -40,11 +40,15 @@ public record AdmissionCandidateUpdateRequestDTO(
 
         @Schema(description = "변경할 입학 예정 연도. 생략 또는 null이면 유지", example = "2027")
         @Positive(message = "admissionYear는 양수여야 합니다.")
-        Integer admissionYear
+        Integer admissionYear,
+        @Positive Long advisorProfessorId
 ) {
 
+    public AdmissionCandidateUpdateRequestDTO(String name,LocalDate birthDate,String email,String phoneNumber,String address,Long departmentId,Integer admissionYear) {
+        this(name,birthDate,email,phoneNumber,address,departmentId,admissionYear,null);
+    }
     public boolean hasAnyUpdateField() {
         return name != null || birthDate != null || email != null || phoneNumber != null
-                || address != null || departmentId != null || admissionYear != null;
+                || address != null || departmentId != null || admissionYear != null || advisorProfessorId != null;
     }
 }

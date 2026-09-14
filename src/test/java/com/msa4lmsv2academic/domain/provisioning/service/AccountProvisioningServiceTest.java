@@ -87,6 +87,8 @@ class AccountProvisioningServiceTest {
         ReflectionTestUtils.setField(department, "id", 10L);
         var candidate = com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidate.create(
                 "김학생", java.time.LocalDate.of(2008, 3, 15), "student@example.com", null, null, department, (short) 2026, null);
+        candidate.assignAdvisor(15L);
+        candidate.bindTuitionBill(100L);candidate.confirmTuitionPaid(100L);
         var advisorUser = com.msa4lmsv2academic.domain.user.entity.User.provision(
                 2001L, "김교수", "advisor@example.com", null, null,
                 com.msa4lmsv2academic.domain.user.entity.UserRole.PROFESSOR);
@@ -103,7 +105,7 @@ class AccountProvisioningServiceTest {
         var request = new StudentProvisioningRequestDTO(1001L, "김학생", java.time.LocalDate.of(2008, 3, 15),
                 "student@example.com", null, null, 10L, (short) 2026, 7L, 15L);
         assertThat(service.provisionStudent(request).loginId()).isEqualTo("26100023");
-        assertThat(candidate.getStatus()).isEqualTo(com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PROVISIONED);
+        assertThat(candidate.getStatus()).isEqualTo(com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PENDING);
         assertThat(candidate.getStudent().getStudentNumber()).isEqualTo("26100023");
         assertThat(candidate.getStudent().getBirthDate()).isEqualTo(java.time.LocalDate.of(2008, 3, 15));
         assertThat(candidate.getStudent().getUser().getBirthDate()).isEqualTo(java.time.LocalDate.of(2008, 3, 15));

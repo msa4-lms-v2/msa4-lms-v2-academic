@@ -50,7 +50,8 @@ class AdmissionProvisioningManagementTest {
     }
 
     @Test void retryReusesOriginalPayloadAndStopsOldWork() {
-        candidate();
+        var candidate=candidate();
+        candidate.bindTuitionBill(100L);candidate.confirmTuitionPaid(100L);
         var payload = Map.<String,Object>of("admissionCandidateId", 7L, "advisorProfessorId", 3L);
         var event = OutboxEvent.create("ADMISSION_CANDIDATE", 7L, "AdmissionCandidateRegistered", payload, 1L);
         when(outboxEventRepository.lockAdmissionRequests(7L)).thenReturn(List.of(event));
@@ -74,7 +75,7 @@ class AdmissionProvisioningManagementTest {
 
     @Test void completedCandidateCannotBeRetriedOrCancelled() {
         var candidate = candidate();
-        ReflectionTestUtils.setField(candidate, "status", AdmissionCandidateStatus.PROVISIONED);
+        ReflectionTestUtils.setField(candidate, "status", AdmissionCandidateStatus.COMPLETED);
         assertThatThrownBy(() -> service.manageProvisioning(7L, true, admin, null, null))
                 .isInstanceOf(AdmissionCandidateStateConflictException.class);
         assertThatThrownBy(() -> service.manageProvisioning(7L, false, admin, null, null))

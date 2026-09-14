@@ -130,8 +130,8 @@ public class AdmissionCandidateController {
             operationId = "createAdmissionCandidate",
             summary = "입학 예정자 등록",
             description = "ADMIN만 이름, 생년월일, 이메일, 활성 학과와 입학 예정 연도로 "
-                    + "입학 예정자를 PROVISIONING 상태로 등록합니다. 이메일은 필수이며 "
-                    + "등록과 같은 트랜잭션에서 계정 생성 요청을 기록합니다. 자동 처리가 완료되면 학번이 발급되고 PROVISIONED로 전환됩니다.",
+                    + "입학 예정자를 PENDING 상태로 등록합니다. 이메일은 필수이며 "
+                    + "등록금 완납 확인 이후 계정 생성을 요청합니다. 계정 활성화와 학번 발급까지 완료되면 COMPLETED로 전환됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "201", description = "등록 성공")
@@ -163,9 +163,9 @@ public class AdmissionCandidateController {
     @Operation(
             operationId = "updateAdmissionCandidate",
             summary = "입학 예정자 부분 수정",
-            description = "ADMIN만 REGISTERED 상태의 이름·생년월일·이메일·전화번호·주소·활성 학과·입학연도를 "
+            description = "ADMIN만 고지 연결 전 PENDING 상태의 이름·생년월일·이메일·전화번호·주소·활성 학과·지도교수·입학연도를 "
                     + "부분 수정합니다. 생략 또는 null인 필드는 유지하고 "
-                    + "이메일·전화번호·주소의 공백 문자열은 null로 삭제합니다. 일반 수정에는 사유를 받지 않습니다.",
+                    + "전화번호·주소의 공백 문자열은 null로 삭제하며 이메일은 필수입니다. 일반 수정에는 사유를 받지 않습니다.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
             @ApiResponse(responseCode = "200", description = "수정 성공 또는 동일 값 요청")
@@ -199,7 +199,7 @@ public class AdmissionCandidateController {
     @Operation(
             operationId = "changeAdmissionCandidateStatus",
             summary = "입학 예정자 상태 변경",
-            description = "ADMIN만 입학 예정자를 CONFIRMED 또는 CANCELLED로 변경합니다. 상태 변경 사유가 필수이며 "
+            description = "ADMIN만 완납 전 입학 예정자를 CANCELLED로 변경합니다. 상태 변경 사유가 필수이며 "
                     + "동일 상태 재요청은 현재 데이터를 200으로 반환하고 감사 로그를 추가하지 않습니다. "
                     + "PROVISIONED는 등록 시 자동 요청된 계정 생성이 완료되면 변경됩니다.",
             security = @SecurityRequirement(name = "bearerAuth")

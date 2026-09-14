@@ -50,6 +50,7 @@ public class SecurityConfig {
                         ).permitAll();
                     }
 
+                    auth.requestMatchers("/api/academic/internal/admissions/**").permitAll();
                     auth.requestMatchers(SWAGGER_PATHS).permitAll();
                     auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
                     // Kafka 24시간 보관을 넘긴 gap 백필용 시스템 요청 - X-User-Id/X-User-Role 없이 온다.
