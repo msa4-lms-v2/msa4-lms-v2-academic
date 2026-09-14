@@ -6,6 +6,7 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
+import io.minio.errors.ErrorResponseException;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
@@ -73,8 +74,13 @@ public class FileStorageService {
                 .object(objectKey)
                 .build())) {
             return inputStream.readAllBytes();
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                throw new StoredFileNotFoundException(exception);
+            }
+            throw new FileStorageException("파일 저장소에서 다운로드를 처리하지 못했습니다.", exception);
         } catch (Exception exception) {
-            throw new FileStorageException("파일 다운로드에 실패했습니다: " + objectKey, exception);
+            throw new FileStorageException("파일 다운로드에 실패했습니다. 잠시 후 다시 시도해 주세요.", exception);
         }
     }
 
