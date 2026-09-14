@@ -69,7 +69,7 @@ public class AdmissionCandidateService {
         if (cancel && candidate.getStatus() == AdmissionCandidateStatus.CANCELLED) {
             return AdmissionCandidateDetailResponseDTO.from(candidate);
         }
-        if (candidate.getStatus() != AdmissionCandidateStatus.PROVISIONING || candidate.getStudent() != null) {
+        if (candidate.getStatus() != AdmissionCandidateStatus.PENDING || (cancel && (candidate.getStudent()!=null || candidate.isTuitionPaid())) || (!cancel && !candidate.isTuitionPaid())) {
             throw new AdmissionCandidateStateConflictException("계정 생성 중인 입학 예정자만 재시도하거나 취소할 수 있습니다.");
         }
         if (requests.isEmpty() && !cancel) {
@@ -163,25 +163,13 @@ public class AdmissionCandidateService {
                 administrator
         );
 
+        candidate.assignAdvisor(advisor.getId());
         AdmissionCandidate saved;
         try {
             saved = admissionCandidateRepository.saveAndFlush(candidate);
         } catch (DataIntegrityViolationException exception) {
             throw new DuplicateAdmissionCandidateException();
         }
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("admissionCandidateId", saved.getId());
-        payload.put("administratorId", currentUser.id());
-        payload.put("name", saved.getName());
-        payload.put("birthDate", saved.getBirthDate().toString());
-        payload.put("email", saved.getEmail());
-        payload.put("phoneNumber", saved.getPhoneNumber());
-        payload.put("address", saved.getAddress());
-        payload.put("departmentId", department.getId());
-        payload.put("advisorProfessorId", advisor.getId());
-        payload.put("admissionYear", saved.getAdmissionYear());
-        outboxEventService.record(TARGET_TYPE, saved.getId(), "AdmissionCandidateRegistered", payload, 1L);
 
         List<String> createdFields = createdFields(saved);
         auditLogService.record(
@@ -209,10 +197,10 @@ public class AdmissionCandidateService {
         validateAdmin(currentUser);
         validateUpdateRequest(request);
 
-        AdmissionCandidate candidate = findCandidate(candidateId);
-        if (candidate.getStatus() != AdmissionCandidateStatus.REGISTERED) {
+        AdmissionCandidate candidate = admissionCandidateRepository.findByIdForUpdate(candidateId).orElseThrow(AdmissionCandidateNotFoundException::new);
+        if (!candidate.isEditable()) {
             throw new AdmissionCandidateStateConflictException(
-                    "REGISTERED 상태의 입학 예정자만 인적사항을 수정할 수 있습니다."
+                    "고지 발급 전 등록 대기 상태에서만 수정할 수 있습니다."
             );
         }
 
@@ -229,10 +217,17 @@ public class AdmissionCandidateService {
                 ? candidate.getAdmissionYear()
                 : validateAdmissionYear(request.admissionYear()).shortValue();
 
-        List<String> changedFields = changedFields(
+        if(targetEmail==null || targetEmail.isBlank())throw new InvalidAdmissionCandidateRequestException("이메일은 필수입니다.");
+        Long advisorId=request.advisorProfessorId()==null ? candidate.getAdvisorProfessorId() : request.advisorProfessorId();
+        var targetAdvisor=advisorId==null ? null : professorRepository.findById(advisorId).orElse(null);
+        if(targetAdvisor==null || !targetAdvisor.getDepartment().getId().equals(targetDepartment.getId())
+                || targetAdvisor.getUser().getStatus()!=com.msa4lmsv2academic.domain.user.entity.UserStatus.ACTIVE)
+            throw new InvalidAdmissionCandidateRequestException("입학 학과의 활성 지도교수를 선택하세요.");
+        List<String> changedFields = new ArrayList<>(changedFields(
                 candidate, targetName, targetBirthDate, targetEmail, targetPhoneNumber,
                 targetAddress, targetDepartment, targetAdmissionYear
-        );
+        ));
+        if(!Objects.equals(candidate.getAdvisorProfessorId(),advisorId))changedFields.add("advisorProfessorId");
         if (changedFields.isEmpty()) {
             return AdmissionCandidateDetailResponseDTO.from(candidate);
         }
@@ -241,6 +236,7 @@ public class AdmissionCandidateService {
         }
 
         Map<String, Object> beforeValue = auditSnapshot(candidate, changedFields);
+        candidate.assignAdvisor(advisorId);
         candidate.update(
                 targetName,
                 targetBirthDate,
@@ -276,19 +272,15 @@ public class AdmissionCandidateService {
         validateAdmin(currentUser);
         validateStatusRequest(request);
 
-        AdmissionCandidate candidate = findCandidate(candidateId);
+        AdmissionCandidate candidate = admissionCandidateRepository.findByIdForUpdate(candidateId).orElseThrow(AdmissionCandidateNotFoundException::new);
         AdmissionCandidateStatus targetStatus = request.status();
-        if (targetStatus != AdmissionCandidateStatus.CONFIRMED
-                && targetStatus != AdmissionCandidateStatus.CANCELLED) {
+        if (targetStatus != AdmissionCandidateStatus.CANCELLED) {
             throw new AdmissionCandidateStateConflictException(
-                    "관리자는 CONFIRMED 또는 CANCELLED 상태만 요청할 수 있습니다."
+                    "관리자는 등록 취소만 요청할 수 있습니다."
             );
         }
         if (candidate.getStatus() == targetStatus) {
             return AdmissionCandidateDetailResponseDTO.from(candidate);
-        }
-        if (targetStatus == AdmissionCandidateStatus.CONFIRMED) {
-            validateCandidateForConfirmation(candidate);
         }
 
         User administrator = findAdministrator(currentUser.id());

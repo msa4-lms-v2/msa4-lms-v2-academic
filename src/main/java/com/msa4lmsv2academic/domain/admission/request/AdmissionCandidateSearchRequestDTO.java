@@ -29,7 +29,7 @@ public record AdmissionCandidateSearchRequestDTO(
         @Min(value = 1900, message = "admissionYear는 1900 이상이어야 합니다.")
         Integer admissionYear,
 
-        @Schema(description = "등록 상태 정확 일치", example = "REGISTERED")
+        @Schema(description = "등록 상태 정확 일치", example = "PENDING")
         AdmissionCandidateStatus status,
 
         @Schema(description = "정렬 필드", example = "createdAt", defaultValue = "createdAt",

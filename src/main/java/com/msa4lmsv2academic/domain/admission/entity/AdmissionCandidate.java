@@ -90,6 +90,30 @@ public class AdmissionCandidate {
     @Column(nullable = false, length = 30)
     private AdmissionCandidateStatus status;
 
+    @Column(name = "advisor_professor_id")
+    private Long advisorProfessorId;
+    @Column(name = "tuition_bill_id", unique = true)
+    private Long tuitionBillId;
+    @Column(name = "tuition_paid", nullable = false)
+    private boolean tuitionPaid;
+    public void assignAdvisor(Long id) { advisorProfessorId = id; }
+    public boolean isEditable() { return status == AdmissionCandidateStatus.PENDING && tuitionBillId == null && student == null; }
+    public void bindTuitionBill(Long id) {
+        if (status != AdmissionCandidateStatus.PENDING || (tuitionBillId != null && !tuitionBillId.equals(id)))
+            throw new AdmissionCandidateStateConflictException("고지를 연결할 수 없는 입학 예정자입니다.");
+        tuitionBillId = id;
+    }
+    public boolean confirmTuitionPaid(Long id) {
+        if (status == AdmissionCandidateStatus.CANCELLED || !java.util.Objects.equals(tuitionBillId,id))
+            throw new AdmissionCandidateStateConflictException("입학 고지 또는 상태가 일치하지 않습니다.");
+        if (tuitionPaid) return false;
+        tuitionPaid = true; return true;
+    }
+    public void completeRegistration(Long accountId) {
+        if (!tuitionPaid || status == AdmissionCandidateStatus.CANCELLED || student == null || !student.getUser().getId().equals(accountId))
+            throw new AdmissionCandidateStateConflictException("완납과 계정·학생 연결이 확인되지 않았습니다.");
+        status = AdmissionCandidateStatus.COMPLETED; statusChangedAt = LocalDateTime.now();
+    }
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     private Student student;
@@ -123,7 +147,7 @@ public class AdmissionCandidate {
         this.address = address;
         this.department = department;
         this.admissionYear = admissionYear;
-        this.status = AdmissionCandidateStatus.PROVISIONING;
+        this.status = AdmissionCandidateStatus.PENDING;
         this.createdBy = createdBy;
     }
 
@@ -140,17 +164,17 @@ public class AdmissionCandidate {
         if (this.student != null && !this.student.getId().equals(student.getId())) {
             throw new AdmissionCandidateStateConflictException("이미 다른 학생 계정에 연결되어 있습니다.");
         }
-        if (status == AdmissionCandidateStatus.CANCELLED) {
+        if (status != AdmissionCandidateStatus.PENDING || !tuitionPaid) {
             throw new AdmissionCandidateStateConflictException("취소된 입학 예정자는 계정을 생성할 수 없습니다.");
         }
         this.student = student;
-        this.status = AdmissionCandidateStatus.PROVISIONED;
+        // Auth 활성화 통지를 받은 뒤 등록 완료로 전환한다.
         this.statusChangedAt = LocalDateTime.now();
     }
 
     public void cancelProvisioning(User administrator) {
-        if (status != AdmissionCandidateStatus.PROVISIONING || student != null) {
-            throw new AdmissionCandidateStateConflictException("계정 생성 중인 입학 예정자만 취소할 수 있습니다.");
+        if (status != AdmissionCandidateStatus.PENDING || tuitionPaid || student != null) {
+            throw new AdmissionCandidateStateConflictException("완납 전 입학 예정자만 취소할 수 있습니다. 납부 후에는 환불 절차를 이용하세요.");
         }
         status = AdmissionCandidateStatus.CANCELLED;
         statusChangedBy = administrator;
@@ -173,10 +197,7 @@ public class AdmissionCandidate {
         if (status == targetStatus) {
             return false;
         }
-        boolean allowed = status == AdmissionCandidateStatus.REGISTERED
-                && (targetStatus == AdmissionCandidateStatus.CONFIRMED
-                || targetStatus == AdmissionCandidateStatus.CANCELLED)
-                || status == AdmissionCandidateStatus.CONFIRMED
+        boolean allowed = status == AdmissionCandidateStatus.PENDING && !tuitionPaid && student == null
                 && targetStatus == AdmissionCandidateStatus.CANCELLED;
         if (!allowed) {
             throw new AdmissionCandidateStateConflictException(status, targetStatus);
@@ -188,9 +209,9 @@ public class AdmissionCandidate {
     }
 
     private void ensureRegistered() {
-        if (status != AdmissionCandidateStatus.REGISTERED) {
+        if (!isEditable()) {
             throw new AdmissionCandidateStateConflictException(
-                    "REGISTERED 상태의 입학 예정자만 인적사항을 수정할 수 있습니다."
+                    "고지 발급 전 등록 대기 상태에서만 수정할 수 있습니다."
             );
         }
     }

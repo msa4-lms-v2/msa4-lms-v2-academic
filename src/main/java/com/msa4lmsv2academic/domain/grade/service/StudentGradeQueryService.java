@@ -1,6 +1,8 @@
 package com.msa4lmsv2academic.domain.grade.service;
 
 import com.msa4lmsv2academic.domain.grade.entity.GradePointPolicy;
+import com.msa4lmsv2academic.domain.graduation.entity.GraduationCreditGradePolicy;
+import com.msa4lmsv2academic.domain.graduation.repository.GraduationCreditQueryRepository;
 import com.msa4lmsv2academic.domain.grade.repository.StudentGradeQueryRepository;
 import com.msa4lmsv2academic.domain.grade.repository.StudentGradeQueryResult;
 import com.msa4lmsv2academic.domain.grade.request.StudentGradeSearchRequestDTO;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudentGradeQueryService {
 
     private final StudentGradeQueryRepository queryRepository;
+    private final GraduationCreditQueryRepository creditQueryRepository;
 
     public StudentGradeResponseDTO getMyGrades(
             StudentGradeSearchRequestDTO request,
@@ -65,7 +68,7 @@ public class StudentGradeQueryService {
 
         return new StudentGradeResponseDTO(
                 total.gpa(),
-                total.credits(),
+                creditQueryRepository.sumTotalCreditsByStudentUserId(currentUser.id()),
                 query.gpa(),
                 query.credits(),
                 items
@@ -156,7 +159,8 @@ public class StudentGradeQueryService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new GradeSummary(
                 weightedPoints.divide(BigDecimal.valueOf(credits), 2, RoundingMode.HALF_UP),
-                credits
+                reflectedGrades.stream().filter(grade -> GraduationCreditGradePolicy.isPassing(grade.letterGrade()))
+                        .mapToInt(StudentGradeQueryResult::credits).sum()
         );
     }
 

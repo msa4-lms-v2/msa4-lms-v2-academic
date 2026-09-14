@@ -62,6 +62,8 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     @Autowired
     private com.msa4lmsv2academic.domain.provisioning.service.AccountProvisioningService provisioningService;
 
+    @Autowired private com.msa4lmsv2academic.domain.admission.service.AdmissionTuitionService tuitionService;
+
     private Department department;
     private Professor advisor;
 
@@ -105,7 +107,7 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$.data.email").value("minsu@test.com"))
                 .andExpect(jsonPath("$.data.departmentId").value(department.getId()))
                 .andExpect(jsonPath("$.data.admissionYear").value(ADMISSION_YEAR))
-                .andExpect(jsonPath("$.data.status").value("PROVISIONING"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.studentId").value(nullValue()));
 
         List<AuditLog> logs = auditLogRepository.findAll();
@@ -117,18 +119,18 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void pendingRegistrationCanBeRetriedThenCancelledThroughDetailActions() throws Exception {
+    void unpaidRegistrationCannotBeRetriedAndCanBeCancelled() throws Exception {
         long id = createCandidate("retry", "재시도", "retry@test.com");
         mockMvc.perform(post("/api/academic/admission-candidates/{id}/provisioning/retry", id)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PROVISIONING"));
+                .andExpect(status().isConflict());
         mockMvc.perform(post("/api/academic/admission-candidates/{id}/provisioning/cancel", id)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("CANCELLED"));
         entityManager.flush();
         entityManager.clear();
         var events = outboxEventRepository.lockAdmissionRequests(id);
-        assertThat(events).hasSize(2).allSatisfy(e -> assertThat(e.getLastErrorCode()).isEqualTo("CANCELLED_BY_ADMIN"));
+        assertThat(events).isEmpty();
         assertThat(outboxEventRepository.findAll()).anySatisfy(e -> {
             assertThat(e.getAggregateId()).isEqualTo(id);
             assertThat(e.getEventType()).isEqualTo("AdmissionCandidateCancelled");
@@ -148,8 +150,13 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void registrationQueuesAccountAndProvisioningLinksGeneratedStudent() throws Exception {
+    void onlyFullPaymentQueuesAccountAndActivationCompletesRegistration() throws Exception {
         long candidateId = createCandidate("queue", "자동등록", "automatic@test.com");
+        assertThat(outboxEventRepository.findAll()).noneMatch(e -> e.getEventType().equals("AdmissionCandidateRegistered") && e.getAggregateId().equals(candidateId));
+        tuitionService.bind(candidateId,500L);
+        tuitionService.paid(candidateId,500L);
+        tuitionService.paid(candidateId,500L);
+        assertThat(outboxEventRepository.lockAdmissionRequests(candidateId)).hasSize(1);
         var event = outboxEventRepository.findAll().stream()
                 .filter(e -> e.getEventType().equals("AdmissionCandidateRegistered") && e.getAggregateId().equals(candidateId))
                 .findFirst().orElseThrow();
@@ -161,14 +168,17 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                 .andExpect(status().isConflict());
         var response = provisioningService.provisionStudent(new com.msa4lmsv2academic.domain.provisioning.request.StudentProvisioningRequestDTO(
                 9001L, "자동등록", java.time.LocalDate.of(2008, 3, 15), "automatic@test.com",
-                null, null, department.getId(), (short) ADMISSION_YEAR, candidateId, null));
+                null, null, department.getId(), (short) ADMISSION_YEAR, candidateId, advisor.getId()));
         entityManager.flush();
         entityManager.clear();
         mockMvc.perform(get("/api/academic/admission-candidates/{candidateId}", candidateId).headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("PROVISIONED"))
+                .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.studentNumber").value(response.loginId()))
                 .andExpect(jsonPath("$.data.accountId").value(9001));
+        tuitionService.activated(candidateId,9001L);
+        tuitionService.activated(candidateId,9001L);
+        assertThat(admissionCandidateRepository.findById(candidateId).orElseThrow().getStatus()).isEqualTo(com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.COMPLETED);
         assertThat(response.loginId()).matches("[0-9]{8}");
     }
 
@@ -181,7 +191,7 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                         .queryParam("keyword", "")
                         .queryParam("departmentId", department.getId().toString())
                         .queryParam("admissionYear", String.valueOf(ADMISSION_YEAR))
-                        .queryParam("status", "PROVISIONING")
+                        .queryParam("status", "PENDING")
                         .queryParam("sortBy", "name")
                         .queryParam("sortDirection", "asc")
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN")))
@@ -199,10 +209,10 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
     }
 
     @Test
-    void registeredCandidateCanBePartiallyUpdatedWithoutReasonAndBlankOptionalValueClearsIt() throws Exception {
+    void pendingCandidateCanBeUpdatedWithoutReasonAndBlankPhoneClearsIt() throws Exception {
         long candidateId = createCandidate("APP-UPDATE-001", "수정전", "before@test.com");
         // 기존 REGISTERED 데이터의 수정 동작은 유지한다.
-        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.REGISTERED);
+        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PENDING);
         int auditCountBeforeUpdate = auditLogRepository.findAll().size();
 
         mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}", candidateId)
@@ -212,12 +222,12 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                         .content("""
                                 {
                                   "name": "수정후",
-                                  "email": ""
+                                  "phoneNumber": ""
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("수정후"))
-                .andExpect(jsonPath("$.data.email").value(nullValue()));
+                .andExpect(jsonPath("$.data.phoneNumber").value(nullValue()));
 
         List<AuditLog> logs = auditLogRepository.findAll();
         assertThat(logs).hasSize(auditCountBeforeUpdate + 1);
@@ -225,26 +235,26 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
         assertThat(updateLog.getAction()).isEqualTo("ADMISSION_CANDIDATE_UPDATE");
         assertThat(updateLog.getReason()).isNull();
         assertThat(updateLog.getAfterValue().get("changedFields").toString())
-                .contains("name", "email");
+                .contains("name");
         assertThat(updateLog.getAfterValue().toString()).doesNotContain("수정후", "before@test.com");
     }
 
     @Test
-    void statusChangeRequiresReasonAndConfirmedCandidateCannotBeEdited() throws Exception {
+    void cancellationIsIdempotentAndCancelledCandidateCannotBeEdited() throws Exception {
         long candidateId = createCandidate("APP-STATUS-001", "상태대상", null);
 
-        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.REGISTERED);
+        org.springframework.test.util.ReflectionTestUtils.setField(admissionCandidateRepository.findById(candidateId).orElseThrow(), "status", com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PENDING);
         mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}/status", candidateId)
                         .headers(gatewayHeaders(ADMIN_ID, "ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "status": "CONFIRMED",
+                                  "status": "CANCELLED",
                                   "reason": "합격 자료 검증 완료"
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.data.statusChangedBy").value(ADMIN_ID));
 
         int auditCountAfterConfirmation = auditLogRepository.findAll().size();
@@ -253,12 +263,12 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "status": "CONFIRMED",
+                                  "status": "CANCELLED",
                                   "reason": "동일 요청"
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("CONFIRMED"));
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"));
         assertThat(auditLogRepository.findAll()).hasSize(auditCountAfterConfirmation);
 
         mockMvc.perform(patch("/api/academic/admission-candidates/{candidateId}", candidateId)
@@ -285,7 +295,7 @@ class AdmissionCandidateControllerTest extends MySqlIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "status": "PROVISIONED",
+                                  "status": "COMPLETED",
                                   "reason": "관리자가 직접 프로비저닝 시도"
                                 }
                                 """))

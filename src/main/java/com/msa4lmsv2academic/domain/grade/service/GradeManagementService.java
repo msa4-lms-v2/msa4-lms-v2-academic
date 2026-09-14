@@ -51,7 +51,7 @@ public class GradeManagementService {
         Lecture lecture = lectureRepository.findSyllabusById(classId)
                 .orElseThrow(() -> new GradeManagementNotFoundException("강의를 찾을 수 없습니다."));
         validateOwnerOrAdmin(lecture, currentUser);
-        return GradeClassResponseDTO.from(lecture, gradeRepository.findActiveGrades(classId));
+        return GradeClassResponseDTO.from(lecture, gradeRepository.findActiveGrades(classId), gradeOperationPeriodService.getEntryWindow(lecture.getSemester().getId()));
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -123,7 +123,7 @@ public class GradeManagementService {
         }
         gradeRepository.flush();
         GlobalResponseDTO<GradeClassResponseDTO> response = GlobalResponseDTO.success(
-                GradeClassResponseDTO.from(lecture, enrollments)
+                GradeClassResponseDTO.from(lecture, enrollments, gradeOperationPeriodService.getEntryWindow(lecture.getSemester().getId()))
         );
         idempotencyService.complete(reserved, response);
         return response;
@@ -197,7 +197,7 @@ public class GradeManagementService {
 
         gradeRepository.flush();
         GlobalResponseDTO<GradeClassResponseDTO> response = GlobalResponseDTO.success(
-                GradeClassResponseDTO.from(lecture, enrollments)
+                GradeClassResponseDTO.from(lecture, enrollments, gradeOperationPeriodService.getEntryWindow(lecture.getSemester().getId()))
         );
         idempotencyService.complete(reserved, response);
         return response;
