@@ -53,8 +53,7 @@ class AccountProvisioningServiceTest {
         assertThat(AcademicNumberGenerator.generate((short) 2026, 99L, 9999L)).isEqualTo("26999999");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> AcademicNumberGenerator.generate((short) 2026, 100L, 1L))
                 .isInstanceOf(com.msa4lmsv2academic.global.error.InvalidAdmissionCandidateRequestException.class);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> AcademicNumberGenerator.generate((short) 2026, 1L, 10000L))
-                .isInstanceOf(com.msa4lmsv2academic.global.error.InvalidAdmissionCandidateRequestException.class);
+        assertThat(AcademicNumberGenerator.generate((short) 2026, 8L, 100005L)).isEqualTo("26080005");
     }
 
     @Test
@@ -68,12 +67,15 @@ class AccountProvisioningServiceTest {
             return professor;
         });
         var request = new com.msa4lmsv2academic.domain.provisioning.request.ProfessorProvisioningRequestDTO(
-                1001L, "김교수", "professor@example.com", null, null, 10L, (short) 2026);
+                1001L, "김교수", java.time.LocalDate.of(1980, 11, 3), "professor@example.com",
+                null, null, 10L, (short) 2026);
         var response = service.provisionProfessor(request);
         assertThat(response.loginId()).isEqualTo("p26100023");
         ArgumentCaptor<com.msa4lmsv2academic.domain.professor.entity.Professor> captor = ArgumentCaptor.forClass(com.msa4lmsv2academic.domain.professor.entity.Professor.class);
         verify(professorRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getProfessorNumber()).isEqualTo(response.loginId());
+        assertThat(captor.getValue().getBirthDate()).isEqualTo(java.time.LocalDate.of(1980, 11, 3));
+        assertThat(captor.getValue().getUser().getBirthDate()).isEqualTo(java.time.LocalDate.of(1980, 11, 3));
         when(professorRepository.findByUserId(1001L)).thenReturn(Optional.of(captor.getValue()));
         assertThat(service.provisionProfessor(request).loginId()).isEqualTo(response.loginId());
         verify(professorRepository, org.mockito.Mockito.times(1)).saveAndFlush(any());
@@ -85,6 +87,8 @@ class AccountProvisioningServiceTest {
         ReflectionTestUtils.setField(department, "id", 10L);
         var candidate = com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidate.create(
                 "김학생", java.time.LocalDate.of(2008, 3, 15), "student@example.com", null, null, department, (short) 2026, null);
+        candidate.assignAdvisor(15L);
+        candidate.bindTuitionBill(100L);candidate.confirmTuitionPaid(100L);
         var advisorUser = com.msa4lmsv2academic.domain.user.entity.User.provision(
                 2001L, "김교수", "advisor@example.com", null, null,
                 com.msa4lmsv2academic.domain.user.entity.UserRole.PROFESSOR);
@@ -98,10 +102,13 @@ class AccountProvisioningServiceTest {
             ReflectionTestUtils.setField(student, "id", 23L);
             return student;
         });
-        var request = new StudentProvisioningRequestDTO(1001L, "김학생", "student@example.com", null, null, 10L, (short) 2026, 7L, 15L);
+        var request = new StudentProvisioningRequestDTO(1001L, "김학생", java.time.LocalDate.of(2008, 3, 15),
+                "student@example.com", null, null, 10L, (short) 2026, 7L, 15L);
         assertThat(service.provisionStudent(request).loginId()).isEqualTo("26100023");
-        assertThat(candidate.getStatus()).isEqualTo(com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PROVISIONED);
+        assertThat(candidate.getStatus()).isEqualTo(com.msa4lmsv2academic.domain.admission.entity.AdmissionCandidateStatus.PENDING);
         assertThat(candidate.getStudent().getStudentNumber()).isEqualTo("26100023");
+        assertThat(candidate.getStudent().getBirthDate()).isEqualTo(java.time.LocalDate.of(2008, 3, 15));
+        assertThat(candidate.getStudent().getUser().getBirthDate()).isEqualTo(java.time.LocalDate.of(2008, 3, 15));
         assertThat(candidate.getStudent().getAdvisor()).isEqualTo(advisor);
         when(studentRepository.findByUserId(1001L)).thenReturn(Optional.of(candidate.getStudent()));
         assertThat(service.provisionStudent(request).loginId()).isEqualTo("26100023");

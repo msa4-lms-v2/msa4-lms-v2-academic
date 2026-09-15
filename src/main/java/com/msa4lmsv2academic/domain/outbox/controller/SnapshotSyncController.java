@@ -25,6 +25,10 @@ import io.swagger.v3.oas.annotations.Hidden;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.msa4lmsv2academic.global.security.CurrentUser;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -95,10 +99,15 @@ public class SnapshotSyncController {
 
     @Transactional(readOnly = true)
     @GetMapping("/api/academic/students/{studentId}/certificate-snapshot")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<GlobalResponseDTO<StudentCertificateEligibilityResponseDTO>> getStudentCertificateSnapshot(
-            @PathVariable Long studentId
+            @PathVariable Long studentId,
+            @AuthenticationPrincipal CurrentUser user
     ) {
         Student student = studentRepository.findById(studentId).orElseThrow(StudentNotFoundException::new);
+        if (!student.getUser().getId().equals(user.id())) {
+            throw new AccessDeniedException("학생 본인의 증명서 자격만 조회할 수 있습니다.");
+        }
 
         // 졸업요건이 아직 등록되지 않은 학과·입학년도면 졸업증명서 발급 판단에만 영향을 준다 - 재학증명서 발급은 이 값 없이도
         // 가능해야 하므로 전체 요청을 실패시키지 않는다. diagnoseIfAvailable()은 이 "값 없음"을 예외 대신 Optional.empty()로

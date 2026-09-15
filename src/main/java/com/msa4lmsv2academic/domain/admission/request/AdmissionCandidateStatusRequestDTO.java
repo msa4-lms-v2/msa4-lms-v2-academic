@@ -8,8 +8,8 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "입학 예정자 상태 변경 요청")
 public record AdmissionCandidateStatusRequestDTO(
-        @Schema(description = "관리자가 요청할 상태. CONFIRMED 또는 CANCELLED만 허용",
-                example = "CONFIRMED", allowableValues = {"CONFIRMED", "CANCELLED"},
+        @Schema(description = "관리자가 요청할 상태. 완납 전 CANCELLED만 허용",
+                example = "CANCELLED", allowableValues = {"CANCELLED"},
                 requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "status는 필수입니다.")
         AdmissionCandidateStatus status,

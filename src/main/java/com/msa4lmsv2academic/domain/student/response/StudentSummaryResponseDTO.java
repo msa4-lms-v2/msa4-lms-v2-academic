@@ -3,12 +3,16 @@ package com.msa4lmsv2academic.domain.student.response;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 
 @Schema(description = "권한 범위 내 학생 학적 요약")
 public record StudentSummaryResponseDTO(
         @Schema(description = "Student 엔티티 ID", example = "10") Long studentId,
         @Schema(description = "Auth accountId와 동일한 Academic 사용자 ID", example = "25") Long userId,
         @Schema(description = "학생 이름", example = "김학생") String name,
+        @Schema(description = "생년월일", example = "2005-02-22", nullable = true) LocalDate birthDate,
+        @Schema(description = "소속 단과대 ID", example = "2", nullable = true) Long collegeId,
+        @Schema(description = "소속 단과대명", example = "공과대학", nullable = true) String collegeName,
         @Schema(description = "소속 학과 ID", example = "3") Long departmentId,
         @Schema(description = "소속 학과명", example = "컴퓨터공학과") String departmentName,
         @Schema(description = "복수전공 학과 ID. 복수전공이 없는 경우 null", example = "12", nullable = true)
@@ -29,6 +33,9 @@ public record StudentSummaryResponseDTO(
                 student.getId(),
                 student.getUser().getId(),
                 student.getUser().getName(),
+                student.getBirthDate(),
+                student.getDepartment().getCollege() == null ? null : student.getDepartment().getCollege().getId(),
+                student.getDepartment().getCollege() == null ? null : student.getDepartment().getCollege().getName(),
                 student.getDepartment().getId(),
                 student.getDepartment().getName(),
                 student.getDoubleMajor() == null ? null : student.getDoubleMajor().getId(),

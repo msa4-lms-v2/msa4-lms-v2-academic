@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 @Schema(description = "입학 예정자 상세 정보")
 public record AdmissionCandidateDetailResponseDTO(
+        Long tuitionBillId, boolean tuitionPaid, boolean editable, Long advisorProfessorId,
         @Schema(description = "연결된 Auth 계정 ID", nullable = true) Long accountId,
         @Schema(description = "발급된 학번", nullable = true) String studentNumber,
         @Schema(description = "입학 예정자 ID", example = "15") Long id,
@@ -21,7 +22,7 @@ public record AdmissionCandidateDetailResponseDTO(
         @Schema(description = "학과 코드", example = "001") String departmentCode,
         @Schema(description = "학과명", example = "컴퓨터공학과") String departmentName,
         @Schema(description = "입학 예정 연도", example = "2027") short admissionYear,
-        @Schema(description = "등록 상태", example = "REGISTERED") AdmissionCandidateStatus status,
+        @Schema(description = "등록 상태", example = "PENDING") AdmissionCandidateStatus status,
         @Schema(description = "프로비저닝 완료 뒤 연결된 Academic 학생 ID", example = "20270001",
                 nullable = true) Long studentId,
         @Schema(description = "최초 등록 관리자 사용자 ID", example = "3") Long createdBy,
@@ -35,6 +36,7 @@ public record AdmissionCandidateDetailResponseDTO(
 
     public static AdmissionCandidateDetailResponseDTO from(AdmissionCandidate candidate) {
         return new AdmissionCandidateDetailResponseDTO(
+                candidate.getTuitionBillId(), candidate.isTuitionPaid(), candidate.isEditable(), candidate.getAdvisorProfessorId(),
                 candidate.getStudent() == null ? null : candidate.getStudent().getUser().getId(),
                 candidate.getStudent() == null ? null : candidate.getStudent().getStudentNumber(),
                 candidate.getId(),

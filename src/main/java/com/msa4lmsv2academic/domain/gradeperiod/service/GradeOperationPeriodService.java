@@ -38,6 +38,14 @@ public class GradeOperationPeriodService {
                 );
     }
 
+    public record EntryWindow(boolean allowed, LocalDate startDate, LocalDate endDate) {}
+
+    public EntryWindow getEntryWindow(Long semesterId) {
+        return gradeOperationPeriodRepository.findBySemesterIdAndOperationType(semesterId, GradeOperationType.GRADE_ENTRY)
+                .map(period -> new EntryWindow(period.accepts(LocalDate.now()), period.getStartDate(), period.getEndDate()))
+                .orElse(new EntryWindow(false, null, null));
+    }
+
     public void requireGradeEntryAllowed(Long semesterId) {
         requireAllowed(semesterId, GradeOperationType.GRADE_ENTRY, LocalDate.now());
     }

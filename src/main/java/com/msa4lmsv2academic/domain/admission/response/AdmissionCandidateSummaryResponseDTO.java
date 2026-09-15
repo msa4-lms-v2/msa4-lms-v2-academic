@@ -14,7 +14,7 @@ public record AdmissionCandidateSummaryResponseDTO(
         @Schema(description = "학과 ID", example = "1") Long departmentId,
         @Schema(description = "학과명", example = "컴퓨터공학과") String departmentName,
         @Schema(description = "입학 예정 연도", example = "2027") short admissionYear,
-        @Schema(description = "등록 상태", example = "REGISTERED") AdmissionCandidateStatus status,
+        @Schema(description = "등록 상태", example = "PENDING") AdmissionCandidateStatus status,
         @Schema(description = "등록 시각", example = "2026-08-21T15:00:00") LocalDateTime createdAt
 ) {
 

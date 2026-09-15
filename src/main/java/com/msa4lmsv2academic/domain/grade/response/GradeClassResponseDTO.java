@@ -14,9 +14,15 @@ public record GradeClassResponseDTO(
         int assignmentRatio,
         int attendanceRatio,
         int enrollmentCount,
+        com.msa4lmsv2academic.domain.gradeperiod.service.GradeOperationPeriodService.EntryWindow entryWindow,
         List<GradeItemResponseDTO> grades
 ) {
     public static GradeClassResponseDTO from(Lecture lecture, List<Enrollment> enrollments) {
+        return from(lecture, enrollments, null);
+    }
+
+    public static GradeClassResponseDTO from(Lecture lecture, List<Enrollment> enrollments,
+            com.msa4lmsv2academic.domain.gradeperiod.service.GradeOperationPeriodService.EntryWindow entryWindow) {
         return new GradeClassResponseDTO(
                 lecture.getId(),
                 lecture.getCourse().getCode(),
@@ -27,6 +33,7 @@ public record GradeClassResponseDTO(
                 lecture.getAssignmentRatio(),
                 lecture.getAttendanceRatio(),
                 enrollments.size(),
+                entryWindow,
                 enrollments.stream().map(GradeItemResponseDTO::from).toList()
         );
     }

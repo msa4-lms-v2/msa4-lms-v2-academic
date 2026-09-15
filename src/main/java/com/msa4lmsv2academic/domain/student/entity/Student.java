@@ -20,6 +20,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.util.Objects;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -68,6 +69,9 @@ public class Student {
     @Column(name = "student_number", length = 150)
     private String studentNumber;
 
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
@@ -90,9 +94,10 @@ public class Student {
     @JoinColumn(name = "advisor_id")
     private Professor advisor;
 
-    private Student(User user, Department department, byte gradeLevel, short admissionYear,
+    private Student(User user, LocalDate birthDate, Department department, byte gradeLevel, short admissionYear,
                     Professor advisor) {
         this.user = user;
+        this.birthDate = birthDate;
         this.department = department;
         this.gradeLevel = gradeLevel;
         this.admissionYear = admissionYear;
@@ -101,9 +106,14 @@ public class Student {
         this.snapshotVersion = 1L;
     }
 
+    public static Student create(User user, LocalDate birthDate, Department department, byte gradeLevel,
+                                 short admissionYear, Professor advisor) {
+        return new Student(user, birthDate, department, gradeLevel, admissionYear, advisor);
+    }
+
     public static Student create(User user, Department department, byte gradeLevel,
                                  short admissionYear, Professor advisor) {
-        return new Student(user, department, gradeLevel, admissionYear, advisor);
+        return create(user, null, department, gradeLevel, admissionYear, advisor);
     }
 
     public void changeAcademicStatus(AcademicStatus academicStatus) {

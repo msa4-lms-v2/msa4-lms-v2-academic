@@ -38,6 +38,12 @@ public class GraduationCreditQueryRepository {
 
     private final JPAQueryFactory jpaQueryFactory;
 
+    public int sumTotalCreditsByStudentUserId(Long userId) {
+        Long studentId = jpaQueryFactory.select(student.id).from(student)
+                .where(student.user.id.eq(userId)).fetchOne();
+        return studentId == null ? 0 : sumTotalCreditsByStudentId(studentId);
+    }
+
     public Optional<GraduationCreditDiagnosisQueryResult> findCreditDiagnosisByStudentId(Long studentId) {
         Tuple requirement = jpaQueryFactory
                 .select(
