@@ -22,7 +22,7 @@ public record CounselingResponseDTO(
 ) {
     public static CounselingResponseDTO from(Counseling counseling) {
         return new CounselingResponseDTO(
-                counseling.getId(), counseling.getStudent().getId(), studentNumber(counseling),
+                counseling.getId(), counseling.getStudent().getId(), counseling.getStudent().getStudentNumber(),
                 counseling.getStudent().getUser().getName(),
                 counseling.getStudent().getDepartment().getName(),
                 counseling.getProfessor().getId(), counseling.getProfessor().getUser().getName(),
@@ -31,11 +31,4 @@ public record CounselingResponseDTO(
         );
     }
 
-    private static String studentNumber(Counseling counseling) {
-        var student = counseling.getStudent();
-        return String.format("%02d%s%03d",
-                student.getAdmissionYear() % 100,
-                student.getDepartment().getCode(),
-                student.getId());
-    }
 }
