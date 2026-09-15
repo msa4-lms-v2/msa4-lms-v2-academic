@@ -62,9 +62,19 @@ class EnrollmentCartServiceTest {
         when(lecture.getStatus()).thenReturn(LectureStatus.OPEN);
         when(lecture.getSemester()).thenReturn(semester);
         when(queryRepository.findStudentByUserId(USER_ID)).thenReturn(Optional.of(student));
+        when(queryRepository.findStudentByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(student));
         when(queryRepository.findLecture(LECTURE_ID)).thenReturn(Optional.of(lecture));
         when(cartRepository.saveAndFlush(any(EnrollmentCart.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    @Test
+    void rejectsOverlappingCartScheduleBeforeSaving() {
+        openEnrollmentPeriod();
+        when(queryRepository.hasScheduleConflict(STUDENT_ID, LECTURE_ID)).thenReturn(true);
+        assertThatThrownBy(() -> service.add(new EnrollmentCartCreateRequestDTO(LECTURE_ID), currentUser))
+                .isInstanceOf(EnrollmentCartConflictException.class).hasMessageContaining("시간이 겹칩니다");
+        org.mockito.Mockito.verify(cartRepository, org.mockito.Mockito.never()).saveAndFlush(any(EnrollmentCart.class));
     }
 
     @Test

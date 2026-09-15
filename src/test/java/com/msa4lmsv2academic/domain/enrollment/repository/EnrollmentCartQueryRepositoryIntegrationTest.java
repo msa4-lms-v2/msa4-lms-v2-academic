@@ -58,6 +58,20 @@ class EnrollmentCartQueryRepositoryIntegrationTest extends MySqlIntegrationTest 
     }
 
     @Test
+    void detectsOverlapIncludingSharedBoundaryButAllowsOtherDaySemesterAndAdjacentPeriods() {
+        insertLecture(92803L, 92802L, 92801L, "02");
+        jdbcTemplate.update("INSERT INTO lecture_schedules (id, lecture_id, day_of_week, start_period, end_period) VALUES (92803, 92803, 'MON', 2, 3)");
+        assertThat(queryRepository.hasScheduleConflict(STUDENT_ID, 92803L)).isTrue();
+        jdbcTemplate.update("UPDATE lecture_schedules SET start_period=3, end_period=4 WHERE id=92803");
+        assertThat(queryRepository.hasScheduleConflict(STUDENT_ID, 92803L)).isFalse();
+        jdbcTemplate.update("UPDATE lecture_schedules SET day_of_week='TUE', start_period=1, end_period=2 WHERE id=92803");
+        assertThat(queryRepository.hasScheduleConflict(STUDENT_ID, 92803L)).isFalse();
+        jdbcTemplate.update("UPDATE lecture_schedules SET day_of_week='MON' WHERE id=92803");
+        jdbcTemplate.update("UPDATE lectures SET semester_id=92802 WHERE id=92803");
+        assertThat(queryRepository.hasScheduleConflict(STUDENT_ID, 92803L)).isFalse();
+    }
+
+    @Test
     void returnsFilteredItemsWithCreditsAndSchedulesForExpectedTimetable() {
         List<EnrollmentCartItemQueryResult> result = queryRepository.findByStudentUserId(
                 STUDENT_USER_ID,

@@ -8,8 +8,7 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "학과 등록 요청")
 public record DepartmentCreateRequestDTO(
-        @Schema(description = "학과 고유 코드(숫자 3자리, 학번/교번 생성 규칙에 쓰임)", example = "001")
-        @NotBlank(message = "code는 필수입니다.")
+        @Schema(description = "학과 고유 코드(생략하면 서버가 숫자 3자리로 자동 발급)", example = "001")
         @Pattern(regexp = "^\\d{3}$", message = "code는 숫자 3자리여야 합니다.")
         String code,
 
