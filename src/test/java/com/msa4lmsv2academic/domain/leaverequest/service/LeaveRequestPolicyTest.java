@@ -11,8 +11,10 @@ import org.junit.jupiter.api.Test;
 class LeaveRequestPolicyTest {
     private final LeaveRequestPolicy policy = new LeaveRequestPolicy();
 
-    @Test void generalLeaveAllowsLongDurationButNotSameOrEarlierTerm() {
-        assertThatCode(() -> policy.validateCreate(general((short) 32767, (byte) 2))).doesNotThrowAnyException();
+    @Test void generalLeaveRequiresExactlyNextSemester() {
+        assertThatCode(() -> policy.validateCreate(general((short) 2027, (byte) 1))).doesNotThrowAnyException();
+        assertThatThrownBy(() -> policy.validateCreate(general((short) 2027, (byte) 2)))
+                .isInstanceOf(InvalidLeaveRequestException.class);
         assertThatThrownBy(() -> policy.validateCreate(general((short) 2026, (byte) 2)))
                 .isInstanceOf(InvalidLeaveRequestException.class);
         assertThatThrownBy(() -> policy.validateCreate(general((short) 2026, (byte) 1)))
@@ -34,8 +36,10 @@ class LeaveRequestPolicyTest {
                 start, end, end.plusDays(1), end.plusDays(2), true);
         assertThat(period.accepts(start)).isTrue();
         assertThat(period.accepts(end)).isTrue();
-        assertThat(period.accepts(start.minusNanos(1))).isFalse();
-        assertThat(period.accepts(end.plusNanos(1))).isFalse();
+        assertThat(period.accepts(start.toLocalDate().atStartOfDay())).isTrue();
+        assertThat(period.accepts(end.toLocalDate().atTime(23, 59, 59))).isTrue();
+        assertThat(period.accepts(start.minusDays(1))).isFalse();
+        assertThat(period.accepts(end.plusDays(1))).isFalse();
         assertThat(period.allowsApproval(end)).isFalse();
         assertThat(period.allowsApproval(end.plusDays(1))).isTrue();
         assertThat(period.allowsApproval(end.plusDays(2))).isTrue();
@@ -56,7 +60,9 @@ class LeaveRequestPolicyTest {
     @Test void onlyExpectedAcademicStateIsAccepted() {
         for (var type : LeaveRequestType.values()) {
             for (var status : AcademicStatus.values()) {
-                if (status == (type.isLeave() ? AcademicStatus.ENROLLED : AcademicStatus.ON_LEAVE)) {
+                boolean allowed = status == (type.isLeave() ? AcademicStatus.ENROLLED : AcademicStatus.ON_LEAVE)
+                        || (type == LeaveRequestType.GENERAL_LEAVE && status == AcademicStatus.ON_LEAVE);
+                if (allowed) {
                     assertThatCode(() -> policy.validateAcademicStatus(status, type)).doesNotThrowAnyException();
                 } else {
                     assertThatThrownBy(() -> policy.validateAcademicStatus(status, type))

@@ -105,6 +105,8 @@ class LeaveRequestWorkflowIntegrationTest extends MySqlIntegrationTest {
 
     @Test void generalLeaveCreateReplayCancelAndReapplyPreserveOriginalAndFullReasons() {
         var first = create("lv-create");
+        assertThat(first.createdAt()).isCloseTo(LeaveRequestPolicy.now(),
+                org.assertj.core.api.Assertions.within(5, java.time.temporal.ChronoUnit.SECONDS));
         assertThat(first.status()).isEqualTo(LeaveRequestStatus.PENDING);
         assertThat(first.returnYear()).isEqualTo((short) 2091);
         assertThat(application.create(general(), List.of(), "lv-create", STUDENT, CONTEXT)).isEqualTo(first);
