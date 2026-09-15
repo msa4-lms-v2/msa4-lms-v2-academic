@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.test.context.support.WithMockUser;
+import com.msa4lmsv2academic.global.security.CurrentUser;
 
 // Deliberately NOT @Transactional - the whole point is to let the controller's own
 // @Transactional actually commit, which is exactly where UnexpectedRollbackException used to
@@ -41,8 +43,10 @@ class SnapshotSyncControllerCertificateSnapshotTest extends MySqlIntegrationTest
     }
 
     @Test
+    @WithMockUser(roles = "STUDENT")
     void certificateSnapshotCommitsCleanlyWhenGraduationRequirementIsMissing() {
-        assertThatCode(() -> snapshotSyncController.getStudentCertificateSnapshot(STUDENT_ID))
+        assertThatCode(() -> snapshotSyncController.getStudentCertificateSnapshot(STUDENT_ID,
+                new CurrentUser(STUDENT_USER_ID, "STUDENT")))
                 .doesNotThrowAnyException();
     }
 }

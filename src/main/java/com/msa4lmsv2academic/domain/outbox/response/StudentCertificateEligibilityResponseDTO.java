@@ -3,7 +3,7 @@ package com.msa4lmsv2academic.domain.outbox.response;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 
 // Payment의 학생 증명서(재학/졸업증명서) 발급이 필요로 하는 학적·졸업요건 정보를
-// 한 번의 내부 호출로 내려준다. SnapshotSyncController와 같은 인증 없는 시스템 경로로만 노출한다.
+// 한 번의 내부 호출로 내려준다. 인증된 학생 본인에게만 제공한다.
 public record StudentCertificateEligibilityResponseDTO(
         Long studentId,
         String studentNumber,
