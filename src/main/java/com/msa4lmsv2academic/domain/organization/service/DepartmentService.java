@@ -23,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +78,7 @@ public class DepartmentService {
 
     @Transactional
     public DepartmentResponseDTO createDepartment(DepartmentCreateRequestDTO request) {
-        String code = validateCode(request.code());
+        String code = request.code() == null ? allocateCode() : validateCode(request.code());
         String name = normalizeAndValidateName(request.name());
         College college = getActiveCollege(request.collegeId());
 
@@ -134,6 +136,16 @@ public class DepartmentService {
         if (departmentRepository.existsByCode(code)) {
             throw new DuplicateDepartmentException("이미 등록된 학과 코드입니다.");
         }
+    }
+
+    private String allocateCode() {
+        var usedCodes = departmentRepository.findAllForCodeAllocation().stream()
+                .map(Department::getCode).collect(Collectors.toSet());
+        for (int number = 1; number <= 999; number++) {
+            String code = String.format(Locale.ROOT, "%03d", number);
+            if (!usedCodes.contains(code)) return code;
+        }
+        throw new InvalidDepartmentRequestException("발급할 수 있는 학과 코드가 없습니다.");
     }
 
     private String validateCode(String rawCode) {

@@ -45,6 +45,14 @@ class DepartmentServiceTest extends MySqlIntegrationTest {
     }
 
     @Test
+    void createsDistinctAutomaticCodesWhenCodeIsOmitted() {
+        var first = departmentService.createDepartment(new DepartmentCreateRequestDTO(null, "자동 학과", engineering.getId(), true));
+        var second = departmentService.createDepartment(new DepartmentCreateRequestDTO(null, "다음 학과", engineering.getId(), true));
+        assertThat(first.code()).isEqualTo("001");
+        assertThat(second.code()).isEqualTo("002");
+    }
+
+    @Test
     void createDefaultsActiveAndKeepsThreeDigitCodeValue() {
         DepartmentResponseDTO created = departmentService.createDepartment(
                 new DepartmentCreateRequestDTO("100", " 컴퓨터공학과 ", engineering.getId(), null)

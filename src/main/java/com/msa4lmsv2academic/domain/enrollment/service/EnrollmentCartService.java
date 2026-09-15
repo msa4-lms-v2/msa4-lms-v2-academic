@@ -62,13 +62,17 @@ public class EnrollmentCartService {
     ) {
         validateStudent(currentUser);
         validateCreateRequest(request);
-        Student student = findStudent(currentUser.id());
+        Student student = queryRepository.findStudentByUserIdForUpdate(currentUser.id())
+                .orElseThrow(StudentNotFoundException::new);
         academicStatusValidator.validate(student.getAcademicStatus());
         Lecture lecture = queryRepository.findLecture(request.lectureId())
                 .orElseThrow(EnrollmentLectureNotFoundException::new);
         validateAddableLecture(lecture, LocalDateTime.now());
         if (queryRepository.existsByStudentAndLecture(student.getId(), lecture.getId())) {
             throw new EnrollmentCartConflictException("이미 장바구니에 담은 강의입니다.");
+        }
+        if (queryRepository.hasScheduleConflict(student.getId(), lecture.getId())) {
+            throw new EnrollmentCartConflictException("장바구니에 담긴 강의와 수업 시간이 겹칩니다.");
         }
 
         EnrollmentCart cart = EnrollmentCart.create(student, lecture, LocalDateTime.now());
