@@ -4,21 +4,18 @@ import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Getter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "academic_requests")
 public class LeaveRequest {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,10 +60,22 @@ public class LeaveRequest {
     @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     private List<LeaveRequestFile> files = new ArrayList<>();
-    @CreatedDate @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    @LastModifiedDate @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    // 휴복학 API와 지도교수 검토 시각의 KST 계약을 맞춘다.
+    @PrePersist
+    void initializeTimestamps() {
+        createdAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        updatedAt = createdAt;
+    }
+
+    @PreUpdate
+    void updateTimestamp() {
+        updatedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+    }
 
     public static LeaveRequest create(Student student,
                                       LeaveRequestType type,
