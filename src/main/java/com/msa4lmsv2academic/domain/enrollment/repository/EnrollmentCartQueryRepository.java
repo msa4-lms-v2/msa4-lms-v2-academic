@@ -11,6 +11,7 @@ import static com.msa4lmsv2academic.domain.student.entity.QStudent.student;
 
 import com.msa4lmsv2academic.domain.enrollment.entity.EnrollmentCart;
 import com.msa4lmsv2academic.domain.lecture.entity.Lecture;
+import com.msa4lmsv2academic.domain.lecture.entity.QLectureSchedule;
 import com.msa4lmsv2academic.domain.semester.entity.SemesterTerm;
 import com.msa4lmsv2academic.domain.student.entity.Student;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
@@ -32,6 +33,26 @@ import org.springframework.stereotype.Repository;
 public class EnrollmentCartQueryRepository {
 
     private final JPAQueryFactory jpaQueryFactory;
+
+    public Optional<Student> findStudentByUserIdForUpdate(Long userId) {
+        return Optional.ofNullable(jpaQueryFactory.selectFrom(student)
+                .where(student.user.id.eq(userId))
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne());
+    }
+
+    public boolean hasScheduleConflict(Long studentId, Long lectureId) {
+        var requested = new QLectureSchedule("requested");
+        return jpaQueryFactory.selectOne().from(enrollmentCart)
+                .join(enrollmentCart.lecture, lecture)
+                .join(lectureSchedule).on(lectureSchedule.lecture.id.eq(lecture.id))
+                .join(requested).on(requested.lecture.id.eq(lectureId))
+                .where(enrollmentCart.student.id.eq(studentId),
+                        lecture.semester.id.eq(requested.lecture.semester.id),
+                        lectureSchedule.dayOfWeek.eq(requested.dayOfWeek),
+                        lectureSchedule.startPeriod.loe(requested.endPeriod),
+                        lectureSchedule.endPeriod.goe(requested.startPeriod))
+                .fetchFirst() != null;
+    }
 
     public Optional<Student> findStudentByUserId(Long userId) {
         QUser studentUser = new QUser("studentUser");
