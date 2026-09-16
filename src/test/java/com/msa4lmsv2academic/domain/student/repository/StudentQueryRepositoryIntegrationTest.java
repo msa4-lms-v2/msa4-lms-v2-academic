@@ -21,6 +21,7 @@ import com.msa4lmsv2academic.support.MySqlIntegrationTest;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,23 @@ class StudentQueryRepositoryIntegrationTest extends MySqlIntegrationTest {
     private Professor professor;
     private Department professorDepartment;
     private Department otherDepartment;
+
+    @Test
+    void identitiesReturnOnlyRequestedStudentWithActualNumberAndName() {
+        Student target = student(9299L, "식별조회학생", otherDepartment, null,
+                AcademicStatus.WITHDRAWN, (byte) 4, (short) 2022);
+        target.assignStudentNumber("22019999");
+        entityManager.persist(target);
+        entityManager.flush();
+
+        var identities = studentQueryRepository.findIdentities(List.of(target.getId()));
+
+        assertThat(identities).hasSize(1);
+        assertThat(identities.getFirst().studentId()).isEqualTo(target.getId());
+        assertThat(identities.getFirst().studentNumber()).isEqualTo("22019999");
+        assertThat(identities.getFirst().name()).isEqualTo("식별조회학생");
+        assertThat(identities.getFirst().departmentName()).isEqualTo("경영학과");
+    }
 
     @BeforeEach
     void setUp() {

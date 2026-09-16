@@ -6,6 +6,9 @@ import com.msa4lmsv2academic.global.response.CustomResponseCode;
 import com.msa4lmsv2academic.domain.student.request.StudentSearchRequestDTO;
 import com.msa4lmsv2academic.domain.student.response.StudentProfileResponseDTO;
 import com.msa4lmsv2academic.domain.student.response.StudentSummaryResponseDTO;
+import com.msa4lmsv2academic.domain.student.response.StudentIdentityResponseDTO;
+import java.util.List;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.msa4lmsv2academic.domain.student.service.StudentDirectoryService;
 import com.msa4lmsv2academic.domain.student.service.StudentService;
 import com.msa4lmsv2academic.global.response.GlobalResponseDTO;
@@ -37,6 +40,18 @@ public class StudentController {
 
     private final StudentService studentService;
     private final StudentDirectoryService studentDirectoryService;
+
+    @Operation(summary = "관리자 학생 식별 정보 일괄 조회")
+    @GetMapping("/identities")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<GlobalResponseDTO<List<StudentIdentityResponseDTO>>> getIdentities(
+            @RequestParam List<Long> studentIds,
+            @Parameter(hidden = true) @AuthenticationPrincipal CurrentUser currentUser
+    ) {
+        return ResponseEntity.ok(GlobalResponseDTO.success(
+                studentDirectoryService.getIdentities(studentIds, currentUser)
+        ));
+    }
 
     @Operation(
             operationId = "searchStudents",

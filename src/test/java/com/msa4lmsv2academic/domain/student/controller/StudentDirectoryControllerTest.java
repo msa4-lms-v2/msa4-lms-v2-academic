@@ -33,6 +33,30 @@ class StudentDirectoryControllerTest extends MySqlIntegrationTest {
     @Autowired
     private EntityManager entityManager;
 
+    @Test
+    void onlyAdminCanLookUpStudentIdentities() throws Exception {
+        mockMvc.perform(get("/api/academic/students/identities")
+                        .queryParam("studentIds", "99999999")
+                        .headers(gatewayHeaders(9402L, "ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        mockMvc.perform(get("/api/academic/students/identities")
+                        .queryParam("studentIds", "99999999")
+                        .headers(gatewayHeaders(PROFESSOR_USER_ID, "PROFESSOR")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/academic/students/identities")
+                        .queryParam("studentIds", "99999999"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void identityLookupRejectsInvalidIdsAtHttpBoundary() throws Exception {
+        mockMvc.perform(get("/api/academic/students/identities")
+                        .queryParam("studentIds", "0,-1")
+                        .headers(gatewayHeaders(9402L, "ADMIN")))
+                .andExpect(status().isBadRequest());
+    }
+
     @BeforeEach
     void setUp() {
         Department department = Department.create("202", null, "컴퓨터공학과", true);
