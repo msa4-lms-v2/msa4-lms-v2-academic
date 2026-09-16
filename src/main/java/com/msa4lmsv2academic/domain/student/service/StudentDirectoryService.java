@@ -7,6 +7,7 @@ import com.msa4lmsv2academic.domain.student.repository.StudentSearchCondition;
 import com.msa4lmsv2academic.domain.student.repository.StudentSearchResult;
 import com.msa4lmsv2academic.domain.student.request.StudentSearchRequestDTO;
 import com.msa4lmsv2academic.domain.student.response.StudentSummaryResponseDTO;
+import com.msa4lmsv2academic.domain.student.response.StudentIdentityResponseDTO;
 import com.msa4lmsv2academic.global.error.InvalidStudentSearchRequestException;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
 import com.msa4lmsv2academic.global.error.StudentDirectoryAccessDeniedException;
@@ -28,6 +29,17 @@ public class StudentDirectoryService {
     private static final Set<String> SORT_FIELDS = Set.of("name", "gradeLevel", "admissionYear");
 
     private final StudentQueryRepository studentQueryRepository;
+
+    public List<StudentIdentityResponseDTO> getIdentities(List<Long> studentIds, CurrentUser currentUser) {
+        if (currentUser == null || !currentUser.isAdmin()) {
+            throw new StudentDirectoryAccessDeniedException("관리자만 학생 식별 정보를 조회할 수 있습니다.");
+        }
+        if (studentIds == null || studentIds.isEmpty() || studentIds.size() > 100
+                || studentIds.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new InvalidStudentSearchRequestException("학생 ID는 양수로 1개 이상 100개 이하를 지정해야 합니다.");
+        }
+        return studentQueryRepository.findIdentities(studentIds.stream().distinct().toList());
+    }
 
     public PageResponseDTO<StudentSummaryResponseDTO> searchStudents(StudentSearchRequestDTO request,
                                                                      CurrentUser currentUser) {

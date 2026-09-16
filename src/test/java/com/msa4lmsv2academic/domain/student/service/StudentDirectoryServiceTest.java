@@ -14,6 +14,8 @@ import com.msa4lmsv2academic.domain.student.repository.StudentSearchCondition;
 import com.msa4lmsv2academic.domain.student.repository.StudentSearchResult;
 import com.msa4lmsv2academic.domain.student.request.StudentSearchRequestDTO;
 import com.msa4lmsv2academic.global.error.ProfessorNotFoundException;
+import com.msa4lmsv2academic.global.error.InvalidStudentSearchRequestException;
+import com.msa4lmsv2academic.domain.student.response.StudentIdentityResponseDTO;
 import com.msa4lmsv2academic.global.error.StudentDirectoryAccessDeniedException;
 import com.msa4lmsv2academic.global.response.PageResponseDTO;
 import com.msa4lmsv2academic.global.security.CurrentUser;
@@ -34,6 +36,41 @@ class StudentDirectoryServiceTest {
 
     @InjectMocks
     private StudentDirectoryService studentDirectoryService;
+
+    @Test
+    void adminGetsActualStudentNumberForOnlyRequestedIds() {
+        var identity = new StudentIdentityResponseDTO(2200006L, "25010006", "테스트학생", "컴퓨터공학과");
+        when(studentQueryRepository.findIdentities(List.of(2200006L))).thenReturn(List.of(identity));
+
+        var result = studentDirectoryService.getIdentities(
+                List.of(2200006L, 2200006L), new CurrentUser(1L, "ADMIN"));
+
+        assertThat(result).containsExactly(identity);
+        assertThat(result.getFirst().studentNumber()).isNotEqualTo(result.getFirst().studentId().toString());
+    }
+
+    @Test
+    void identityLookupRejectsNonAdminsEvenWhenServiceIsCalledDirectly() {
+        for (String role : List.of("STUDENT", "PROFESSOR")) {
+            assertThatThrownBy(() -> studentDirectoryService.getIdentities(
+                    List.of(1L), new CurrentUser(2L, role)))
+                    .isInstanceOf(StudentDirectoryAccessDeniedException.class);
+        }
+        assertThatThrownBy(() -> studentDirectoryService.getIdentities(List.of(1L), null))
+                .isInstanceOf(StudentDirectoryAccessDeniedException.class);
+        verify(studentQueryRepository, never()).findIdentities(any());
+    }
+
+    @Test
+    void identityLookupRejectsUnboundedOrInvalidIds() {
+        var admin = new CurrentUser(1L, "ADMIN");
+        for (List<Long> ids : List.of(List.<Long>of(), List.of(0L), List.of(-1L),
+                java.util.Collections.nCopies(101, 1L))) {
+            assertThatThrownBy(() -> studentDirectoryService.getIdentities(ids, admin))
+                    .isInstanceOf(InvalidStudentSearchRequestException.class);
+        }
+        verify(studentQueryRepository, never()).findIdentities(any());
+    }
 
     @Test
     void professorSearchUsesResolvedScopeAndClampedPageCondition() {

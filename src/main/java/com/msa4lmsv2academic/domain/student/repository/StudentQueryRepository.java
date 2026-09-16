@@ -12,6 +12,8 @@ import com.msa4lmsv2academic.domain.organization.entity.QDepartment;
 import com.msa4lmsv2academic.domain.professor.entity.QProfessor;
 import com.msa4lmsv2academic.domain.student.entity.AcademicStatus;
 import com.msa4lmsv2academic.domain.student.entity.Student;
+import com.msa4lmsv2academic.domain.student.response.StudentIdentityResponseDTO;
+import com.querydsl.core.types.Projections;
 import com.msa4lmsv2academic.domain.user.entity.QUser;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
@@ -30,6 +32,15 @@ import org.springframework.stereotype.Repository;
 public class StudentQueryRepository {
 
     private final JPAQueryFactory jpaQueryFactory;
+
+    public List<StudentIdentityResponseDTO> findIdentities(List<Long> studentIds) {
+        return jpaQueryFactory
+                .select(Projections.constructor(StudentIdentityResponseDTO.class,
+                        student.id, student.studentNumber, student.user.name, student.department.name))
+                .from(student)
+                .where(student.id.in(studentIds))
+                .fetch();
+    }
 
     public Optional<ProfessorStudentScope> findProfessorScopeByUserId(Long userId) {
         Tuple result = jpaQueryFactory
